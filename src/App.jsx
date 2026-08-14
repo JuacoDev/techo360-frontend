@@ -1,8 +1,16 @@
-import Home from './pages/Home'
+import { useState } from 'react'
+import './Css/StyleComponents.css'
+import CabezaDeNavegacion from "./Components/CabezaDeNavegacion";
+import BarraBuscadora from "./Components/BarraBuscadora";
 
-// prueba CI/CD
 function App() {
-  return <Home />
+  return (
+    <>
+      <CabezaDeNavegacion />
+      <BarraBuscadora />
+    </>
+  );
 }
 
 export default App
+
