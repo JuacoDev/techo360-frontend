@@ -6,7 +6,7 @@ import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
 
 function Login({ onContinue, goToRegister, goToRecovery }) {
   const [showPassword, setShowPassword] = useState(false);
-
+  
   return (
     <div className="form-container login-container">
       <h2>Inicio de Sesión</h2> 
