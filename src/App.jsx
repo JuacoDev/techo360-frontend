@@ -1,8 +1,8 @@
 import { useState } from "react";
 import "./Css/StyleComponents.css";
 import "./Css/StyleInicioYRegistroCuenta.css";
-import CabezaDeNavegacion from "./Components/CabezaDeNavegacion";
-import BarraBuscadora from "./Components/BarraBuscadora";
+import CabezaDeNavegacion from "./components/CabezaDeNavegacion";
+import BarraBuscadora from "./components/BarraBuscadora";
 import ChatBot from "./components/Chatbot";
 import Registro from "./pages/InicioYRegistroCuenta/Registro.jsx";
 import Login from "./pages/InicioYRegistroCuenta/Login.jsx";
