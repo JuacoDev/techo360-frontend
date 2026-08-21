@@ -1,8 +1,42 @@
-import Home from './pages/Home'
+import { useState, useEffect } from "react";
+import "./Css/StyleComponents.css";
+import "./Css/StyleInicioYRegistroCuenta.css";
+import "./Css/StylePerfilUsuario.css";
+import CabezaDeNavegacion from "./components/CabezaDeNavegacion";
+import BarraBuscadora from "./components/BarraBuscadora";
+import ChatBot from "./components/Chatbot";
+import PantallaCarga from "./components/PantallaCarga";
+import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
+import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 
-// prueba CI/CD
 function App() {
-  return <Home />
+  const [screen, setScreen] = useState("login");
+
+  useEffect(() => {
+    if (screen === "loading") {
+      const timer = setTimeout(() => {
+        setScreen("app");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [screen]);
+
+  return (
+    <>
+      {screen === "loading" && <PantallaCarga />}
+      {screen === "perfil" && <PerfilUsuario setScreen={setScreen} />}
+      {screen === "app" && (
+        <>
+          <CabezaDeNavegacion setScreen={setScreen} />
+          <BarraBuscadora />
+          <ChatBot />
+        </>
+      )}
+      {screen !== "app" && screen !== "loading" && (
+        <AutenticarScreens screen={screen} setScreen={setScreen} />
+      )}
+    </>
+  );
 }
 
-export default App
+export default App;
