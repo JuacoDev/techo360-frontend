@@ -1,0 +1,77 @@
+/* 
+==================================
+StylePerfilUsuario Styles
+==================================
+*/
+
+.perfil-container {
+  display: flex;
+  flex-direction: column; /* ahora en columna */
+  align-items: center;
+  margin-top: 40px;
+  gap: 2px; /* separación mínima, como una línea */
+}
+
+.perfil-card, .informes-card {
+  background: #fff;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  width: 100%;
+  max-width: 900px;
+}
+
+.perfil-card {
+  display: flex;
+  gap: 40px;
+}
+
+.informes-card h3 {
+  margin-bottom: 15px;
+  color: #f57c00;
+}
+
+.informes-card p {
+  color: #555;
+  font-size: 14px;
+}
+
+.perfil-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.perfil-avatar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 3px solid #000000;
+  margin-bottom: 15px;
+}
+
+.perfil-nombre {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.perfil-right {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.perfil-right h3 {
+  margin-bottom: 20px;
+  color: #f57c00;
+}
+
+.perfil-right label {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+}

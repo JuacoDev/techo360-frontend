@@ -1,46 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./Css/StyleComponents.css";
 import "./Css/StyleInicioYRegistroCuenta.css";
+import "./Css/StylePerfilUsuario.css";
 import CabezaDeNavegacion from "./components/CabezaDeNavegacion";
 import BarraBuscadora from "./components/BarraBuscadora";
 import ChatBot from "./components/Chatbot";
-import Registro from "./pages/InicioYRegistroCuenta/Registro.jsx";
-import Login from "./pages/InicioYRegistroCuenta/Login.jsx";
-import RecuperacionDeContrasenaP1 from "./pages/InicioYRegistroCuenta/RecuperacionDeContrasenaP1.jsx";
-import RecuperacionDeContrasenaP2 from "./pages/InicioYRegistroCuenta/RecuperacionDeContrasenaP2.jsx";
+import PantallaCarga from "./components/PantallaCarga";
+import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
+import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 
 function App() {
-  const [screen, setScreen] = useState("login"); 
-  // valores posibles: "registro", "login", "app", "recuperacion1", "recuperacion2"
+  const [screen, setScreen] = useState("login");
+
+  useEffect(() => {
+    if (screen === "loading") {
+      const timer = setTimeout(() => {
+        setScreen("app");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [screen]);
 
   return (
     <>
-      {screen === "registro" && <Registro onContinue={() => setScreen("login")} />}
-      {screen === "login" && (
-        <Login 
-          onContinue={() => setScreen("app")} 
-          goToRegister={() => setScreen("registro")} 
-          goToRecovery={() => setScreen("recuperacion1")} 
-        />
-      )}
-      {screen === "recuperacion1" && (
-        <RecuperacionDeContrasenaP1 
-          onSendCode={() => setScreen("recuperacion2")} 
-          onBack={() => setScreen("login")} 
-        />
-      )}
-      {screen === "recuperacion2" && (
-        <RecuperacionDeContrasenaP2 
-          onChangePassword={() => setScreen("login")} 
-          onBack={() => setScreen("login")} 
-        />
-      )}
+      {screen === "loading" && <PantallaCarga />}
+      {screen === "perfil" && <PerfilUsuario setScreen={setScreen} />}
       {screen === "app" && (
         <>
-          <CabezaDeNavegacion />
+          <CabezaDeNavegacion setScreen={setScreen} />
           <BarraBuscadora />
           <ChatBot />
         </>
+      )}
+      {screen !== "app" && screen !== "loading" && (
+        <AutenticarScreens screen={screen} setScreen={setScreen} />
       )}
     </>
   );
