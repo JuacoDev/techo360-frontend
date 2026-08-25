@@ -1,4 +1,52 @@
-/* 
+/*
+==================================
+App and Map Styles
+==================================
+*/
+html,
+body,
+#app {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.app-shell {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.map-view {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+}
+
+.app-shell > .CabezaDeNavegacion,
+.app-shell > .BarraBuscadora,
+.app-shell > .panel-indicadores {
+  position: relative;
+  z-index: 2;
+}
+
+.app-shell > .CabezaDeNavegacion {
+  z-index: 4;
+}
+
+.app-shell > .panel-indicadores {
+  position: fixed;
+  top: 90px;
+  right: 24px;
+}
+
+/*
 ==================================
 CabezaDeNavegacion Styles
 ==================================
@@ -103,6 +151,88 @@ BarraBuscadora Styles
   text-decoration: underline;
 }
 
+/*
+==================================
+PanelIndicadores Styles
+==================================
+*/
+.panel-indicadores {
+  width: min(360px, calc(100vw - 48px));
+  min-height: 340px;
+  padding: 16px;
+  box-sizing: border-box;
+  background-color: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(51, 50, 48, 0.14);
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.panel-indicadores-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.panel-indicadores-header h2 {
+  margin: 0;
+  color: #333230;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panel-indicadores-actions {
+  display: flex;
+  gap: 12px;
+  color: #333230;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.panel-indicadores-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px 18px;
+}
+
+.indicador-placeholder {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1px dashed #f57c00;
+  border-radius: 10px;
+  background-color: rgba(245, 124, 0, 0.08);
+  color: #333230;
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .app-shell > .panel-indicadores {
+    top: auto;
+    right: 12px;
+    bottom: 96px;
+    left: 12px;
+  }
+
+  .panel-indicadores {
+    width: auto;
+    min-height: 0;
+  }
+
+  .panel-indicadores-grid {
+    gap: 12px;
+  }
+
+  .indicador-placeholder {
+    min-height: 52px;
+  }
+}
+
 /* 
 ==================================
 ChatBot Styles
@@ -113,6 +243,7 @@ ChatBot Styles
   position: fixed;
   bottom: 20px;
   left: 20px;
+  z-index: 3;
 }
 
 .ChatBot-icon {
