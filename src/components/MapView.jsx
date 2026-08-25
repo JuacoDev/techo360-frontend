@@ -1,15 +1,15 @@
 import { MapContainer, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// Coordenadas aproximadas del centro de Bucaramanga
-const BUCARAMANGA_CENTER = [7.1193, -73.1227]
+// Coordenadas aproximadas del centro geografico de Colombia
+const COLOMBIA_CENTER = [4.5709, -74.2973]
 
 function MapView() {
   return (
     <MapContainer
-      center={BUCARAMANGA_CENTER}
-      zoom={13}
-      style={{ height: '500px', width: '100%' }}
+      center={COLOMBIA_CENTER}
+      zoom={5}
+      className="map-view"
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
