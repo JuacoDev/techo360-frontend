@@ -5,7 +5,7 @@ import OjoAbiertoContrasena from "../../assets/OjoAbiertoContrasena.png";
 import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
 import { API_URL } from "../../services/api"
 
-function Login({ onContinue, goToRegister, goToRecovery, skipLogin }) {
+function Login({ onContinue, goToRegister, goToRecovery }) {
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState(""); // puede ser correo o usuario
   const [password, setPassword] = useState("");
