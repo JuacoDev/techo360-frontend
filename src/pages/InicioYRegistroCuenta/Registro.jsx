@@ -3,16 +3,44 @@ import "../../Css/StyleInicioYRegistroCuenta.css";
 import LogoGoogle from "../../assets/LogoGoogle.png";
 import OjoAbiertoContrasena from "../../assets/OjoAbiertoContrasena.png";
 import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
+import { API_URL } from "../../services/api";
 
 function Registro({ onContinue }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [username, setUsername] = useState("");   // 🔹 nuevo estado para usuario
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleRegister = async () => {
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: email, password, name: username }) // 🔹 enviamos usuario
+      });
+
+      if (response.status === 201) {
+        onContinue(); // vuelve al login
+      } else {
+        setError("Error al registrar usuario");
+      }
+    } catch (err) {
+      setError("Error de conexión con el servidor");
+    }
+  };
 
   return (
     <div className="form-container">
       <h2>Registro de Cuenta</h2>
 
-      {/* Botón con logo de Google */}
       <button className="google-btn">
         <img src={LogoGoogle} alt="Google" className="google-logo" />
         Registrarse con Google
@@ -20,13 +48,27 @@ function Registro({ onContinue }) {
 
       <p style={{textAlign:"center", margin:"10px 0"}}>O registrarte con tu E-mail</p>
 
-      <input type="email" placeholder="E-mail" />
+      {/* 🔹 Campo de usuario */}
+      <input 
+        type="text" 
+        placeholder="Usuario" 
+        value={username}
+        onChange={e => setUsername(e.target.value)}
+      />
 
-      {/* Contraseña */}
+      <input 
+        type="email" 
+        placeholder="E-mail" 
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+      />
+
       <div className="password-field">
         <input 
           type={showPassword ? "text" : "password"} 
           placeholder="Contraseña" 
+          value={password}
+          onChange={e => setPassword(e.target.value)}
         />
         <img 
           src={showPassword ? OjoAbiertoContrasena : OjoCerradoContrasena} 
@@ -36,11 +78,12 @@ function Registro({ onContinue }) {
         />
       </div>
 
-      {/* Confirmar contraseña */}
       <div className="password-field">
         <input 
           type={showConfirmPassword ? "text" : "password"} 
           placeholder="Confirmar contraseña" 
+          value={confirmPassword}
+          onChange={e => setConfirmPassword(e.target.value)}
         />
         <img 
           src={showConfirmPassword ? OjoAbiertoContrasena : OjoCerradoContrasena} 
@@ -59,7 +102,9 @@ function Registro({ onContinue }) {
         Al dar clic en “Registrarse”, aceptas nuestros Términos de servicio, Política de privacidad y Uso de cookies.
       </p>
 
-      <button onClick={onContinue}>Registrarse</button>
+      <button onClick={handleRegister}>Registrarse</button>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
       <p className="form-footer">
         ¿Ya tienes una cuenta? <span onClick={onContinue}>Inicia sesión</span>

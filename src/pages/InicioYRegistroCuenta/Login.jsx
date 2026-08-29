@@ -3,33 +3,61 @@ import "../../Css/StyleInicioYRegistroCuenta.css";
 import LogoGoogle from "../../assets/LogoGoogle.png";
 import OjoAbiertoContrasena from "../../assets/OjoAbiertoContrasena.png";
 import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
+import { login } from "../../services/api";
 
 function Login({ onContinue, goToRegister, goToRecovery }) {
   const [showPassword, setShowPassword] = useState(false);
-  
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = async () => {
+    try {
+      const data = await login(identifier, password);
+
+      // Guardar token según "Recordarme"
+      if (document.getElementById("rememberLogin").checked) {
+        localStorage.setItem("token", data.access_token);
+      } else {
+        sessionStorage.setItem("token", data.access_token);
+      }
+
+      onContinue();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="form-container login-container">
-      <h2>Inicio de Sesión</h2> 
+      <h2>Inicio de Sesión</h2>
 
-      {/* Botón con logo de Google */}
       <button className="google-btn">
         <img src={LogoGoogle} alt="Google" className="google-logo" />
         Continuar con Google
       </button>
 
-      <p style={{textAlign:"center", margin:"10px 0"}}>O ingresa tu Email</p>
+      <p style={{ textAlign: "center", margin: "10px 0" }}>
+        O ingresa tu Correo o Usuario
+      </p>
 
-      <input type="email" placeholder="E-mail" />
+      <input
+        type="text"
+        placeholder="Correo o Usuario"
+        value={identifier}
+        onChange={(e) => setIdentifier(e.target.value)}
+      />
 
-      {/* Contraseña */}
       <div className="password-field">
-        <input 
-          type={showPassword ? "text" : "password"} 
-          placeholder="Contraseña" 
+        <input
+          type={showPassword ? "text" : "password"}
+          placeholder="Contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
-        <img 
-          src={showPassword ? OjoAbiertoContrasena : OjoCerradoContrasena} 
-          alt="Mostrar contraseña" 
+        <img
+          src={showPassword ? OjoAbiertoContrasena : OjoCerradoContrasena}
+          alt="Mostrar contraseña"
           className="eye-icon"
           onClick={() => setShowPassword(!showPassword)}
         />
@@ -37,16 +65,16 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
 
       <p className="form-footer">
         <span onClick={goToRecovery}>¿Olvidaste tu contraseña?</span>
-        </p>
-
-
+      </p>
 
       <div className="form-options">
         <input type="checkbox" id="rememberLogin" />
         <label htmlFor="rememberLogin">Recordarme</label>
       </div>
 
-      <button onClick={onContinue}>Iniciar Sesión</button>
+      <button onClick={handleLogin}>Iniciar Sesión</button>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
       <p className="form-footer">
         ¿No tienes una cuenta? <span onClick={goToRegister}>Regístrate</span>
