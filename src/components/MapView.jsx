@@ -6,13 +6,27 @@ import { API_URL } from '../services/api'
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
 
-// Mismo bounding box ya usado en techo360-backend/ingestion/run.py
-// (BBOX_COLOMBIA, respaldo geografico para INVIAS/OSM) -- se reutiliza
-// aqui para no inventar un segundo bbox de Colombia en el proyecto.
-// Formato original (sur, oeste, norte, este) = (-4.23, -79.0, 13.5, -66.8).
+// Ajustado a partir del bounding box real de los 34 departamentos que
+// ya devuelve el backend (GET /api/zonas?nivel=departamento). La
+// Colombia continental por si sola (Amazonas al sur, La Guajira/Punta
+// Gallinas al norte, ~12.46 N) cabria en un cuadro mas angosto -- pero
+// el pais tambien incluye San Andres/Providencia (departamento 88),
+// cuyo extremo real es 13.394 N y -81.732 W (verificado contra la
+// geometria real, no aproximado). Decision confirmada: el territorio
+// insular debe quedar dentro del mapa y ser alcanzable por pan, aunque
+// eso reintroduzca margen de mar de mas alrededor del continente --
+// se prefiere eso a dejar fuera una parte real del pais. Por eso el
+// norte vuelve a 13.5 (como el valor original, con margen sobre el
+// extremo real 13.394) y el oeste se amplia de -79.0 a -81.9 (con
+// margen sobre el extremo real -81.732) -- SOLO ampliar el norte sin
+// tocar el oeste no habria bastado: con maxBoundsViscosity=1.0 el pan
+// queda encerrado dentro de COLOMBIA_BOUNDS, y Providencia esta tan al
+// oeste como al norte, asi que igual habria quedado inalcanzable.
+// Verificado con Playwright que Colombia continental + insular caben
+// completas en viewport de escritorio (1280x800) y movil (375x667).
 const COLOMBIA_BOUNDS = [
-  [-4.23, -79.0], // suroeste
-  [13.5, -66.8],  // noreste
+  [-4.23, -81.9], // suroeste (cubre Amazonas y el oeste de Providencia)
+  [13.5, -66.8],  // noreste (cubre San Andres/Providencia y el este real)
 ]
 
 // Umbral de zoom para cambiar de capa: por debajo se ve departamentos,
@@ -22,16 +36,29 @@ const COLOMBIA_BOUNDS = [
 // natural, sin salto brusco perceptible.
 const ZOOM_UMBRAL_MUNICIPIOS = 9
 
-// Estilo neutro/uniforme para ambas capas -- SIN color por indicador a
-// proposito (esa parte es tarea aparte, no de este cambio). Es un objeto
-// estatico (mismo color de relleno para todos los poligonos, solo el
-// borde los distingue); el gancho para el choropleth por indicador es
-// reemplazar este valor por una funcion `(feature) => ({...})` en la
-// prop `style` de <GeoJSON> -- react-leaflet acepta ambas formas sin
-// ningun otro cambio de estructura en este componente.
-const ESTILO_NEUTRO = {
-  color: '#333333',
-  weight: 1,
+// Color de borde compartido por ambas capas -- SIN color de relleno por
+// indicador a proposito (esa parte es tarea aparte, no de este cambio).
+const COLOR_BORDE = '#1E3A8A'
+
+// Grosor de borde distinto por capa: en departamentos (34 poligonos
+// grandes) un borde un poco mas grueso los deja bien definidos; en
+// municipios (1,105 poligonos pequeños y adyacentes) el mismo grosor
+// saturaria visualmente el mapa, por eso es mas delgado.
+//
+// Objetos estaticos (mismo relleno neutro para todos los poligonos de
+// una capa, solo el borde los distingue); el gancho para el choropleth
+// por indicador (T-49) es reemplazar cada uno de estos valores por una
+// funcion `(feature) => ({...})` en la prop `style` del <GeoJSON>
+// correspondiente -- react-leaflet acepta ambas formas sin ningun otro
+// cambio de estructura en este componente.
+const ESTILO_DEPARTAMENTOS = {
+  color: COLOR_BORDE,
+  weight: 1.5,
+  fillOpacity: 0.05,
+}
+const ESTILO_MUNICIPIOS = {
+  color: COLOR_BORDE,
+  weight: 0.5,
   fillOpacity: 0.05,
 }
 
@@ -48,7 +75,7 @@ function ListenerDeZoom({ onZoomChange }) {
 function MapView() {
   const [municipios, setMunicipios] = useState(null)
   const [departamentos, setDepartamentos] = useState(null)
-  const [zoom, setZoom] = useState(5)
+  const [zoom, setZoom] = useState(6)
 
   useEffect(() => {
     fetch('/municipios_colombia.geojson')
@@ -79,7 +106,7 @@ function MapView() {
   return (
     <MapContainer
       center={COLOMBIA_CENTER}
-      zoom={5}
+      zoom={6}
       minZoom={5}
       maxZoom={12}
       maxBounds={COLOMBIA_BOUNDS}
@@ -98,10 +125,10 @@ function MapView() {
           la prop `data` de una instancia ya montada. */}
       {mostrarMunicipios
         ? municipios && (
-            <GeoJSON key="municipios" data={municipios} style={ESTILO_NEUTRO} />
+            <GeoJSON key="municipios" data={municipios} style={ESTILO_MUNICIPIOS} />
           )
         : departamentos && (
-            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_NEUTRO} />
+            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} />
           )}
     </MapContainer>
   )
