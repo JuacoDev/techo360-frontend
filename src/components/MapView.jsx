@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { API_URL } from '../services/api'
+import { API_URL, getToken, limpiarToken } from '../services/api'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -72,7 +72,7 @@ function ListenerDeZoom({ onZoomChange }) {
   return null
 }
 
-function MapView() {
+function MapView({ setScreen }) {
   const [municipios, setMunicipios] = useState(null)
   const [departamentos, setDepartamentos] = useState(null)
   const [zoom, setZoom] = useState(6)
@@ -92,14 +92,24 @@ function MapView() {
     // Cauca-Huila + Bogota D.C. derivado de sus municipios) sale directo
     // del backend -- 0.11 MB en total, no hace falta un GeoJSON estatico
     // aparte como el de municipios (confirmado en el diagnostico previo).
-    fetch(`${API_URL}/api/zonas?nivel=departamento`)
+    fetch(`${API_URL}/api/zonas?nivel=departamento`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
       .then((res) => {
+        if (res.status === 401) {
+          // Token invalido o expirado -- limpiar sesion y volver al login,
+          // mismo mecanismo de navegacion que CabezaDeNavegacion.jsx usa
+          // para "Cerrar Sesion" (setScreen("login")), no uno paralelo.
+          limpiarToken()
+          setScreen?.('login')
+          throw new Error('Sesion expirada')
+        }
         if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`)
         return res.json()
       })
       .then(setDepartamentos)
       .catch((err) => console.error('Error cargando limites de departamentos:', err))
-  }, [])
+  }, [setScreen])
 
   const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
 

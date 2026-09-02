@@ -4,6 +4,21 @@
 export const API_URL = import.meta.env.VITE_API_URL;
 
 // -------------------
+// Token guardado tras el login (localStorage si "Recordarme" estaba
+// marcado, sessionStorage si no -- ver Login.jsx) -- centralizado aqui
+// para no repetir la misma búsqueda en cada lugar que llama al backend
+// con sesión.
+// -------------------
+export function getToken() {
+  return localStorage.getItem("token") || sessionStorage.getItem("token");
+}
+
+export function limpiarToken() {
+  localStorage.removeItem("token");
+  sessionStorage.removeItem("token");
+}
+
+// -------------------
 // Login
 // -------------------
 export async function login(identifier, password) {
@@ -24,8 +39,7 @@ export async function login(identifier, password) {
 // Obtener usuario autenticado
 // -------------------
 export async function getCurrentUser() {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
+  const token = getToken();
 
   if (!token) {
     throw new Error("No hay sesión activa");
