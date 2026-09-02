@@ -29,7 +29,7 @@ function App() {
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} />}
       {screen === "app" && (
         <main className="app-shell">
-          <MapView />
+          <MapView setScreen={setScreen} />
           <CabezaDeNavegacion setScreen={setScreen} />
           <BarraBuscadora />
           <PanelIndicadores />
