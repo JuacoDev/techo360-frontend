@@ -24,7 +24,11 @@ function Registro({ onContinue }) {
       const response = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo: email, password, name: username }) // 🔹 enviamos usuario
+        body: JSON.stringify({
+  correo: email,
+  namevar: username,
+  password: password
+}) // 🔹 enviamos usuario
       });
 
       if (response.status === 201) {
