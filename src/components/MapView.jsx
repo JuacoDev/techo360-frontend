@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { API_URL, getToken, limpiarToken } from '../services/api'
+import { getZonaInfo } from '../services/api'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -72,44 +73,67 @@ function ListenerDeZoom({ onZoomChange }) {
   return null
 }
 
-function MapView({ setScreen }) {
+function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
   const [municipios, setMunicipios] = useState(null)
   const [departamentos, setDepartamentos] = useState(null)
   const [zoom, setZoom] = useState(6)
 
   useEffect(() => {
+    console.log("Cargando municipios...");
     fetch('/municipios_colombia.geojson')
       .then((res) => {
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de municipios (${res.status})`)
-        return res.json()
+        console.log("Respuesta municipios:", res.status);
+        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de municipios (${res.status})`);
+        return res.json();
       })
-      .then(setMunicipios)
-      .catch((err) => console.error('Error cargando limites de municipios:', err))
-  }, [])
+      .then((data) => {
+        console.log("Municipios cargados:", data);
+        setMunicipios(data);
+      })
+      .catch((err) => console.error('Error cargando limites de municipios:', err));
+  }, []);
+
 
   useEffect(() => {
-    // Geometria de departamentos (34: los 32 reales + Area en Litigio
-    // Cauca-Huila + Bogota D.C. derivado de sus municipios) sale directo
-    // del backend -- 0.11 MB en total, no hace falta un GeoJSON estatico
-    // aparte como el de municipios (confirmado en el diagnostico previo).
+    const token = getToken();
+    console.log("Token actual:", token);
+
     fetch(`${API_URL}/api/zonas?nivel=departamento`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
+      headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
+        console.log("Respuesta departamentos:", res.status);
         if (res.status === 401) {
-          // Token invalido o expirado -- limpiar sesion y volver al login,
-          // mismo mecanismo de navegacion que CabezaDeNavegacion.jsx usa
-          // para "Cerrar Sesion" (setScreen("login")), no uno paralelo.
-          limpiarToken()
-          setScreen?.('login')
-          throw new Error('Sesion expirada')
+          console.error("Token inválido o expirado");
+          limpiarToken();
+          setScreen?.('login');
+          throw new Error('Sesion expirada');
         }
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`)
-        return res.json()
+        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`);
+        return res.json();
       })
-      .then(setDepartamentos)
-      .catch((err) => console.error('Error cargando limites de departamentos:', err))
-  }, [setScreen])
+      .then((data) => {
+        console.log("Departamentos cargados:", data);
+        setDepartamentos(data);
+      })
+      .catch((err) => console.error('Error cargando limites de departamentos:', err));
+  }, [setScreen]);
+
+
+  const manejarEventos = (feature, layer) => {
+  layer.on({
+    click: async () => {
+      try {
+        const datos = await getZonaInfo(feature.properties.codigo, mostrarMunicipios ? "municipio" : "departamento");
+        if (onZonaSeleccionada) {
+          onZonaSeleccionada(datos);
+        }
+      } catch (err) {
+        console.error("Error obteniendo datos de la zona:", err);
+      }
+    }
+  });
+};
 
   const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
 
@@ -122,7 +146,12 @@ function MapView({ setScreen }) {
       maxBounds={COLOMBIA_BOUNDS}
       maxBoundsViscosity={1.0}
       className="map-view"
+      whenReady={() => {                 
+        console.log("Mapa listo");
+        if (onMapLoaded) onMapLoaded();
+      }}
     >
+
       <ListenerDeZoom onZoomChange={setZoom} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -135,10 +164,10 @@ function MapView({ setScreen }) {
           la prop `data` de una instancia ya montada. */}
       {mostrarMunicipios
         ? municipios && (
-            <GeoJSON key="municipios" data={municipios} style={ESTILO_MUNICIPIOS} />
+            <GeoJSON key="municipios" data={municipios} style={ESTILO_MUNICIPIOS} onEachFeature={manejarEventos} />
           )
         : departamentos && (
-            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} />
+            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventos} />
           )}
     </MapContainer>
   )

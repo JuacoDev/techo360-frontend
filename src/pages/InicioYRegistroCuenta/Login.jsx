@@ -22,7 +22,7 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
         sessionStorage.setItem("token", data.access_token);
       }
 
-      onContinue();
+      onContinue("loading");
     } catch (err) {
       setError(err.message);
     }

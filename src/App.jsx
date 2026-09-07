@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import "./Css/StyleComponents.css";
 import "./Css/StyleInicioYRegistroCuenta.css";
 import "./Css/StylePerfilUsuario.css";
@@ -13,29 +13,41 @@ import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 
 function App() {
   const [screen, setScreen] = useState("login");
+  const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
 
-  useEffect(() => {
-    if (screen === "loading") {
-      const timer = setTimeout(() => {
-        setScreen("app");
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [screen]);
+  const handleMapLoaded = () => {
+    setScreen("app");
+  };
 
   return (
     <>
-      {screen === "loading" && <PantallaCarga />}
+      {screen === "loading" && (
+        <>
+          <PantallaCarga />
+          <MapView
+            setScreen={setScreen}
+            onMapLoaded={handleMapLoaded}
+            onZonaSeleccionada={setZonaSeleccionada}
+          />
+        </>
+      )}
+
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} />}
+
       {screen === "app" && (
         <main className="app-shell">
-          <MapView setScreen={setScreen} />
+          <MapView
+            setScreen={setScreen}
+            onMapLoaded={handleMapLoaded}
+            onZonaSeleccionada={setZonaSeleccionada}
+          />
           <CabezaDeNavegacion setScreen={setScreen} />
           <BarraBuscadora />
-          <PanelIndicadores />
+          <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
           <ChatBot />
         </main>
       )}
+
       {screen !== "app" && screen !== "loading" && (
         <AutenticarScreens screen={screen} setScreen={setScreen} />
       )}
