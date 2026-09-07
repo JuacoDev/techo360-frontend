@@ -73,19 +73,50 @@ function ListenerDeZoom({ onZoomChange }) {
 }
 
 function MapView({ setScreen }) {
-  const [municipios, setMunicipios] = useState(null)
+  const [zonas, setZonas] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
   const [departamentos, setDepartamentos] = useState(null)
   const [zoom, setZoom] = useState(6)
 
   useEffect(() => {
-    fetch('/municipios_colombia.geojson')
-      .then((res) => {
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de municipios (${res.status})`)
-        return res.json()
-      })
-      .then(setMunicipios)
-      .catch((err) => console.error('Error cargando limites de municipios:', err))
-  }, [])
+    const fetchZonas = async () => {
+      try {
+        setLoading(true)
+        // Obtenemos el token con la funcion centralizada getToken()
+        // que soporta tanto localStorage como sessionStorage
+        const token = getToken() 
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/zonas?nivel=municipio&anio=2024`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.status === 401) {
+          limpiarToken()
+          setScreen?.('login')
+          throw new Error('Sesión expirada')
+        }
+
+        if (!response.ok) {
+          throw new Error(`Error al cargar las zonas (${response.status})`)
+        }
+
+        const data = await response.json()
+        setZonas(data)
+      } catch (err) {
+        setError(err.message)
+        console.error('Error cargando límites de municipios:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchZonas()
+  }, [setScreen])
 
   useEffect(() => {
     // Geometria de departamentos (34: los 32 reales + Area en Litigio
@@ -114,33 +145,46 @@ function MapView({ setScreen }) {
   const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
 
   return (
-    <MapContainer
-      center={COLOMBIA_CENTER}
-      zoom={6}
-      minZoom={5}
-      maxZoom={12}
-      maxBounds={COLOMBIA_BOUNDS}
-      maxBoundsViscosity={1.0}
-      className="map-view"
-    >
-      <ListenerDeZoom onZoomChange={setZoom} />
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {/* Solo una capa montada a la vez, segun el zoom actual -- nunca
-          ambas juntas, para no duplicar hit-testing/renderizado. La
-          `key` distinta obliga a remontar el <GeoJSON> al cambiar de
-          capa: react-leaflet no actualiza la geometria si solo cambia
-          la prop `data` de una instancia ya montada. */}
-      {mostrarMunicipios
-        ? municipios && (
-            <GeoJSON key="municipios" data={municipios} style={ESTILO_MUNICIPIOS} />
-          )
-        : departamentos && (
-            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} />
-          )}
-    </MapContainer>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {loading && (
+        <div style={{ position: 'absolute', zIndex: 1000, top: 10, left: 10, background: 'white', padding: '5px 10px', borderRadius: '4px' }}>
+          Cargando zonas...
+        </div>
+      )}
+      {error && (
+        <div style={{ position: 'absolute', zIndex: 1000, top: 10, left: 10, background: '#ffebee', color: '#c62828', padding: '5px 10px', borderRadius: '4px' }}>
+          Error: {error}
+        </div>
+      )}
+      <MapContainer
+        center={COLOMBIA_CENTER}
+        zoom={6}
+        minZoom={5}
+        maxZoom={12}
+        maxBounds={COLOMBIA_BOUNDS}
+        maxBoundsViscosity={1.0}
+        className="map-view"
+        style={{ height: '100%', width: '100%' }}
+      >
+        <ListenerDeZoom onZoomChange={setZoom} />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {/* Solo una capa montada a la vez, segun el zoom actual -- nunca
+            ambas juntas, para no duplicar hit-testing/renderizado. La
+            `key` distinta obliga a remontar el <GeoJSON> al cambiar de
+            capa: react-leaflet no actualiza la geometria si solo cambia
+            la prop `data` de una instancia ya montada. */}
+        {mostrarMunicipios
+          ? zonas && (
+              <GeoJSON key="municipios" data={zonas} style={ESTILO_MUNICIPIOS} />
+            )
+          : departamentos && (
+              <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} />
+            )}
+      </MapContainer>
+    </div>
   )
 }
 
