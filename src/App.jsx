@@ -42,7 +42,7 @@ function App() {
             onZonaSeleccionada={setZonaSeleccionada}
           />
           <CabezaDeNavegacion setScreen={setScreen} />
-          <BarraBuscadora />
+          <BarraBuscadora onSeleccionarZona={setZonaSeleccionada} />
           <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
           <ChatBot />
         </main>

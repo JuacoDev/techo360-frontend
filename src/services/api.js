@@ -108,3 +108,34 @@ export async function getZonaDetalle(id) {
 
   return await response.json(); 
 }
+
+// -------------------
+// obtener lista de departamentos y municipios
+// -------------------
+export async function getDepartamentos() {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/api/zonas?nivel=departamento`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Error al obtener departamentos");
+  const data = await response.json();
+
+  return data.features.map(f => ({
+    codigo: f.properties.codigo,
+    nombre: f.properties.nombre
+  }));
+}
+
+export async function getMunicipios(anio = 2024) {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${anio}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Error al obtener municipios");
+  const data = await response.json();
+  return data.features.map(f => ({
+    codigo: f.properties.codigo,
+    nombre: f.properties.nombre
+  }));
+}
+
