@@ -24,14 +24,26 @@ function Registro({ onContinue }) {
       const response = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo: email, password, name: username }) // 🔹 enviamos usuario
+        body: JSON.stringify({
+        correo: email,
+        namevar: username,
+        password: password
+      }) // 🔹 enviamos usuario
       });
 
       if (response.status === 201) {
-        onContinue(); // vuelve al login
+        const data = await response.json();
+
+        // Guardar token en localStorage o sessionStorage
+        localStorage.setItem("token", data.access_token);
+
+        // Redirigir al dashboard o pantalla principal
+        onContinue("loading");
       } else {
-        setError("Error al registrar usuario");
+        const errorData = await response.json();
+        setError(errorData.detail || "Error al registrar usuario");
       }
+
     } catch (err) {
       setError("Error de conexión con el servidor");
     }
@@ -48,7 +60,7 @@ function Registro({ onContinue }) {
 
       <p style={{textAlign:"center", margin:"10px 0"}}>O registrarte con tu E-mail</p>
 
-      {/* 🔹 Campo de usuario */}
+      {/* Campo de usuario */}
       <input 
         type="text" 
         placeholder="Usuario" 

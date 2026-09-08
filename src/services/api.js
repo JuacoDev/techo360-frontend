@@ -57,18 +57,85 @@ export async function getCurrentUser() {
 }
 
 // -------------------
-// Registro de usuario (ejemplo)
+// Registro de usuario
 // -------------------
 export async function registerUser(data) {
-  const response = await fetch(`${API_URL}/usuarios/register`, {
+  const response = await fetch(`${API_URL}/auth/register`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(data),
   });
 
+  const result = await response.json();
+
   if (!response.ok) {
-    throw new Error("Error al registrar usuario");
+    throw new Error(result.detail || "Error al registrar usuario");
   }
 
-  return await response.json();
+  return result;
 }
+
+// -------------------------------------
+// Obtener información de una zona
+// -------------------------------------
+export async function getZonaInfo(codigo, nivel = "municipio", anio = 2024) {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/api/zonas?nivel=${nivel}&anio=${anio}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener información de la zona");
+  }
+
+  const data = await response.json();
+  // Buscar la zona por código dentro del FeatureCollection
+  const feature = data.features.find(f => f.properties.codigo === codigo);
+  return feature ? feature.properties : null;
+}
+
+export async function getZonaDetalle(id) {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/api/zonas/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener detalle de la zona");
+  }
+
+  return await response.json(); 
+}
+
+// -------------------
+// obtener lista de departamentos y municipios
+// -------------------
+export async function getDepartamentos() {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/api/zonas?nivel=departamento`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Error al obtener departamentos");
+  const data = await response.json();
+
+  return data.features.map(f => ({
+    codigo: f.properties.codigo,
+    nombre: f.properties.nombre
+  }));
+}
+
+export async function getMunicipios(anio = 2024) {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${anio}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Error al obtener municipios");
+  const data = await response.json();
+  return data.features.map(f => ({
+    codigo: f.properties.codigo,
+    nombre: f.properties.nombre
+  }));
+}
+

@@ -1,19 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getDepartamentos, getMunicipios, getZonaInfo } from "../services/api";
 
-function BarraBuscadora() {
-  const departamentos = ["Antioquia", "Bogotá", "Nariño", "Santander", "Cundinamarca"];
-  const municipios = ["Medellín", "Cali", "Barranquilla", "Bucaramanga", "Pasto"];
-
+function BarraBuscadora({ onSeleccionarZona }) {
+  const [departamentos, setDepartamentos] = useState([]);
+  const [municipios, setMunicipios] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [mostrarDeptos, setMostrarDeptos] = useState(true);
   const [mostrarMunicipios, setMostrarMunicipios] = useState(true);
 
+  useEffect(() => {
+    async function cargarDatos() {
+      try {
+        const deptos = await getDepartamentos();
+        const munis = await getMunicipios();
+        setDepartamentos(deptos);
+        setMunicipios(munis);
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+      }
+    }
+    cargarDatos();
+  }, []);
+
   const resultadosDeptos = departamentos.filter(dep =>
-    dep.toLowerCase().includes(busqueda.toLowerCase())
+    dep.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
   const resultadosMunicipios = municipios.filter(mun =>
-    mun.toLowerCase().includes(busqueda.toLowerCase())
+    mun.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
+
+  async function manejarClick(codigo, nivel, nombre) {
+    try {
+      const zona = await getZonaInfo(codigo, nivel, 2024);
+      if (zona) {
+        onSeleccionarZona(zona);
+        setBusqueda(nombre);
+      }
+    } catch (error) {
+      console.error("Error obteniendo datos de la zona:", error);
+    }
+  }
 
   return (
     <div className="BarraBuscadora">
@@ -29,20 +55,14 @@ function BarraBuscadora() {
       {busqueda && (
         <>
           <div>
-            <h4 
-              onClick={() => setMostrarDeptos(!mostrarDeptos)} 
-              style={{cursor: "pointer"}}
-            >
+            <h4 onClick={() => setMostrarDeptos(!mostrarDeptos)} style={{cursor: "pointer"}}>
               Departamentos {mostrarDeptos ? "▼" : "▶"}
             </h4>
             {mostrarDeptos && (
               <ul className="BarraSugerencias">
-                {resultadosDeptos.map((dep, index) => (
-                  <li 
-                    key={index} 
-                    onClick={() => setBusqueda(dep)} 
-                  >
-                    {dep}
+                {resultadosDeptos.map((dep) => (
+                  <li key={dep.codigo} onClick={() => manejarClick(dep.codigo, "departamento", dep.nombre)}>
+                    {dep.nombre}
                   </li>
                 ))}
               </ul>
@@ -50,20 +70,14 @@ function BarraBuscadora() {
           </div>
 
           <div>
-            <h4 
-              onClick={() => setMostrarMunicipios(!mostrarMunicipios)} 
-              style={{cursor: "pointer"}}
-            >
+            <h4 onClick={() => setMostrarMunicipios(!mostrarMunicipios)} style={{cursor: "pointer"}}>
               Municipios {mostrarMunicipios ? "▼" : "▶"}
             </h4>
             {mostrarMunicipios && (
               <ul className="BarraSugerencias">
-                {resultadosMunicipios.map((mun, index) => (
-                  <li 
-                    key={index} 
-                    onClick={() => setBusqueda(mun)} 
-                  >
-                    {mun}
+                {resultadosMunicipios.map((mun) => (
+                  <li key={mun.codigo} onClick={() => manejarClick(mun.codigo, "municipio", mun.nombre)}>
+                    {mun.nombre}
                   </li>
                 ))}
               </ul>
