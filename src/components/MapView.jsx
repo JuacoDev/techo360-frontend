@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { API_URL, getToken, limpiarToken } from '../services/api'
-import { getZonaInfo } from '../services/api'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -76,6 +75,7 @@ function ListenerDeZoom({ onZoomChange }) {
 function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
   const [municipios, setMunicipios] = useState(null)
   const [departamentos, setDepartamentos] = useState(null)
+  const [datosMunicipios, setDatosMunicipios] = useState(null)
   const [zoom, setZoom] = useState(6)
 
   useEffect(() => {
@@ -120,16 +120,47 @@ function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
   }, [setScreen]);
 
 
+  // Indicadores de municipio (7 variables por zona) cargados UNA sola vez
+  // al montar -- mismo patron que el fetch de departamentos de arriba.
+  // El clic ya no dispara ninguna request: solo hace .find() sobre este
+  // state ya en memoria (ver manejarEventos abajo).
+  useEffect(() => {
+    const token = getToken();
+
+    fetch(`${API_URL}/api/zonas?nivel=municipio&anio=2024`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (res.status === 401) {
+          console.error("Token inválido o expirado");
+          limpiarToken();
+          setScreen?.('login');
+          throw new Error('Sesion expirada');
+        }
+        if (!res.ok) throw new Error(`No se pudo cargar los indicadores de municipios (${res.status})`);
+        return res.json();
+      })
+      .then((data) => {
+        setDatosMunicipios(data);
+      })
+      .catch((err) => console.error('Error cargando indicadores de municipios:', err));
+  }, [setScreen]);
+
+
   const manejarEventos = (feature, layer) => {
   layer.on({
-    click: async () => {
-      try {
-        const datos = await getZonaInfo(feature.properties.codigo, mostrarMunicipios ? "municipio" : "departamento");
+    click: () => {
+      if (mostrarMunicipios) {
+        const featureConIndicadores = datosMunicipios?.features.find(
+          f => f.properties.codigo === feature.properties.codigo
+        );
         if (onZonaSeleccionada) {
-          onZonaSeleccionada(datos);
+          onZonaSeleccionada(featureConIndicadores ? featureConIndicadores.properties : null);
         }
-      } catch (err) {
-        console.error("Error obteniendo datos de la zona:", err);
+      } else {
+        if (onZonaSeleccionada) {
+          onZonaSeleccionada(feature.properties);
+        }
       }
     }
   });

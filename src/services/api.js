@@ -96,19 +96,6 @@ export async function getZonaInfo(codigo, nivel = "municipio", anio = 2024) {
   return feature ? feature.properties : null;
 }
 
-export async function getZonaDetalle(id) {
-  const token = getToken();
-  const response = await fetch(`${API_URL}/api/zonas/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!response.ok) {
-    throw new Error("Error al obtener detalle de la zona");
-  }
-
-  return await response.json(); 
-}
-
 // -------------------
 // obtener lista de departamentos y municipios
 // -------------------
