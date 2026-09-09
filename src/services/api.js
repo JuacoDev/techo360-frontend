@@ -3,6 +3,14 @@
 // URL base del backend (se toma de tu .env.front)
 export const API_URL = import.meta.env.VITE_API_URL;
 
+// Año de los indicadores mostrados en toda la app -- sin selector de año
+// en la UI todavia, asi que este es el UNICO punto donde se fija. Cambiar
+// este valor (pendiente de decision -- depende de si se logra ingerir
+// 2024 completo o si se usa un año con mejor cobertura ya existente) es
+// lo unico que hace falta tocar; nada mas en el codigo debe tener el año
+// escrito literal.
+export const ANIO_INDICADORES = 2024;
+
 // -------------------
 // Token guardado tras el login (localStorage si "Recordarme" estaba
 // marcado, sessionStorage si no -- ver Login.jsx) -- centralizado aqui
@@ -80,7 +88,7 @@ export async function registerUser(data) {
 // -------------------------------------
 // Obtener información de una zona
 // -------------------------------------
-export async function getZonaInfo(codigo, nivel = "municipio", anio = 2024) {
+export async function getZonaInfo(codigo, nivel = "municipio", anio = ANIO_INDICADORES) {
   const token = getToken();
   const response = await fetch(`${API_URL}/api/zonas?nivel=${nivel}&anio=${anio}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -113,7 +121,7 @@ export async function getDepartamentos() {
   }));
 }
 
-export async function getMunicipios(anio = 2024) {
+export async function getMunicipios(anio = ANIO_INDICADORES) {
   const token = getToken();
   const response = await fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${anio}`, {
     headers: { Authorization: `Bearer ${token}` },

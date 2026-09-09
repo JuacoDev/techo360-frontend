@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getDepartamentos, getMunicipios, getZonaInfo } from "../services/api";
+import { getDepartamentos, getMunicipios, getZonaInfo, ANIO_INDICADORES } from "../services/api";
 
 function BarraBuscadora({ onSeleccionarZona }) {
   const [departamentos, setDepartamentos] = useState([]);
@@ -31,7 +31,7 @@ function BarraBuscadora({ onSeleccionarZona }) {
 
   async function manejarClick(codigo, nivel, nombre) {
     try {
-      const zona = await getZonaInfo(codigo, nivel, 2024);
+      const zona = await getZonaInfo(codigo, nivel, ANIO_INDICADORES);
       if (zona) {
         onSeleccionarZona(zona);
         setBusqueda(nombre);

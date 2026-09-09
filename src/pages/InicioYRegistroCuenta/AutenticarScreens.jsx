@@ -6,7 +6,12 @@ import RecuperacionDeContrasenaP2 from "./RecuperacionDeContrasenaP2.jsx";
 function AuthScreens({ screen, setScreen }) {
   switch (screen) {
     case "registro":
-      return <Registro onContinue={() => setScreen("loading")} />;
+      return (
+        <Registro
+          onContinue={() => setScreen("loading")}
+          goToLogin={() => setScreen("login")}
+        />
+      );
 
     case "login":
       return (

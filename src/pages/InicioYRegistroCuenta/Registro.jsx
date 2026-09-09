@@ -5,7 +5,7 @@ import OjoAbiertoContrasena from "../../assets/OjoAbiertoContrasena.png";
 import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
 import { API_URL } from "../../services/api";
 
-function Registro({ onContinue }) {
+function Registro({ onContinue, goToLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [username, setUsername] = useState("");   // 🔹 nuevo estado para usuario
@@ -53,12 +53,15 @@ function Registro({ onContinue }) {
     <div className="form-container">
       <h2>Registro de Cuenta</h2>
 
-      <button className="google-btn">
+      {/* Oculto para la entrega -- login con Google no esta en alcance
+          (fuera de PRIORIDAD 5-7 del sprint pre-entrega). No se elimina
+          para poder reactivarlo despues sin rehacer el componente. */}
+      <button className="google-btn" hidden>
         <img src={LogoGoogle} alt="Google" className="google-logo" />
         Registrarse con Google
       </button>
 
-      <p style={{textAlign:"center", margin:"10px 0"}}>O registrarte con tu E-mail</p>
+      <p style={{textAlign:"center", margin:"10px 0"}}>Regístrate con tu E-mail</p>
 
       {/* Campo de usuario */}
       <input 
@@ -119,7 +122,7 @@ function Registro({ onContinue }) {
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       <p className="form-footer">
-        ¿Ya tienes una cuenta? <span onClick={onContinue}>Inicia sesión</span>
+        ¿Ya tienes una cuenta? <span onClick={goToLogin}>Inicia sesión</span>
       </p>
     </div>
   );

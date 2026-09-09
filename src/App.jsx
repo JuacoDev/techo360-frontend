@@ -44,7 +44,11 @@ function App() {
           <CabezaDeNavegacion setScreen={setScreen} />
           <BarraBuscadora onSeleccionarZona={setZonaSeleccionada} />
           <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
-          <ChatBot />
+          {/* Oculto para la entrega -- el backend del chatbot no tiene
+              ninguna ruta de chat real todavia (solo /health), se veria
+              roto en vivo. No se elimina para reactivarlo cuando el
+              backend este listo. */}
+          {false && <ChatBot />}
         </main>
       )}
 

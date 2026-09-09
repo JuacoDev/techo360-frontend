@@ -32,13 +32,16 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
     <div className="form-container login-container">
       <h2>Inicio de Sesión</h2>
 
-      <button className="google-btn">
+      {/* Oculto para la entrega -- login con Google no esta en alcance.
+          No se elimina para poder reactivarlo despues sin rehacer el
+          componente. */}
+      <button className="google-btn" hidden>
         <img src={LogoGoogle} alt="Google" className="google-logo" />
         Continuar con Google
       </button>
 
       <p style={{ textAlign: "center", margin: "10px 0" }}>
-        O ingresa tu Correo o Usuario
+        Ingresa tu Correo o Usuario
       </p>
 
       <input
