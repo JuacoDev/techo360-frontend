@@ -36,16 +36,30 @@
   background-color: #f5f5f5;
 }
 
+/* El atributo HTML hidden por si solo pierde contra ".google-btn{display:flex}"
+   (misma capa de origen -- author vs author -- gana la regla mas especifica,
+   no el orden ni el atributo). Encontrado en vivo al verificar el rediseño
+   de Login/Registro: sin esto el boton "Continuar/Registrarse con Google"
+   se veia igual de visible que antes, pese a hidden en el JSX. */
+.google-btn[hidden] {
+  display: none;
+}
+
 .google-logo {
   width: 20px;
   height: 20px;
 }
 
-/* Inputs generales */
+/* Inputs generales -- 100% + border-box (no un ancho fijo en px) para que
+   quepan en el contenedor sin desbordarse sin importar el viewport. El
+   390px fijo original desbordaba el contenido de .form-container incluso
+   en desktop (400px de ancho - 25px*2 de padding = 350px disponibles);
+   se volvio visible al verificar el rediseño en mobile (375px). */
 .form-container input[type="email"],
 .form-container input[type="password"],
 .form-container input[type="text"] {
-  width: 390px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 10px;
   margin-bottom: 14px;
   border: 1px solid #ccc;
@@ -67,6 +81,7 @@
 
 .password-field input {
   width: 100%;
+  box-sizing: border-box;
   padding: 10px;
   padding-right: 30px; /* espacio para el icono */
   border: 1px solid #ccc;
