@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { API_URL, getToken, limpiarToken } from '../services/api'
+import { API_URL, getToken, limpiarToken, ANIO_INDICADORES } from '../services/api'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -127,7 +127,7 @@ function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
   useEffect(() => {
     const token = getToken();
 
-    fetch(`${API_URL}/api/zonas?nivel=municipio&anio=2024`, {
+    fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
