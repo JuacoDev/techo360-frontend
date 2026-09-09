@@ -153,21 +153,23 @@
 }
 
 /* ============================================
-   Pantalla dividida (Login / Registro): imagen a pantalla completa en
-   la columna izquierda, formulario centrado verticalmente en la derecha
-   sobre fondo gris claro. Solo Login/Registro usan .auth-screen -- las
-   pantallas de recuperacion (.recuperacion-container) no forman parte
-   de este rediseño y quedan igual que antes.
+   Pantalla con imagen a pantalla completa de fondo (Login / Registro):
+   la foto cubre TODO el viewport, y el formulario flota como tarjeta
+   redondeada pegada al borde derecho, centrada verticalmente. Solo
+   Login/Registro usan .auth-screen -- las pantallas de recuperacion
+   (.recuperacion-container) no forman parte de este rediseño y quedan
+   igual que antes.
    ============================================ */
 .auth-screen {
-  display: flex;
+  position: relative;
   min-height: 100vh;
   width: 100%;
+  overflow: hidden;
 }
 
 .auth-image-panel {
-  flex: 1 1 55%;
-  min-height: 100vh;
+  position: absolute;
+  inset: 0;
 }
 
 .auth-image-panel img {
@@ -178,21 +180,24 @@
 }
 
 .auth-form-panel {
-  flex: 1 1 45%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f5f5;
-  padding: 40px 20px;
+  position: absolute;
+  top: 50%;
+  right: 6%;
+  transform: translateY(-50%);
 }
 
-/* Dentro de la pantalla dividida el boton principal es oscuro/solido,
-   no el naranja usado en el resto de la app -- mas especifico que
-   ".form-container button" para no afectar recuperacion de contraseña
-   ni ningun otro uso de .form-container. */
+/* La tarjeta necesita su propia sombra (mas fuerte que la base de
+   .form-container) para separarse visualmente de la foto de fondo, y
+   mas radio de borde para leerse como "rectangulo redondeado" y no
+   solo una esquina suavizada. Dentro de la pantalla con imagen de
+   fondo el boton principal es oscuro/solido, no el naranja usado en
+   el resto de la app -- todo esto mas especifico que ".form-container"
+   para no afectar recuperacion de contraseña ni ningun otro uso de
+   la clase base. */
 .auth-form-panel .form-container {
-  box-shadow: none;
   margin: 0;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
 }
 
 .auth-form-panel .form-container button:not(.google-btn) {
@@ -204,21 +209,16 @@
 }
 
 @media (max-width: 768px) {
-  .auth-screen {
-    flex-direction: column;
-    min-height: auto;
-  }
-
-  .auth-image-panel {
-    flex: none;
-    min-height: 160px;
-    height: 160px;
-  }
-
   .auth-form-panel {
-    flex: none;
-    min-height: auto;
-    padding: 24px 16px;
+    right: 50%;
+    transform: translate(50%, -50%);
+    width: calc(100% - 32px);
+    max-width: 420px;
+  }
+
+  .auth-form-panel .form-container {
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 
