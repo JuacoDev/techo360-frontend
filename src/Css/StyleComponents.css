@@ -569,3 +569,17 @@ Panel Indicadores
   font-size: 12px;
   color: #666;
 }
+
+/* Tarjetas de indicadores proyectados (no medidos), ver PanelIndicadores.jsx
+   esProyeccion() -- borde punteado ambar para distinguirlas de un vistazo
+   de las 3 tarjetas con dato real, sin depender solo del texto. */
+.indicador-card-proyeccion {
+  border: 1px dashed #d97706;
+  background-color: #fffbeb;
+}
+
+.indicador-proyeccion-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+}
