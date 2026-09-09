@@ -192,19 +192,22 @@
    solo una esquina suavizada. Dentro de la pantalla con imagen de
    fondo el boton principal es oscuro/solido, no el naranja usado en
    el resto de la app -- todo esto mas especifico que ".form-container"
-   para no afectar recuperacion de contraseña ni ningun otro uso de
-   la clase base. */
+   para no afectar ningun otro uso de la clase base fuera de esta
+   pantalla. Aplica a Login, Registro y Recuperacion de contraseña por
+   igual (las 3 comparten .auth-screen); se excluye .btn-back (el
+   "Regresar" gris de Recuperacion) para mantener la distincion visual
+   entre accion primaria y secundaria. */
 .auth-form-panel .form-container {
   margin: 0;
   border-radius: 20px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.25);
 }
 
-.auth-form-panel .form-container button:not(.google-btn) {
+.auth-form-panel .form-container button:not(.google-btn):not(.btn-back) {
   background-color: #1a1a1a;
 }
 
-.auth-form-panel .form-container button:not(.google-btn):hover {
+.auth-form-panel .form-container button:not(.google-btn):not(.btn-back):hover {
   background-color: #000;
 }
 
@@ -243,6 +246,7 @@
 .recuperacion-container input[type="password"],
 .recuperacion-container input[type="text"] {
   width: 100%;
+  box-sizing: border-box;
   padding: 10px;
   margin-bottom: 12px;
   border: 1px solid #ccc;
@@ -262,7 +266,8 @@
 }
 
 .recuperacion-container .password-field input {
-  width: 90%;
+  width: 100%;
+  box-sizing: border-box;
   padding: 10px;
   padding-right: 30px;
   border: 1px solid #ccc;
@@ -273,7 +278,7 @@
 .recuperacion-container .eye-icon {
   position: absolute;
   right: 5px;
-  top: 4    0%;
+  top: 40%;
   transform: translateY(-50%);
   width: 22px;
   height: 22px;
