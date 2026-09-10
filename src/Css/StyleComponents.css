@@ -19,6 +19,7 @@ body {
   position: relative;
   width: 100%;
   min-height: 100vh;
+  overflow-y: auto;
 }
 
 .map-view {
@@ -103,7 +104,7 @@ CabezaDeNavegacion Styles
 }
 
 .CabezaDeNavegacion-profile img:hover {
-  transform: scale (1.1)
+  transform: scale (1.1);
 }
 /* 
 ==================================
@@ -112,7 +113,8 @@ BarraBuscadora Styles
 */
 
 .BarraBuscadora {
-  width: 280px;              
+  width: 90%;
+  max-width: 320px;              
   background-color: #fff;
   padding: 12px;
   border-radius: 8px;
@@ -120,6 +122,12 @@ BarraBuscadora Styles
   display: flex;
   flex-direction: column;    
   gap: 10px;                
+}
+.BarraBuscadora h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  text-align: center; 
 }
 
 .BarraInput {
@@ -154,6 +162,7 @@ BarraBuscadora Styles
   cursor: pointer;
   font-size: 14px;
   color: #333;
+  border-bottom: 1px solid #eee;
 }
 
 .BarraSugerencias li:hover {
@@ -169,15 +178,17 @@ PanelIndicadores Styles
 ==================================
 */
 .panel-indicadores {
-  width: min(360px, calc(100vw - 48px));
-  min-height: 340px;
-  padding: 16px;
-  box-sizing: border-box;
-  background-color: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(51, 50, 48, 0.14);
-  border-radius: 4px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  position: fixed;
+  top: 90px;
+  right: 24px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 2;
 }
+
 
 .panel-indicadores-header {
   display: flex;
@@ -523,11 +534,16 @@ Panel Indicadores
 */
 
 .panel-indicadores {
+  position: relative;   /* ✅ ya no fijo */
+  margin: 24px auto;    /* centrado con margen */
   padding: 16px;
   background-color: #ffffff;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-width: 360px;
+  z-index: 2;           /* ✅ encima del mapa */
 }
+
 
 .panel-titulo {
   margin-bottom: 16px;
