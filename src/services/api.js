@@ -86,6 +86,48 @@ export async function registerUser(data) {
 }
 
 // -------------------------------------
+// OTP (verificacion de correo -- registro y recuperacion de contraseña)
+// -------------------------------------
+export async function requestOtp(email, name = "") {
+  const response = await fetch(`${API_URL}/otp/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, name }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    // .status se usa en la UI para distinguir 400 (codigo/cooldown
+    // invalido) de 429 (rate limit) y mostrar un mensaje distinto en
+    // cada caso -- ver VerificarCodigoOTP.jsx.
+    const error = new Error(result.detail || "No se pudo enviar el código de verificación");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result; // { status, email }
+}
+
+export async function verifyOtp(email, code) {
+  const response = await fetch(`${API_URL}/otp/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(result.detail || "Código inválido");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result; // { status, email }
+}
+
+// -------------------------------------
 // Obtener información de una zona
 // -------------------------------------
 export async function getZonaInfo(codigo, nivel = "municipio", anio = ANIO_INDICADORES) {

@@ -4,9 +4,9 @@ import LogoGoogle from "../../assets/LogoGoogle.png";
 import OjoAbiertoContrasena from "../../assets/OjoAbiertoContrasena.png";
 import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
 import FondoLogin from "../../assets/FondoLogin.jpg";
-import { API_URL } from "../../services/api";
+import { requestOtp } from "../../services/api";
 
-function Registro({ onContinue, goToLogin }) {
+function Registro({ onCodigoEnviado, goToLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [username, setUsername] = useState("");
@@ -14,34 +14,31 @@ function Registro({ onContinue, goToLogin }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
 
   const handleRegister = async () => {
+    setError("");
+
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden");
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          correo: email,
-          namevar: username,
-          password: password
-        })
-      });
-
-      if (response.status === 201) {
-        const data = await response.json();
-        localStorage.setItem("token", data.access_token);
-        onContinue("loading");
-      } else {
-        const errorData = await response.json();
-        setError(errorData.detail || "Error al registrar usuario");
-      }
+      setEnviandoCodigo(true);
+      // La cuenta NO se crea aqui -- solo se pide el codigo de
+      // verificacion. El usuario recien se crea en
+      // VerificarCodigoOTP.jsx, despues de confirmar el codigo.
+      await requestOtp(email, username);
+      onCodigoEnviado({ username, email, password });
     } catch (err) {
-      setError("Error de conexión con el servidor");
+      if (err.status === 429) {
+        setError(err.message || "Espera antes de solicitar otro código.");
+      } else {
+        setError(err.message || "No se pudo enviar el código de verificación");
+      }
+    } finally {
+      setEnviandoCodigo(false);
     }
   };
 
@@ -120,7 +117,9 @@ function Registro({ onContinue, goToLogin }) {
             Al dar clic en “Registrarse”, aceptas nuestros Términos de servicio, Política de privacidad y Uso de cookies.
           </p>
 
-          <button type="submit">Registrarse</button>
+          <button type="submit" disabled={enviandoCodigo}>
+            {enviandoCodigo ? "Enviando código..." : "Registrarse"}
+          </button>
 
           {error && <p style={{ color: "red" }}>{error}</p>}
 

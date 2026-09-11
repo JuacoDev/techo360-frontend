@@ -99,11 +99,17 @@
   cursor: pointer;
 }
 
-/* Botones principales  #f57c00*/
+/* Botones principales -- SIN !important a proposito: la pantalla con
+   imagen de fondo (.auth-form-panel .form-container button, mas abajo)
+   necesita poder sobreescribir este color a negro solido via
+   especificidad normal. Un !important aqui le ganaria a esa regla mas
+   especifica y dejaria todos los botones de Login/Registro/OTP en
+   naranja en vez de negro (bug real, encontrado al verificar la nueva
+   pantalla de OTP). */
 .form-container button {
   width: 100%;
-  background-color: #f57c00 !important;
-  color: white !important;
+  background-color: #f57c00;
+  color: white;
   border: none;
   padding: 12px;
   border-radius: 6px;
