@@ -4,50 +4,47 @@ import LogoGoogle from "../../assets/LogoGoogle.png";
 import OjoAbiertoContrasena from "../../assets/OjoAbiertoContrasena.png";
 import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
 import FondoLogin from "../../assets/FondoLogin.jpg";
-import { API_URL } from "../../services/api";
+import { requestOtp } from "../../services/api";
 
-function Registro({ onContinue, goToLogin }) {
+function Registro({ onCodigoEnviado, goToLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [username, setUsername] = useState("");   // 🔹 nuevo estado para usuario
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
 
   const handleRegister = async () => {
+    setError("");
+
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden");
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-        correo: email,
-        namevar: username,
-        password: password
-      }) // 🔹 enviamos usuario
-      });
-
-      if (response.status === 201) {
-        const data = await response.json();
-
-        // Guardar token en localStorage o sessionStorage
-        localStorage.setItem("token", data.access_token);
-
-        // Redirigir al dashboard o pantalla principal
-        onContinue("loading");
-      } else {
-        const errorData = await response.json();
-        setError(errorData.detail || "Error al registrar usuario");
-      }
-
+      setEnviandoCodigo(true);
+      // La cuenta NO se crea aqui -- solo se pide el codigo de
+      // verificacion. El usuario recien se crea en
+      // VerificarCodigoOTP.jsx, despues de confirmar el codigo.
+      await requestOtp(email, username);
+      onCodigoEnviado({ username, email, password });
     } catch (err) {
-      setError("Error de conexión con el servidor");
+      if (err.status === 429) {
+        setError(err.message || "Espera antes de solicitar otro código.");
+      } else {
+        setError(err.message || "No se pudo enviar el código de verificación");
+      }
+    } finally {
+      setEnviandoCodigo(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await handleRegister();
   };
 
   return (
@@ -57,12 +54,9 @@ function Registro({ onContinue, goToLogin }) {
       </div>
 
       <div className="auth-form-panel">
-        <div className="form-container">
+        <form className="form-container" onSubmit={handleSubmit}>
           <h2>Registro de Cuenta</h2>
 
-          {/* Oculto para la entrega -- login con Google no esta en alcance
-              (fuera de PRIORIDAD 5-7 del sprint pre-entrega). No se elimina
-              para poder reactivarlo despues sin rehacer el componente. */}
           <button className="google-btn" hidden>
             <img src={LogoGoogle} alt="Google" className="google-logo" />
             Registrarse con Google
@@ -70,7 +64,6 @@ function Registro({ onContinue, goToLogin }) {
 
           <p style={{textAlign:"center", margin:"10px 0"}}>Regístrate con tu E-mail</p>
 
-          {/* Campo de usuario */}
           <input
             type="text"
             placeholder="Usuario"
@@ -124,14 +117,18 @@ function Registro({ onContinue, goToLogin }) {
             Al dar clic en “Registrarse”, aceptas nuestros Términos de servicio, Política de privacidad y Uso de cookies.
           </p>
 
-          <button onClick={handleRegister}>Registrarse</button>
+          <button type="submit" disabled={enviandoCodigo}>
+            {enviandoCodigo ? "Enviando código..." : "Registrarse"}
+          </button>
 
           {error && <p style={{ color: "red" }}>{error}</p>}
 
           <p className="form-footer">
-            ¿Ya tienes una cuenta? <span onClick={goToLogin}>Inicia sesión</span>
+            ¿Ya tienes una cuenta? <span className="register-link" onClick={goToLogin}>
+              Inicia sesión
+            </span>
           </p>
-        </div>
+        </form>
       </div>
     </div>
   );

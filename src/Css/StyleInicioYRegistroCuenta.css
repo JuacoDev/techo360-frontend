@@ -91,15 +91,21 @@
 
 .eye-icon {
   position: absolute;
-  right: 0px;
-  top: 40%;               
+  right: 10px;
+  top: 38%;               
   transform: translateY(-50%);
   width: 22px;
   height: 22px;
   cursor: pointer;
 }
 
-/* Botones principales */
+/* Botones principales -- SIN !important a proposito: la pantalla con
+   imagen de fondo (.auth-form-panel .form-container button, mas abajo)
+   necesita poder sobreescribir este color a negro solido via
+   especificidad normal. Un !important aqui le ganaria a esa regla mas
+   especifica y dejaria todos los botones de Login/Registro/OTP en
+   naranja en vez de negro (bug real, encontrado al verificar la nueva
+   pantalla de OTP). */
 .form-container button {
   width: 100%;
   background-color: #f57c00;
@@ -133,6 +139,24 @@
   text-align: center;
 }
 
+.forgot-link {
+  color: #000;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+}
+
+.register-link {
+  color: #000; 
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.register-link:hover {
+  text-decoration: underline;
+}
+/* 
 .form-footer a, .form-footer span {
   color: #f57c00;
   text-decoration: none;
@@ -143,6 +167,7 @@
 .form-footer a:hover, .form-footer span:hover {
   text-decoration: underline;
 }
+*/
 
 /* Nota de términos */
 .form-note {
@@ -161,13 +186,20 @@
    igual que antes.
    ============================================ */
 .auth-screen {
-  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative; 
   min-height: 100vh;
   width: 100%;
   overflow: hidden;
+  overflow-y: auto;
+  background-size: cover;
 }
 
 .auth-image-panel {
+  flex:1;
+  display: flex;
   position: absolute;
   inset: 0;
 }
@@ -180,6 +212,8 @@
 }
 
 .auth-form-panel {
+  width: 100%;
+  max-width: 420px;
   position: absolute;
   top: 50%;
   right: 6%;
@@ -200,6 +234,7 @@
 .auth-form-panel .form-container {
   margin: 0;
   border-radius: 20px;
+  padding: 20px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.25);
 }
 

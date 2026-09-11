@@ -12,11 +12,11 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  
   const handleLogin = async () => {
     try {
       const data = await login(identifier, password);
 
-      // Guardar token según "Recordarme"
       if (document.getElementById("rememberLogin").checked) {
         localStorage.setItem("token", data.access_token);
       } else {
@@ -29,6 +29,11 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await handleLogin();
+  };
+
   return (
     <div className="auth-screen">
       <div className="auth-image-panel">
@@ -36,12 +41,9 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
       </div>
 
       <div className="auth-form-panel">
-        <div className="form-container login-container">
+        <form className="form-container login-container" onSubmit={handleSubmit}>
           <h2>Inicio de Sesión</h2>
 
-          {/* Oculto para la entrega -- login con Google no esta en alcance.
-              No se elimina para poder reactivarlo despues sin rehacer el
-              componente. */}
           <button className="google-btn" hidden>
             <img src={LogoGoogle} alt="Google" className="google-logo" />
             Continuar con Google
@@ -73,7 +75,7 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
             />
           </div>
 
-          <p className="form-footer">
+          <p className="forgot-link">
             <span onClick={goToRecovery}>¿Olvidaste tu contraseña?</span>
           </p>
 
@@ -82,14 +84,16 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
             <label htmlFor="rememberLogin">Recordarme</label>
           </div>
 
-          <button onClick={handleLogin}>Iniciar Sesión</button>
+          <button type="submit">Iniciar Sesión</button>
 
           {error && <p style={{ color: "red" }}>{error}</p>}
 
           <p className="form-footer">
-            ¿No tienes una cuenta? <span onClick={goToRegister}>Regístrate</span>
+            ¿No tienes una cuenta? <span className="register-link" onClick={goToRegister}>
+              Regístrate
+            </span>
           </p>
-        </div>
+        </form>
       </div>
     </div>
   );
