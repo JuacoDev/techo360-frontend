@@ -72,27 +72,31 @@ function ListenerDeZoom({ onZoomChange }) {
   return null
 }
 
+// Funciones para el choropleth de municipios
+function getColor(score) {
+  if (score === null || score === undefined) return '#808080';
+  if (score >= 0.8) return '#b30000';
+  if (score >= 0.6) return '#e31a1c';
+  if (score >= 0.4) return '#fc4e2a';
+  if (score >= 0.2) return '#fd8d3c';
+  return '#ffeda0';
+}
+
+function styleFeature(feature) {
+  const score = feature.properties?.score_privacion;
+  return {
+    fillColor: getColor(score),
+    weight: 1,
+    opacity: 1,
+    color: '#ffffff',
+    fillOpacity: 0.75
+  };
+}
+
 function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
-  const [municipios, setMunicipios] = useState(null)
   const [departamentos, setDepartamentos] = useState(null)
   const [datosMunicipios, setDatosMunicipios] = useState(null)
   const [zoom, setZoom] = useState(6)
-
-  useEffect(() => {
-    console.log("Cargando municipios...");
-    fetch('/municipios_colombia.geojson')
-      .then((res) => {
-        console.log("Respuesta municipios:", res.status);
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de municipios (${res.status})`);
-        return res.json();
-      })
-      .then((data) => {
-        console.log("Municipios cargados:", data);
-        setMunicipios(data);
-      })
-      .catch((err) => console.error('Error cargando limites de municipios:', err));
-  }, []);
-
 
   useEffect(() => {
     const token = getToken();
@@ -194,8 +198,8 @@ function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
           capa: react-leaflet no actualiza la geometria si solo cambia
           la prop `data` de una instancia ya montada. */}
       {mostrarMunicipios
-        ? municipios && (
-            <GeoJSON key="municipios" data={municipios} style={ESTILO_MUNICIPIOS} onEachFeature={manejarEventos} />
+        ? datosMunicipios && (
+            <GeoJSON key="municipios" data={datosMunicipios} style={styleFeature} onEachFeature={manejarEventos} />
           )
         : departamentos && (
             <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventos} />
