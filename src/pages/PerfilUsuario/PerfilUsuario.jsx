@@ -4,7 +4,7 @@ import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import Input from "../../components/Input";
 import IconoPerfil from "../../assets/IconoPerfil.png";
 
-function PerfilUsuario({ setScreen }) {
+function PerfilUsuario({ setScreen, onLogout }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -12,15 +12,15 @@ function PerfilUsuario({ setScreen }) {
       .then(setUser)
       .catch(() => {
         alert("Sesión expirada, vuelve a iniciar sesión");
-        setScreen("login");
+        onLogout?.();
       });
-  }, [setScreen]);
+  }, [onLogout]);
 
   if (!user) return <p>Cargando...</p>;
 
   return (
     <>
-      <CabezaDeNavegacion setScreen={setScreen} />
+      <CabezaDeNavegacion setScreen={setScreen} onLogout={onLogout} />
 
       <div className="perfil-container">
         <div className="perfil-card">
