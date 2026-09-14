@@ -1,44 +1,33 @@
-import { useState, useEffect } from "react";
-import { getDepartamentos, getMunicipios, getZonaInfo, ANIO_INDICADORES } from "../services/api";
+import { useMemo, useState } from "react";
 
-function BarraBuscadora({ onSeleccionarZona }) {
-  const [departamentos, setDepartamentos] = useState([]);
-  const [municipios, setMunicipios] = useState([]);
+// departamentos y datosMunicipios ya fueron descargados una vez por App
+// (misma respuesta que ya usa MapView) -- este componente NO vuelve a
+// pedirlos ni hace ningun fetch al seleccionar un resultado: solo busca
+// dentro de los datos que ya llegaron por props.
+function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios }) {
   const [busqueda, setBusqueda] = useState("");
   const [mostrarDeptos, setMostrarDeptos] = useState(true);
   const [mostrarMunicipios, setMostrarMunicipios] = useState(true);
 
-  useEffect(() => {
-    async function cargarDatos() {
-      try {
-        const deptos = await getDepartamentos();
-        const munis = await getMunicipios();
-        setDepartamentos(deptos);
-        setMunicipios(munis);
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-      }
-    }
-    cargarDatos();
-  }, []);
+  const listaDepartamentos = useMemo(
+    () => departamentos?.features.map((f) => f.properties) ?? [],
+    [departamentos]
+  );
+  const listaMunicipios = useMemo(
+    () => datosMunicipios?.features.map((f) => f.properties) ?? [],
+    [datosMunicipios]
+  );
 
-  const resultadosDeptos = departamentos.filter(dep =>
+  const resultadosDeptos = listaDepartamentos.filter((dep) =>
     dep.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
-  const resultadosMunicipios = municipios.filter(mun =>
+  const resultadosMunicipios = listaMunicipios.filter((mun) =>
     mun.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  async function manejarClick(codigo, nivel, nombre) {
-    try {
-      const zona = await getZonaInfo(codigo, nivel, ANIO_INDICADORES);
-      if (zona) {
-        onSeleccionarZona(zona);
-        setBusqueda(nombre);
-      }
-    } catch (error) {
-      console.error("Error obteniendo datos de la zona:", error);
-    }
+  function manejarClick(zona) {
+    onSeleccionarZona(zona);
+    setBusqueda(zona.nombre);
   }
 
   return (
@@ -61,7 +50,7 @@ function BarraBuscadora({ onSeleccionarZona }) {
             {mostrarDeptos && (
               <ul className="BarraSugerencias">
                 {resultadosDeptos.map((dep) => (
-                  <li key={dep.codigo} onClick={() => manejarClick(dep.codigo, "departamento", dep.nombre)}>
+                  <li key={dep.codigo} onClick={() => manejarClick(dep)}>
                     {dep.nombre}
                   </li>
                 ))}
@@ -76,7 +65,7 @@ function BarraBuscadora({ onSeleccionarZona }) {
             {mostrarMunicipios && (
               <ul className="BarraSugerencias">
                 {resultadosMunicipios.map((mun) => (
-                  <li key={mun.codigo} onClick={() => manejarClick(mun.codigo, "municipio", mun.nombre)}>
+                  <li key={mun.codigo} onClick={() => manejarClick(mun)}>
                     {mun.nombre}
                   </li>
                 ))}

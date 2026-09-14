@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet'
+import { useCallback, useEffect, useState } from 'react'
+import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { API_URL, getToken, limpiarToken, ANIO_INDICADORES } from '../services/api'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -36,30 +36,30 @@ const COLOMBIA_BOUNDS = [
 // natural, sin salto brusco perceptible.
 const ZOOM_UMBRAL_MUNICIPIOS = 9
 
-// Color de borde compartido por ambas capas -- SIN color de relleno por
-// indicador a proposito (esa parte es tarea aparte, no de este cambio).
+// Color de borde compartido por ambas capas.
 const COLOR_BORDE = '#1E3A8A'
 
-// Grosor de borde distinto por capa: en departamentos (34 poligonos
-// grandes) un borde un poco mas grueso los deja bien definidos; en
-// municipios (1,105 poligonos pequeños y adyacentes) el mismo grosor
-// saturaria visualmente el mapa, por eso es mas delgado.
-//
-// Objetos estaticos (mismo relleno neutro para todos los poligonos de
-// una capa, solo el borde los distingue); el gancho para el choropleth
-// por indicador (T-49) es reemplazar cada uno de estos valores por una
-// funcion `(feature) => ({...})` en la prop `style` del <GeoJSON>
-// correspondiente -- react-leaflet acepta ambas formas sin ningun otro
-// cambio de estructura en este componente.
 const ESTILO_DEPARTAMENTOS = {
   color: COLOR_BORDE,
   weight: 1.5,
   fillOpacity: 0.05,
 }
-const ESTILO_MUNICIPIOS = {
-  color: COLOR_BORDE,
-  weight: 0.5,
-  fillOpacity: 0.05,
+
+// Opacidad de relleno normal de un municipio con el choropleth activo,
+// y opacidad reducida para el resto de municipios mientras hay uno
+// seleccionado (foco visual) -- valor bajo pero no nulo, para que el
+// color siga siendo visible de fondo sin competir con el seleccionado.
+const FILL_OPACITY_NORMAL = 0.75
+const FILL_OPACITY_ATENUADA = 0.18
+
+// Funciones para el choropleth de municipios
+function getColor(score) {
+  if (score === null || score === undefined) return '#808080';
+  if (score >= 0.8) return '#b30000';
+  if (score >= 0.6) return '#e31a1c';
+  if (score >= 0.4) return '#fc4e2a';
+  if (score >= 0.2) return '#fd8d3c';
+  return '#ffeda0';
 }
 
 // Componente sin render propio -- solo escucha el evento de zoom del
@@ -72,103 +72,104 @@ function ListenerDeZoom({ onZoomChange }) {
   return null
 }
 
-// Funciones para el choropleth de municipios
-function getColor(score) {
-  if (score === null || score === undefined) return '#808080';
-  if (score >= 0.8) return '#b30000';
-  if (score >= 0.6) return '#e31a1c';
-  if (score >= 0.4) return '#fc4e2a';
-  if (score >= 0.2) return '#fd8d3c';
-  return '#ffeda0';
+// Un clic sobre un poligono hace stopPropagation (ver manejarEventos de
+// cada capa), asi que el evento "click" del mapa solo llega aqui cuando
+// el clic fue sobre un area vacia -- exactamente el caso en el que hay
+// que soltar la seleccion actual.
+function ManejadorDeClicVacio({ onClicVacio }) {
+  useMapEvents({
+    click: () => onClicVacio?.(),
+  })
+  return null
 }
 
-function styleFeature(feature) {
-  const score = feature.properties?.score_privacion;
-  return {
-    fillColor: getColor(score),
-    weight: 1,
-    opacity: 1,
-    color: '#ffffff',
-    fillOpacity: 0.75
-  };
+// Centra/hace zoom hacia el municipio seleccionado, sin importar si la
+// seleccion vino de un clic en el mapa o del buscador -- mismo efecto en
+// ambos casos. No hace nada al deseleccionar (no se aleja el mapa solo).
+function ControladorDeFoco({ codigoSeleccionado, datosMunicipios }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!codigoSeleccionado || !datosMunicipios) return
+
+    const feature = datosMunicipios.features.find(
+      (f) => f.properties.codigo === codigoSeleccionado
+    )
+    if (!feature) return
+
+    const bounds = L.geoJSON(feature).getBounds()
+    if (bounds.isValid()) {
+      map.flyToBounds(bounds, {
+        maxZoom: Math.max(map.getZoom(), ZOOM_UMBRAL_MUNICIPIOS + 1),
+        duration: 0.75,
+      })
+    }
+  }, [codigoSeleccionado, datosMunicipios, map])
+
+  return null
 }
 
-function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
-  const [departamentos, setDepartamentos] = useState(null)
-  const [datosMunicipios, setDatosMunicipios] = useState(null)
+function MapView({
+  onMapLoaded,
+  onZonaSeleccionada,
+  departamentos,
+  datosMunicipios,
+  codigoSeleccionado,
+}) {
   const [zoom, setZoom] = useState(6)
 
-  useEffect(() => {
-    const token = getToken();
-    console.log("Token actual:", token);
-
-    fetch(`${API_URL}/api/zonas?nivel=departamento`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        console.log("Respuesta departamentos:", res.status);
-        if (res.status === 401) {
-          console.error("Token inválido o expirado");
-          limpiarToken();
-          setScreen?.('login');
-          throw new Error('Sesion expirada');
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`);
-        return res.json();
-      })
-      .then((data) => {
-        console.log("Departamentos cargados:", data);
-        setDepartamentos(data);
-      })
-      .catch((err) => console.error('Error cargando limites de departamentos:', err));
-  }, [setScreen]);
-
-
-  // Indicadores de municipio (7 variables por zona) cargados UNA sola vez
-  // al montar -- mismo patron que el fetch de departamentos de arriba.
-  // El clic ya no dispara ninguna request: solo hace .find() sobre este
-  // state ya en memoria (ver manejarEventos abajo).
-  useEffect(() => {
-    const token = getToken();
-
-    fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          console.error("Token inválido o expirado");
-          limpiarToken();
-          setScreen?.('login');
-          throw new Error('Sesion expirada');
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar los indicadores de municipios (${res.status})`);
-        return res.json();
-      })
-      .then((data) => {
-        setDatosMunicipios(data);
-      })
-      .catch((err) => console.error('Error cargando indicadores de municipios:', err));
-  }, [setScreen]);
-
-
-  const manejarEventos = (feature, layer) => {
-  layer.on({
-    click: () => {
-      if (mostrarMunicipios) {
-        const featureConIndicadores = datosMunicipios?.features.find(
-          f => f.properties.codigo === feature.properties.codigo
-        );
-        if (onZonaSeleccionada) {
-          onZonaSeleccionada(featureConIndicadores ? featureConIndicadores.properties : null);
-        }
-      } else {
-        if (onZonaSeleccionada) {
-          onZonaSeleccionada(feature.properties);
-        }
+  const estiloMunicipios = useCallback(
+    (feature) => {
+      const score = feature.properties?.score_privacion
+      const codigo = feature.properties?.codigo
+      const atenuado = Boolean(codigoSeleccionado) && codigo !== codigoSeleccionado
+      return {
+        fillColor: getColor(score),
+        weight: 1,
+        opacity: 1,
+        color: '#ffffff',
+        fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
       }
-    }
-  });
-};
+    },
+    [codigoSeleccionado]
+  )
+
+  // Tooltip liviano con solo el nombre (nada de score ni otras
+  // variables): se dispara en cada movimiento del mouse, asi que usamos
+  // el tooltip nativo de Leaflet (bindTooltip) en vez de estado de React,
+  // para no forzar un re-render en cada hover.
+  const manejarEventosMunicipio = useCallback(
+    (feature, layer) => {
+      layer.bindTooltip(feature.properties?.nombre ?? '', {
+        sticky: true,
+        direction: 'top',
+      })
+      layer.on({
+        click: (evento) => {
+          L.DomEvent.stopPropagation(evento)
+          const featureConIndicadores = datosMunicipios?.features.find(
+            (f) => f.properties.codigo === feature.properties.codigo
+          )
+          onZonaSeleccionada?.(
+            featureConIndicadores ? featureConIndicadores.properties : null
+          )
+        },
+      })
+    },
+    [datosMunicipios, onZonaSeleccionada]
+  )
+
+  const manejarEventosDepartamento = useCallback(
+    (feature, layer) => {
+      layer.on({
+        click: (evento) => {
+          L.DomEvent.stopPropagation(evento)
+          onZonaSeleccionada?.(feature.properties)
+        },
+      })
+    },
+    [onZonaSeleccionada]
+  )
 
   const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
 
@@ -181,13 +182,17 @@ function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
       maxBounds={COLOMBIA_BOUNDS}
       maxBoundsViscosity={1.0}
       className="map-view"
-      whenReady={() => {                 
-        console.log("Mapa listo");
+      whenReady={() => {
         if (onMapLoaded) onMapLoaded();
       }}
     >
 
       <ListenerDeZoom onZoomChange={setZoom} />
+      <ManejadorDeClicVacio onClicVacio={() => onZonaSeleccionada?.(null)} />
+      <ControladorDeFoco
+        codigoSeleccionado={codigoSeleccionado}
+        datosMunicipios={datosMunicipios}
+      />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -196,13 +201,16 @@ function MapView({ setScreen, onMapLoaded, onZonaSeleccionada }) {
           ambas juntas, para no duplicar hit-testing/renderizado. La
           `key` distinta obliga a remontar el <GeoJSON> al cambiar de
           capa: react-leaflet no actualiza la geometria si solo cambia
-          la prop `data` de una instancia ya montada. */}
+          la prop `data` de una instancia ya montada. Cambiar solo
+          `style` (ej. al seleccionar un municipio) SI actualiza sin
+          remontar, via layer.setStyle -- por eso codigoSeleccionado no
+          esta en la `key`. */}
       {mostrarMunicipios
         ? datosMunicipios && (
-            <GeoJSON key="municipios" data={datosMunicipios} style={styleFeature} onEachFeature={manejarEventos} />
+            <GeoJSON key="municipios" data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
           )
         : departamentos && (
-            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventos} />
+            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventosDepartamento} />
           )}
     </MapContainer>
   )

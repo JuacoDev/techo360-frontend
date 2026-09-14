@@ -42,6 +42,17 @@ function PanelIndicadores({ zonaSeleccionada }) {
         </h2>
       </div>
 
+      {zonaSeleccionada && "score_privacion" in zonaSeleccionada && (
+        <div className="panel-indicadores-score">
+          <strong className="indicador-nombre">Score de Privación</strong>
+          <p className="indicador-valor">
+            {zonaSeleccionada.score_privacion != null
+              ? zonaSeleccionada.score_privacion.toFixed(4)
+              : "Sin dato"}
+          </p>
+        </div>
+      )}
+
       <div className="panel-indicadores-grid">
         {zonaSeleccionada && zonaSeleccionada.indicadores
           ? Object.entries(zonaSeleccionada.indicadores).map(([nombre, datos]) => {

@@ -567,6 +567,19 @@ Panel Indicadores
   word-break: break-word;
 }
 
+/* Score compuesto, destacado por encima de la grilla de las 7 variables
+   individuales (ver PanelIndicadores.jsx) -- mismo look que una tarjeta
+   de indicador pero con acento de color para que se note que es el
+   resumen, no una variable mas. */
+.panel-indicadores-score {
+  border: 1px solid #1E3A8A;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #eef2ff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+}
+
 .indicador-nombre {
   font-size: 14px;
   color: #444;
