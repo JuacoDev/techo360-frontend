@@ -18,6 +18,19 @@ function App() {
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
 
+  const [mapReady, setMapReady] = useState(false);
+  const [departamentosReady, setDepartamentosReady] = useState(false);
+  const [municipiosReady, setMunicipiosReady] = useState(false);
+  const [buscadorReady, setBuscadorReady] = useState(false);
+
+  const essentialReady = mapReady && departamentosReady && municipiosReady && buscadorReady;
+
+  useEffect(() => {
+    if (screen === "loading" && essentialReady) {
+      setScreen("app");
+    }
+  }, [essentialReady, screen]);
+
   // "Ya se disparo el fetch de esta sesion" -- ref, no state, porque solo
   // nos importa como guardia sincrona dentro del efecto (si fuera state,
   // el propio cambio del guard forzaria un re-render/re-chequeo extra sin
@@ -30,6 +43,7 @@ function App() {
   const departamentosSolicitados = useRef(false);
   const municipiosSolicitados = useRef(false);
 
+  
   const handleMapLoaded = () => {
     setScreen("app");
   };
@@ -48,7 +62,12 @@ function App() {
     setDatosMunicipios(null);
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
+    setMapReady(false);
+    setDepartamentosReady(false);
+    setMunicipiosReady(false);
+    setBuscadorReady(false);
     setScreen("login");
+    
   }, []);
 
   // Datos geograficos de departamentos y municipios (con sus 7 indicadores
