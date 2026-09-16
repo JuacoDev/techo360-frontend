@@ -7,6 +7,22 @@ import FondoLogin from "../../assets/FondoLogin.jpg";
 function RecuperacionDeContrasenaP2({ onChangePassword, onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleChangePassword = () => {
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+    setError("");
+    onChangePassword(password);
+  };
 
   return (
     <div className="auth-screen">
@@ -22,6 +38,8 @@ function RecuperacionDeContrasenaP2({ onChangePassword, onBack }) {
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
             <img
               src={showPassword ? OjoAbiertoContrasena : OjoCerradoContrasena}
@@ -35,6 +53,8 @@ function RecuperacionDeContrasenaP2({ onChangePassword, onBack }) {
             <input
               type={showConfirmPassword ? "text" : "password"}
               placeholder="Confirmar contraseña"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
             />
             <img
               src={showConfirmPassword ? OjoAbiertoContrasena : OjoCerradoContrasena}
@@ -44,12 +64,18 @@ function RecuperacionDeContrasenaP2({ onChangePassword, onBack }) {
             />
           </div>
 
+          {error && <p style={{ color: "red" }}>{error}</p>}
+
           <p className="form-note">
-            8 caracteres y al menos 1 letra minúscula, mayúscula, número y símbolo.
+            Mínimo 6 caracteres y ambas contraseñas deben coincidir.
           </p>
 
-          <button onClick={onChangePassword}>Cambiar contraseña</button>
-          <button onClick={onBack} className="btn-back" style={{marginTop:"10px", background:"#ccc", color:"#333"}}>
+          <button onClick={handleChangePassword}>Cambiar contraseña</button>
+          <button
+            onClick={onBack}
+            className="btn-back"
+            style={{ marginTop: "10px", background: "#ccc", color: "#333" }}
+          >
             Regresar
           </button>
         </div>

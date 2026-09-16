@@ -19,6 +19,11 @@ function Registro({ onCodigoEnviado, goToLogin }) {
   const handleRegister = async () => {
     setError("");
 
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden");
       return;
