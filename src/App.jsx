@@ -10,10 +10,14 @@ import PanelIndicadores from "./components/PanelIndicadores";
 import PantallaCarga from "./components/PantallaCarga";
 import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
 import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
+import Home from "./pages/Home/Home.jsx";
+import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import { API_URL, getToken, limpiarToken, ANIO_INDICADORES } from "./services/api";
 
+const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot"];
+
 function App() {
-  const [screen, setScreen] = useState("login");
+  const [screen, setScreen] = useState("home");
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
@@ -149,6 +153,10 @@ function App() {
         </>
       )}
 
+      {screen === "home" && <Home setScreen={setScreen} onLogout={logout} />}
+
+      {screen === "chatbot" && <ChatBotScreen setScreen={setScreen} onLogout={logout} />}
+
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
 
       {screen === "app" && (
@@ -175,7 +183,7 @@ function App() {
         </main>
       )}
 
-      {screen !== "app" && screen !== "loading" && (
+      {!PANTALLAS_PROPIAS.includes(screen) && (
         <AutenticarScreens screen={screen} setScreen={setScreen} />
       )}
     </>
