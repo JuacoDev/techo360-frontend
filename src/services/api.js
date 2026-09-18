@@ -26,6 +26,27 @@ export function limpiarToken() {
   sessionStorage.removeItem("token");
 }
 
+export async function fetchConSesion(url, options = {}, logout) {
+  const token = getToken();
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: token ? `Bearer ${token}` : "",
+    },
+  });
+
+  // Manejo uniforme de 401
+  if (response.status === 401) {
+    logout?.();
+    const error = new Error("Sesión expirada");
+    error.status = 401;
+    throw error;
+  }
+
+  return response;
+}
+
 // -------------------
 // Login
 // -------------------
@@ -36,32 +57,31 @@ export async function login(identifier, password) {
     body: JSON.stringify({ identifier, password }),
   });
 
+  const result = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    throw new Error("Credenciales inválidas");
+    const error = new Error(result.detail || "Credenciales inválidas");
+    error.status = response.status;
+    throw error;
   }
 
-  return await response.json(); // { access_token, token_type }
+  return result; 
 }
 
 // -------------------
 // Obtener usuario autenticado
 // -------------------
-export async function getCurrentUser() {
-  const token = getToken();
-
-  if (!token) {
-    throw new Error("No hay sesión activa");
-  }
-
-  const response = await fetch(`${API_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export async function getCurrentUser(logout) {
+  const response = await fetchConSesion(`${API_URL}/auth/me`, {}, logout);
+  const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error("Token inválido o expirado");
+    const error = new Error(result.detail || "Token inválido o expirado");
+    error.status = response.status;
+    throw error;
   }
 
-  return await response.json();
+  return result;
 }
 
 // -------------------
@@ -70,16 +90,16 @@ export async function getCurrentUser() {
 export async function registerUser(data) {
   const response = await fetch(`${API_URL}/auth/register`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 
-  const result = await response.json();
+  const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(result.detail || "Error al registrar usuario");
+    const error = new Error(result.detail || "Error al registrar usuario");
+    error.status = response.status;
+    throw error;
   }
 
   return result;
@@ -127,3 +147,28 @@ export async function verifyOtp(email, code) {
   return result; // { status, email }
 }
 
+
+// -------------------
+// Resetear contraseña (recuperación con OTP)
+// -------------------
+export async function resetPassword(email, code, newPassword) {
+  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email,
+      code,
+      new_password: newPassword,
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(result.detail || "Error al cambiar la contraseña");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result;
+}

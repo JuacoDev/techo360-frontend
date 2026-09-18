@@ -12,7 +12,6 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  
   const handleLogin = async () => {
     try {
       const data = await login(identifier, password);
@@ -25,7 +24,12 @@ function Login({ onContinue, goToRegister, goToRecovery }) {
 
       onContinue("loading");
     } catch (err) {
-      setError(err.message);
+      // 🔹 Manejo de errores con status
+      if (err.status === 400 || err.status === 401) {
+        setError("Credenciales inválidas");
+      } else {
+        setError(err.message || "Error al iniciar sesión");
+      }
     }
   };
 

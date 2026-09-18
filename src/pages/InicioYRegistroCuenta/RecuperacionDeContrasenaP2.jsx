@@ -3,15 +3,16 @@ import "../../Css/StyleInicioYRegistroCuenta.css";
 import OjoAbiertoContrasena from "../../assets/OjoAbiertoContrasena.png";
 import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
 import FondoLogin from "../../assets/FondoLogin.jpg";
+import { resetPassword } from "../../services/api";
 
-function RecuperacionDeContrasenaP2({ onChangePassword, onBack }) {
+function RecuperacionDeContrasenaP2({ email, code, onChangePassword, onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (password.length < 6) {
       setError("La contraseña debe tener al menos 6 caracteres");
       return;
@@ -20,8 +21,20 @@ function RecuperacionDeContrasenaP2({ onChangePassword, onBack }) {
       setError("Las contraseñas no coinciden");
       return;
     }
-    setError("");
-    onChangePassword(password);
+
+    try {
+      setError("");
+      await resetPassword(email, code, password);
+      onChangePassword(password); 
+    } catch (err) {
+      if (err.status === 400) {
+        setError("Código inválido o datos incorrectos.");
+      } else if (err.status === 401) {
+        setError("Sesión expirada, solicita un nuevo código.");
+      } else {
+        setError(err.message || "Error al cambiar la contraseña.");
+      }
+    }
   };
 
   return (
