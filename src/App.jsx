@@ -12,7 +12,7 @@ import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
 import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
-import { API_URL, getToken, limpiarToken, ANIO_INDICADORES } from "./services/api";
+import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion } from "./services/api";
 
 const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot"];
 
@@ -92,17 +92,8 @@ function App() {
     if (!token || departamentosSolicitados.current) return;
     departamentosSolicitados.current = true;
 
-    fetch(`${API_URL}/api/zonas?nivel=departamento`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          logout();
-          throw new Error("Sesion expirada");
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`);
-        return res.json();
-      })
+    fetchConSesion(`${API_URL}/api/zonas?nivel=departamento`, {}, logout)
+      .then((res) => res.json())
       .then(setDepartamentos)
       .catch((err) => console.error("Error cargando limites de departamentos:", err));
   }, [screen, logout]);
@@ -112,17 +103,8 @@ function App() {
     if (!token || municipiosSolicitados.current) return;
     municipiosSolicitados.current = true;
 
-    fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          logout();
-          throw new Error("Sesion expirada");
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar los indicadores de municipios (${res.status})`);
-        return res.json();
-      })
+    fetchConSesion(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {}, logout)
+      .then((res) => res.json())
       .then(setDatosMunicipios)
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
   }, [screen, logout]);
