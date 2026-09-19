@@ -109,6 +109,23 @@ function ControladorDeFoco({ codigoSeleccionado, datosMunicipios }) {
   return null
 }
 
+function AjustarTamanoMapa() {
+  const map = useMap()
+
+  useEffect(() => {
+    const ajustar = () => map.invalidateSize()
+    const contenedor = map.getContainer()
+    const observer = new ResizeObserver(ajustar)
+
+    observer.observe(contenedor)
+    ajustar()
+
+    return () => observer.disconnect()
+  }, [map])
+
+  return null
+}
+
 function MapView({
   onMapLoaded,
   onZonaSeleccionada,
@@ -187,6 +204,7 @@ function MapView({
       }}
     >
 
+      <AjustarTamanoMapa />
       <ListenerDeZoom onZoomChange={setZoom} />
       <ManejadorDeClicVacio onClicVacio={() => onZonaSeleccionada?.(null)} />
       <ControladorDeFoco

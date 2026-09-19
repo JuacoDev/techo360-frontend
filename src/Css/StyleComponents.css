@@ -16,10 +16,11 @@ body {
 }
 
 .app-shell {
-  position: relative;
   width: 100%;
-  min-height: 100vh;
-  overflow-y: auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .map-view {
@@ -30,21 +31,36 @@ body {
   z-index: 0;
 }
 
-.app-shell > .CabezaDeNavegacion,
-.app-shell > .BarraBuscadora,
-.app-shell > .panel-indicadores {
+.dashboard-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  box-sizing: border-box;
+  background-color: #ffffff;
+}
+
+.dashboard-main-column {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-map-container {
+  flex: 1;
+  min-height: 0;
   position: relative;
-  z-index: 2;
+  overflow: hidden;
+  border-radius: 8px;
 }
 
-.app-shell > .CabezaDeNavegacion {
-  z-index: 4;
-}
-
-.app-shell > .panel-indicadores {
-  position: fixed;
-  top: 90px;
-  right: 24px;
+.dashboard-map-container .map-view {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
 
 /*
@@ -113,15 +129,35 @@ BarraBuscadora Styles
 */
 
 .BarraBuscadora {
-  width: 90%;
-  max-width: 320px;              
+  position: relative;
+  width: 100%;
+  max-width: none;
+  flex: 0 0 auto;
+  box-sizing: border-box;
   background-color: #fff;
   padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;    
   gap: 10px;                
+}
+
+.BarraResultados {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
+  z-index: 10;
+}
+
+.BarraResultadoGrupo h4 {
+  margin: 6px 0;
 }
 .BarraBuscadora h3 {
   font-size: 15px;
@@ -178,15 +214,13 @@ PanelIndicadores Styles
 ==================================
 */
 .panel-indicadores {
-  position: fixed;
-  top: 90px;
-  right: 24px;
-  max-height: calc(100vh - 120px);
+  flex: 0 0 380px;
+  width: 380px;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 16px;
   overflow-y: auto;
   background-color: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 2;
 }
 
 
@@ -235,16 +269,19 @@ PanelIndicadores Styles
 }
 
 @media (max-width: 700px) {
-  .app-shell > .panel-indicadores {
-    top: auto;
-    right: 12px;
-    bottom: 96px;
-    left: 12px;
+  .dashboard-layout {
+    overflow-y: auto;
+    flex-direction: column;
   }
 
   .panel-indicadores {
     width: auto;
-    min-height: 0;
+    flex-basis: auto;
+    max-height: 40vh;
+  }
+
+  .dashboard-main-column {
+    min-height: 60vh;
   }
 
   .panel-indicadores-grid {
@@ -534,14 +571,9 @@ Panel Indicadores
 */
 
 .panel-indicadores {
-  position: relative;   /* ✅ ya no fijo */
-  margin: 24px auto;    /* centrado con margen */
-  padding: 16px;
   background-color: #ffffff;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  max-width: 360px;
-  z-index: 2;           /* ✅ encima del mapa */
 }
 
 

@@ -136,20 +136,26 @@ function App() {
 
       {screen === "app" && (
         <main className="app-shell">
-          <MapView
-            onMapLoaded={handleMapLoaded}
-            onZonaSeleccionada={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-            codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
-          />
           <CabezaDeNavegacion setScreen={setScreen} onLogout={logout} />
-          <BarraBuscadora
-            onSeleccionarZona={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-          />
-          <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
+          <div className="dashboard-layout">
+            <section className="dashboard-main-column" aria-label="Mapa y buscador">
+              <BarraBuscadora
+                onSeleccionarZona={seleccionarZona}
+                departamentos={departamentos}
+                datosMunicipios={datosMunicipios}
+              />
+              <div className="dashboard-map-container">
+                <MapView
+                  onMapLoaded={handleMapLoaded}
+                  onZonaSeleccionada={seleccionarZona}
+                  departamentos={departamentos}
+                  datosMunicipios={datosMunicipios}
+                  codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+                />
+              </div>
+            </section>
+            <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
+          </div>
           {/* Oculto para la entrega -- el backend del chatbot no tiene
               ninguna ruta de chat real todavia (solo /health), se veria
               roto en vivo. No se elimina para reactivarlo cuando el

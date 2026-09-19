@@ -48,8 +48,8 @@ function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios, onB
       />
 
       {busqueda && (
-        <>
-          <div>
+        <div className="BarraResultados">
+          <div className="BarraResultadoGrupo">
             <h4 onClick={() => setMostrarDeptos(!mostrarDeptos)} style={{cursor: "pointer"}}>
               Departamentos {mostrarDeptos ? "▼" : "▶"}
             </h4>
@@ -64,7 +64,7 @@ function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios, onB
             )}
           </div>
 
-          <div>
+          <div className="BarraResultadoGrupo">
             <h4 onClick={() => setMostrarMunicipios(!mostrarMunicipios)} style={{cursor: "pointer"}}>
               Municipios {mostrarMunicipios ? "▼" : "▶"}
             </h4>
@@ -78,7 +78,7 @@ function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios, onB
               </ul>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
