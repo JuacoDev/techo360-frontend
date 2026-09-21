@@ -125,13 +125,15 @@ function App() {
       {screen === "loading" && (
         <>
           <PantallaCarga />
-          <MapView
-            onMapLoaded={handleMapLoaded}
-            onZonaSeleccionada={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-            codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
-          />
+          <div className="map-loading-container">
+            <MapView
+              onMapLoaded={handleMapLoaded}
+              onZonaSeleccionada={seleccionarZona}
+              departamentos={departamentos}
+              datosMunicipios={datosMunicipios}
+              codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+            />
+          </div>
         </>
       )}
 

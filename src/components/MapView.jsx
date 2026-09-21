@@ -134,6 +134,7 @@ function MapView({
   codigoSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
+  const [isLegendOpen, setIsLegendOpen] = useState(false)
 
   const estiloMunicipios = useCallback(
     (feature) => {
@@ -191,46 +192,83 @@ function MapView({
   const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
 
   return (
-    <MapContainer
-      center={COLOMBIA_CENTER}
-      zoom={6}
-      minZoom={5}
-      maxZoom={12}
-      maxBounds={COLOMBIA_BOUNDS}
-      maxBoundsViscosity={1.0}
-      className="map-view"
-      whenReady={() => {
-        if (onMapLoaded) onMapLoaded();
-      }}
-    >
+    <div className="map-view-wrapper">
+      <MapContainer
+        center={COLOMBIA_CENTER}
+        zoom={6}
+        minZoom={5}
+        maxZoom={12}
+        maxBounds={COLOMBIA_BOUNDS}
+        maxBoundsViscosity={1.0}
+        className="map-view"
+        whenReady={() => {
+          if (onMapLoaded) onMapLoaded();
+        }}
+      >
 
-      <AjustarTamanoMapa />
-      <ListenerDeZoom onZoomChange={setZoom} />
-      <ManejadorDeClicVacio onClicVacio={() => onZonaSeleccionada?.(null)} />
-      <ControladorDeFoco
-        codigoSeleccionado={codigoSeleccionado}
-        datosMunicipios={datosMunicipios}
-      />
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {/* Solo una capa montada a la vez, segun el zoom actual -- nunca
-          ambas juntas, para no duplicar hit-testing/renderizado. La
-          `key` distinta obliga a remontar el <GeoJSON> al cambiar de
-          capa: react-leaflet no actualiza la geometria si solo cambia
-          la prop `data` de una instancia ya montada. Cambiar solo
-          `style` (ej. al seleccionar un municipio) SI actualiza sin
-          remontar, via layer.setStyle -- por eso codigoSeleccionado no
-          esta en la `key`. */}
-      {mostrarMunicipios
-        ? datosMunicipios && (
-            <GeoJSON key="municipios" data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
-          )
-        : departamentos && (
-            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventosDepartamento} />
-          )}
-    </MapContainer>
+        <AjustarTamanoMapa />
+        <ListenerDeZoom onZoomChange={setZoom} />
+        <ManejadorDeClicVacio onClicVacio={() => onZonaSeleccionada?.(null)} />
+        <ControladorDeFoco
+          codigoSeleccionado={codigoSeleccionado}
+          datosMunicipios={datosMunicipios}
+        />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {/* Solo una capa montada a la vez, segun el zoom actual -- nunca
+            ambas juntas, para no duplicar hit-testing/renderizado. La
+            `key` distinta obliga a remontar el <GeoJSON> al cambiar de
+            capa: react-leaflet no actualiza la geometria si solo cambia
+            la prop `data` de una instancia ya montada. Cambiar solo
+            `style` (ej. al seleccionar un municipio) SI actualiza sin
+            remontar, via layer.setStyle -- por eso codigoSeleccionado no
+            esta en la `key`. */}
+        {mostrarMunicipios
+          ? datosMunicipios && (
+              <GeoJSON key="municipios" data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
+            )
+          : departamentos && (
+              <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventosDepartamento} />
+            )}
+      </MapContainer>
+
+      <div className="map-legend">
+        {!isLegendOpen ? (
+          <button
+            type="button"
+            className="map-legend-toggle"
+            onClick={() => setIsLegendOpen(true)}
+          >
+            Ver Leyenda
+          </button>
+        ) : (
+          <section className="map-legend-panel" aria-label="Leyenda del score de privación">
+            <div className="map-legend-header">
+              <h2>Escala de Privación</h2>
+              <button
+                type="button"
+                className="map-legend-close"
+                aria-label="Cerrar leyenda"
+                onClick={() => setIsLegendOpen(false)}
+              >
+                X
+              </button>
+            </div>
+            <div className="map-legend-gradient" aria-hidden="true" />
+            <div className="map-legend-labels">
+              <span>0 (Menor)</span>
+              <span>1 (Mayor)</span>
+            </div>
+            <div className="map-legend-no-data">
+              <span className="map-legend-gray" aria-hidden="true" />
+              <span>Sin dato</span>
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
   )
 }
 
