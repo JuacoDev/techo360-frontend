@@ -33,6 +33,32 @@ function esProyeccion(origen) {
   return typeof origen === "string" && origen.startsWith(PREFIJO_PROYECCION);
 }
 
+function TarjetaIndicador({ nombre, datos, proyectado }) {
+  const nombreFormateado = nombre.replace(/_/g, " ");
+  const unidad = UNIDADES[nombre] || "";
+
+  return (
+    <div className={`indicador-card${proyectado ? " indicador-card-proyeccion" : ""}`}>
+      <strong className="indicador-nombre">{nombreFormateado}</strong>
+      <p className="indicador-valor">
+        {datos.valor ?? "Sin dato"} {datos.valor ? unidad : ""}
+      </p>
+      {proyectado ? (
+        datos.intervalo_confianza != null && (
+          <p className="indicador-proyeccion-badge">Fiabilidad: {datos.intervalo_confianza}%</p>
+        )
+      ) : (
+        datos.origen && (
+          <p className="indicador-fuente">
+            Fuente: {datos.origen}
+            {datos.anio_real && `, Año: ${datos.anio_real}`}
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
 function PanelIndicadores({ zonaSeleccionada }) {
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
@@ -53,53 +79,52 @@ function PanelIndicadores({ zonaSeleccionada }) {
         </div>
       )}
 
-      <div className="panel-indicadores-grid">
-        {zonaSeleccionada && zonaSeleccionada.indicadores
-          ? Object.entries(zonaSeleccionada.indicadores).map(([nombre, datos]) => {
-              // Reemplazar "_" por espacios
-              const nombreFormateado = nombre.replace(/_/g, " ");
-              const unidad = UNIDADES[nombre] || "";
+      {zonaSeleccionada && zonaSeleccionada.indicadores ? (
+        (() => {
+          const entradas = Object.entries(zonaSeleccionada.indicadores);
+          const confirmadas = entradas.filter(([, datos]) => !esProyeccion(datos.origen));
+          const proyecciones = entradas.filter(([, datos]) => esProyeccion(datos.origen));
 
-              const proyectado = esProyeccion(datos.origen);
+          return (
+            <>
+              {confirmadas.length > 0 && (
+                <div className="panel-indicadores-grupo">
+                  <h3 className="panel-indicadores-subtitulo">Fuentes confirmadas</h3>
+                  <div className="panel-indicadores-grid">
+                    {confirmadas.map(([nombre, datos]) => (
+                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} proyectado={false} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-              return (
-                <div className={`indicador-card${proyectado ? " indicador-card-proyeccion" : ""}`} key={nombre}>
-                  <strong className="indicador-nombre">{nombreFormateado}</strong>
-                  <p className="indicador-valor">
-                    {datos.valor ?? "Sin dato"} {datos.valor ? unidad : ""}
-                  </p>
-                  {proyectado ? (
-                    <p className="indicador-proyeccion-badge">
-                      Proyección
-                      {datos.intervalo_confianza != null && ` · Fiabilidad: ${datos.intervalo_confianza}%`}
-                    </p>
-                  ) : (
-                    <>
-                      {datos.origen && (
-                        <p className="indicador-fuente">
-                          Fuente: {datos.origen}
-                          {datos.anio_real && `, Año: ${datos.anio_real}`}
-                        </p>
-                      )}
-                      {datos.intervalo_confianza != null && (
-                        <p className="indicador-fuente">IC: {datos.intervalo_confianza}</p>
-                      )}
-                    </>
-                  )}
+              {proyecciones.length > 0 && (
+                <div className="panel-indicadores-grupo">
+                  <h3 className="panel-indicadores-subtitulo">Proyecciones</h3>
+                  <div className="panel-indicadores-grid">
+                    {proyecciones.map(([nombre, datos]) => (
+                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} proyectado={true} />
+                    ))}
+                  </div>
                 </div>
-              );
-            })
-          : INDICADORES.map((indicador) => {
-              const nombreFormateado = indicador.replace(/_/g, " ");
-              const unidad = UNIDADES[indicador] || "";
-              return (
-                <div className="indicador-card" key={indicador}>
-                  <strong className="indicador-nombre">{nombreFormateado}</strong>
-                  <p className="indicador-valor">Sin dato {unidad}</p>
-                </div>
-              );
-            })}
-      </div>
+              )}
+            </>
+          );
+        })()
+      ) : (
+        <div className="panel-indicadores-grid">
+          {INDICADORES.map((indicador) => {
+            const nombreFormateado = indicador.replace(/_/g, " ");
+            const unidad = UNIDADES[indicador] || "";
+            return (
+              <div className="indicador-card" key={indicador}>
+                <strong className="indicador-nombre">{nombreFormateado}</strong>
+                <p className="indicador-valor">Sin dato {unidad}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </aside>
   );
 }
