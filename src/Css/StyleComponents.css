@@ -473,6 +473,10 @@ PanelIndicadores Styles
     gap: 12px;
   }
 
+  .panel-indicadores-grupo {
+    margin-bottom: 16px;
+  }
+
   .indicador-placeholder {
     min-height: 52px;
   }
@@ -815,4 +819,26 @@ Panel Indicadores
   font-size: 12px;
   font-weight: 600;
   color: #b45309;
+}
+
+/* Separa visualmente las variables con dato real de las proyectadas
+   dentro del panel (ver PanelIndicadores.jsx) -- dos grupos con su
+   propio subtitulo, en vez de una sola grilla mezclada. */
+.panel-indicadores-grupo {
+  margin-bottom: 24px;
+}
+
+.panel-indicadores-grupo:last-child {
+  margin-bottom: 0;
+}
+
+.panel-indicadores-subtitulo {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
 }
