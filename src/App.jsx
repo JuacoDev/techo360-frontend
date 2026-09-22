@@ -10,13 +10,30 @@ import PanelIndicadores from "./components/PanelIndicadores";
 import PantallaCarga from "./components/PantallaCarga";
 import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
 import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
-import { API_URL, getToken, limpiarToken, ANIO_INDICADORES } from "./services/api";
+import Home from "./pages/Home/Home.jsx";
+import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
+import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion } from "./services/api";
+
+const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot"];
 
 function App() {
-  const [screen, setScreen] = useState("login");
+  const [screen, setScreen] = useState("home");
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
+
+  const [mapReady, setMapReady] = useState(false);
+  const [departamentosReady, setDepartamentosReady] = useState(false);
+  const [municipiosReady, setMunicipiosReady] = useState(false);
+  const [buscadorReady, setBuscadorReady] = useState(false);
+
+  const essentialReady = mapReady && departamentosReady && municipiosReady && buscadorReady;
+
+  useEffect(() => {
+    if (screen === "loading" && essentialReady) {
+      setScreen("app");
+    }
+  }, [essentialReady, screen]);
 
   // "Ya se disparo el fetch de esta sesion" -- ref, no state, porque solo
   // nos importa como guardia sincrona dentro del efecto (si fuera state,
@@ -30,6 +47,7 @@ function App() {
   const departamentosSolicitados = useRef(false);
   const municipiosSolicitados = useRef(false);
 
+  
   const handleMapLoaded = () => {
     setScreen("app");
   };
@@ -48,7 +66,12 @@ function App() {
     setDatosMunicipios(null);
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
+    setMapReady(false);
+    setDepartamentosReady(false);
+    setMunicipiosReady(false);
+    setBuscadorReady(false);
     setScreen("login");
+    
   }, []);
 
   // Datos geograficos de departamentos y municipios (con sus 7 indicadores
@@ -69,17 +92,8 @@ function App() {
     if (!token || departamentosSolicitados.current) return;
     departamentosSolicitados.current = true;
 
-    fetch(`${API_URL}/api/zonas?nivel=departamento`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          logout();
-          throw new Error("Sesion expirada");
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`);
-        return res.json();
-      })
+    fetchConSesion(`${API_URL}/api/zonas?nivel=departamento`, {}, logout)
+      .then((res) => res.json())
       .then(setDepartamentos)
       .catch((err) => console.error("Error cargando limites de departamentos:", err));
   }, [screen, logout]);
@@ -89,17 +103,8 @@ function App() {
     if (!token || municipiosSolicitados.current) return;
     municipiosSolicitados.current = true;
 
-    fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          logout();
-          throw new Error("Sesion expirada");
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar los indicadores de municipios (${res.status})`);
-        return res.json();
-      })
+    fetchConSesion(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {}, logout)
+      .then((res) => res.json())
       .then(setDatosMunicipios)
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
   }, [screen, logout]);
@@ -120,34 +125,46 @@ function App() {
       {screen === "loading" && (
         <>
           <PantallaCarga />
-          <MapView
-            onMapLoaded={handleMapLoaded}
-            onZonaSeleccionada={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-            codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
-          />
+          <div className="map-loading-container">
+            <MapView
+              onMapLoaded={handleMapLoaded}
+              onZonaSeleccionada={seleccionarZona}
+              departamentos={departamentos}
+              datosMunicipios={datosMunicipios}
+              codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+            />
+          </div>
         </>
       )}
+
+      {screen === "home" && <Home setScreen={setScreen} onLogout={logout} />}
+
+      {screen === "chatbot" && <ChatBotScreen setScreen={setScreen} onLogout={logout} />}
 
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
 
       {screen === "app" && (
         <main className="app-shell">
-          <MapView
-            onMapLoaded={handleMapLoaded}
-            onZonaSeleccionada={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-            codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
-          />
           <CabezaDeNavegacion setScreen={setScreen} onLogout={logout} />
-          <BarraBuscadora
-            onSeleccionarZona={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-          />
-          <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
+          <div className="dashboard-layout">
+            <section className="dashboard-main-column" aria-label="Mapa y buscador">
+              <BarraBuscadora
+                onSeleccionarZona={seleccionarZona}
+                departamentos={departamentos}
+                datosMunicipios={datosMunicipios}
+              />
+              <div className="dashboard-map-container">
+                <MapView
+                  onMapLoaded={handleMapLoaded}
+                  onZonaSeleccionada={seleccionarZona}
+                  departamentos={departamentos}
+                  datosMunicipios={datosMunicipios}
+                  codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+                />
+              </div>
+            </section>
+            <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
+          </div>
           {/* Oculto para la entrega -- el backend del chatbot no tiene
               ninguna ruta de chat real todavia (solo /health), se veria
               roto en vivo. No se elimina para reactivarlo cuando el
@@ -156,7 +173,7 @@ function App() {
         </main>
       )}
 
-      {screen !== "app" && screen !== "loading" && (
+      {!PANTALLAS_PROPIAS.includes(screen) && (
         <AutenticarScreens screen={screen} setScreen={setScreen} />
       )}
     </>

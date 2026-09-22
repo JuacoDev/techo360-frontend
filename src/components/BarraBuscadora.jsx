@@ -1,13 +1,19 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react"; 
 
 // departamentos y datosMunicipios ya fueron descargados una vez por App
 // (misma respuesta que ya usa MapView) -- este componente NO vuelve a
 // pedirlos ni hace ningun fetch al seleccionar un resultado: solo busca
 // dentro de los datos que ya llegaron por props.
-function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios }) {
+function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios, onBuscadorReady }) {
   const [busqueda, setBusqueda] = useState("");
   const [mostrarDeptos, setMostrarDeptos] = useState(true);
   const [mostrarMunicipios, setMostrarMunicipios] = useState(true);
+
+  useEffect(() => {
+    if (departamentos && datosMunicipios) {
+      onBuscadorReady?.();
+    }
+  }, [departamentos, datosMunicipios, onBuscadorReady]);
 
   const listaDepartamentos = useMemo(
     () => departamentos?.features.map((f) => f.properties) ?? [],
@@ -42,8 +48,8 @@ function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios }) {
       />
 
       {busqueda && (
-        <>
-          <div>
+        <div className="BarraResultados">
+          <div className="BarraResultadoGrupo">
             <h4 onClick={() => setMostrarDeptos(!mostrarDeptos)} style={{cursor: "pointer"}}>
               Departamentos {mostrarDeptos ? "▼" : "▶"}
             </h4>
@@ -58,7 +64,7 @@ function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios }) {
             )}
           </div>
 
-          <div>
+          <div className="BarraResultadoGrupo">
             <h4 onClick={() => setMostrarMunicipios(!mostrarMunicipios)} style={{cursor: "pointer"}}>
               Municipios {mostrarMunicipios ? "▼" : "▶"}
             </h4>
@@ -72,7 +78,7 @@ function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios }) {
               </ul>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

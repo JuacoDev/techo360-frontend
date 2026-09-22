@@ -19,6 +19,11 @@ function Registro({ onCodigoEnviado, goToLogin }) {
   const handleRegister = async () => {
     setError("");
 
+    if (password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden");
       return;
@@ -26,14 +31,14 @@ function Registro({ onCodigoEnviado, goToLogin }) {
 
     try {
       setEnviandoCodigo(true);
-      // La cuenta NO se crea aqui -- solo se pide el codigo de
-      // verificacion. El usuario recien se crea en
-      // VerificarCodigoOTP.jsx, despues de confirmar el codigo.
       await requestOtp(email, username);
       onCodigoEnviado({ username, email, password });
     } catch (err) {
+      // 🔹 Manejo de errores con status
       if (err.status === 429) {
         setError(err.message || "Espera antes de solicitar otro código.");
+      } else if (err.status === 400) {
+        setError(err.message || "Datos inválidos, revisa tu correo o usuario.");
       } else {
         setError(err.message || "No se pudo enviar el código de verificación");
       }

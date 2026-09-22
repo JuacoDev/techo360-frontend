@@ -11,6 +11,8 @@ function AuthScreens({ screen, setScreen }) {
   // tras verificar el codigo OTP). Vive aqui, no en Registro.jsx, para
   // que sobreviva el cambio de pantalla a "verificar-otp".
   const [datosRegistroPendiente, setDatosRegistroPendiente] = useState(null);
+  const [emailRecuperacion, setEmailRecuperacion] = useState("");
+  const [codigoRecuperacion, setCodigoRecuperacion] = useState("");
 
   switch (screen) {
     case "registro":
@@ -45,7 +47,10 @@ function AuthScreens({ screen, setScreen }) {
     case "recuperacion1":
       return (
         <RecuperacionDeContrasenaP1
-          onSendCode={() => setScreen("recuperacion2")}
+          onSendCode={(email) => {
+            setEmailRecuperacion(email);
+            setScreen("recuperacion2");
+          }}
           onBack={() => setScreen("login")}
         />
       );
@@ -53,6 +58,8 @@ function AuthScreens({ screen, setScreen }) {
     case "recuperacion2":
       return (
         <RecuperacionDeContrasenaP2
+          email={emailRecuperacion}
+          code={codigoRecuperacion}
           onChangePassword={() => setScreen("login")}
           onBack={() => setScreen("login")}
         />
