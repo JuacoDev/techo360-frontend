@@ -821,6 +821,22 @@ Panel Indicadores
   color: #b45309;
 }
 
+/* Tercer estado explicito para origen=null (ver PanelIndicadores.jsx
+   esSinDato()) -- gris punteado, distinto del ambar de proyeccion y del
+   fondo neutro de "confirmada", para que no se confunda con ninguno de
+   los dos: no hay fuente real ni relleno estimado, es ausencia total de
+   fila para esa variable+año. */
+.indicador-card-sin-dato {
+  border: 1px dashed #9ca3af;
+  background-color: #f3f4f6;
+}
+
+.indicador-sin-dato-badge {
+  font-size: 12px;
+  font-style: italic;
+  color: #6b7280;
+}
+
 /* Separa visualmente las variables con dato real de las proyectadas
    dentro del panel (ver PanelIndicadores.jsx) -- dos grupos con su
    propio subtitulo, en vez de una sola grilla mezclada. */

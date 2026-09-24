@@ -33,27 +33,40 @@ function esProyeccion(origen) {
   return typeof origen === "string" && origen.startsWith(PREFIJO_PROYECCION);
 }
 
-function TarjetaIndicador({ nombre, datos, proyectado }) {
+// Tercer estado explicito (ver caso real verificado con Ebejico/05240,
+// municipios sin cobertura_acueducto/alcantarillado en 2024, y con los
+// 816 municipios sin dato real de tenencia_informal_terrenos tras el
+// fix de ingestion/igac_catastro_adapter.py): origen=null NO es lo
+// mismo que "fuente confirmada" (no hay fuente) ni "proyeccion" (no es
+// un relleno estimado con metodo conocido) -- es ausencia total de
+// fila en mapcalordb para esa variable+año. Antes caia por defecto en
+// "confirmadas" solo porque !esProyeccion(null) es true.
+function esSinDato(origen) {
+  return origen == null;
+}
+
+function TarjetaIndicador({ nombre, datos, tipo }) {
   const nombreFormateado = nombre.replace(/_/g, " ");
   const unidad = UNIDADES[nombre] || "";
+  const claseTipo = tipo === "proyeccion" ? " indicador-card-proyeccion" : tipo === "sin_dato" ? " indicador-card-sin-dato" : "";
 
   return (
-    <div className={`indicador-card${proyectado ? " indicador-card-proyeccion" : ""}`}>
+    <div className={`indicador-card${claseTipo}`}>
       <strong className="indicador-nombre">{nombreFormateado}</strong>
       <p className="indicador-valor">
         {datos.valor ?? "Sin dato"} {datos.valor ? unidad : ""}
       </p>
-      {proyectado ? (
-        datos.intervalo_confianza != null && (
-          <p className="indicador-proyeccion-badge">Fiabilidad: {datos.intervalo_confianza}%</p>
-        )
-      ) : (
-        datos.origen && (
-          <p className="indicador-fuente">
-            Fuente: {datos.origen}
-            {datos.anio_real && `, Año: ${datos.anio_real}`}
-          </p>
-        )
+      {tipo === "proyeccion" && datos.intervalo_confianza != null && (
+        <p className="indicador-proyeccion-badge">Fiabilidad: {datos.intervalo_confianza}%</p>
+      )}
+      {tipo === "confirmada" && datos.origen && (
+        <p className="indicador-fuente">
+          Fuente: {datos.origen}
+          {datos.anio_real && `, Año: ${datos.anio_real}`}
+        </p>
+      )}
+      {tipo === "sin_dato" && (
+        <p className="indicador-sin-dato-badge">Sin cobertura de esta fuente para esta zona/año</p>
       )}
     </div>
   );
@@ -82,8 +95,9 @@ function PanelIndicadores({ zonaSeleccionada }) {
       {zonaSeleccionada && zonaSeleccionada.indicadores ? (
         (() => {
           const entradas = Object.entries(zonaSeleccionada.indicadores);
-          const confirmadas = entradas.filter(([, datos]) => !esProyeccion(datos.origen));
-          const proyecciones = entradas.filter(([, datos]) => esProyeccion(datos.origen));
+          const confirmadas = entradas.filter(([, datos]) => !esSinDato(datos.origen) && !esProyeccion(datos.origen));
+          const proyecciones = entradas.filter(([, datos]) => !esSinDato(datos.origen) && esProyeccion(datos.origen));
+          const sinDato = entradas.filter(([, datos]) => esSinDato(datos.origen));
 
           return (
             <>
@@ -92,7 +106,7 @@ function PanelIndicadores({ zonaSeleccionada }) {
                   <h3 className="panel-indicadores-subtitulo">Fuentes confirmadas</h3>
                   <div className="panel-indicadores-grid">
                     {confirmadas.map(([nombre, datos]) => (
-                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} proyectado={false} />
+                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} tipo="confirmada" />
                     ))}
                   </div>
                 </div>
@@ -103,7 +117,18 @@ function PanelIndicadores({ zonaSeleccionada }) {
                   <h3 className="panel-indicadores-subtitulo">Proyecciones</h3>
                   <div className="panel-indicadores-grid">
                     {proyecciones.map(([nombre, datos]) => (
-                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} proyectado={true} />
+                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} tipo="proyeccion" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {sinDato.length > 0 && (
+                <div className="panel-indicadores-grupo">
+                  <h3 className="panel-indicadores-subtitulo">Sin dato</h3>
+                  <div className="panel-indicadores-grid">
+                    {sinDato.map(([nombre, datos]) => (
+                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} tipo="sin_dato" />
                     ))}
                   </div>
                 </div>
