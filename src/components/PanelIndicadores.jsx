@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react"
 import "../Css/StyleComponents.css";
+import { getProyeccion } from "../services/api";
 
 const INDICADORES = [
   "densidad_poblacional",
@@ -45,13 +46,27 @@ function esSinDato(origen) {
   return origen == null;
 }
 
-function TarjetaIndicador({ nombre, datos, tipo }) {
+// `tipo` (3 estados: confirmada/proyeccion/sin_dato) se sigue usando
+// cuando ya hay zonaSeleccionada.indicadores real (ver PanelIndicadores
+// mas abajo); `proyectado`/`onClick` son del estado "sin zona todavia"
+// que agrega Luis (tarjetas clickeables para pedir una proyeccion
+// puntual) -- ambos casos conviven, ninguno reemplaza al otro.
+function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick }) {
   const nombreFormateado = nombre.replace(/_/g, " ");
   const unidad = UNIDADES[nombre] || "";
-  const claseTipo = tipo === "proyeccion" ? " indicador-card-proyeccion" : tipo === "sin_dato" ? " indicador-card-sin-dato" : "";
+  const claseTipo =
+    tipo === "proyeccion" || proyectado
+      ? " indicador-card-proyeccion"
+      : tipo === "sin_dato"
+        ? " indicador-card-sin-dato"
+        : "";
 
   return (
-    <div className={`indicador-card${claseTipo}`}>
+    <div
+      className={`indicador-card${claseTipo}`}
+      onClick={onClick}
+      style={{ cursor: onClick ? "pointer" : "default" }}
+    >
       <strong className="indicador-nombre">{nombreFormateado}</strong>
       <p className="indicador-valor">
         {datos.valor ?? "Sin dato"} {datos.valor ? unidad : ""}
@@ -72,7 +87,35 @@ function TarjetaIndicador({ nombre, datos, tipo }) {
   );
 }
 
-function PanelIndicadores({ zonaSeleccionada }) {
+function PanelIndicadores({ zonaSeleccionada, onActualizarZona  }) {
+  const [cargando, setCargando] = useState(false);
+   async function manejarClickIndicador(indicador) { 
+    if (!zonaSeleccionada) return;
+    try {
+      setCargando(true);
+      const respuesta = await getProyeccion(
+        zonaSeleccionada.codigo,
+        indicador,
+        2025,
+        2029
+      );
+      onActualizarZona({
+        ...zonaSeleccionada,
+        indicadores: {
+          ...zonaSeleccionada.indicadores,
+          [indicador]: {
+            valor: null,
+            origen: PREFIJO_PROYECCION,
+            anio_real: null,
+            intervalo_confianza: 95,
+            serie: respuesta.serie,
+          },
+        },
+      });
+    } finally {
+      setCargando(false);
+    }
+  }
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
       <div className="panel-indicadores-header">
@@ -139,17 +182,17 @@ function PanelIndicadores({ zonaSeleccionada }) {
       ) : (
         <div className="panel-indicadores-grid">
           {INDICADORES.map((indicador) => {
-            const nombreFormateado = indicador.replace(/_/g, " ");
-            const unidad = UNIDADES[indicador] || "";
-            return (
-              <div className="indicador-card" key={indicador}>
-                <strong className="indicador-nombre">{nombreFormateado}</strong>
-                <p className="indicador-valor">Sin dato {unidad}</p>
-              </div>
-            );
+            <TarjetaIndicador
+              key={indicador}
+              nombre={indicador}
+              datos={{ valor: null }}
+              proyectado={false}
+              onClick={() => manejarClickIndicador(indicador)}
+            />
           })}
         </div>
       )}
+      {cargando && <p>Cargando proyección...</p>}
     </aside>
   );
 }
