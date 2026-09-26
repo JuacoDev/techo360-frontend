@@ -86,11 +86,11 @@ function ManejadorDeClicVacio({ onClicVacio }) {
 // Centra/hace zoom hacia el municipio seleccionado, sin importar si la
 // seleccion vino de un clic en el mapa o del buscador -- mismo efecto en
 // ambos casos. No hace nada al deseleccionar (no se aleja el mapa solo).
-function ControladorDeFoco({ codigoSeleccionado, datosMunicipios }) {
+function ControladorDeFoco({ codigoSeleccionado, nivelSeleccionado, datosMunicipios }) {
   const map = useMap()
 
   useEffect(() => {
-    if (!codigoSeleccionado || !datosMunicipios) return
+    if (nivelSeleccionado !== 'municipio' || !codigoSeleccionado || !datosMunicipios) return
 
     const feature = datosMunicipios.features.find(
       (f) => f.properties.codigo === codigoSeleccionado
@@ -104,7 +104,7 @@ function ControladorDeFoco({ codigoSeleccionado, datosMunicipios }) {
         duration: 0.75,
       })
     }
-  }, [codigoSeleccionado, datosMunicipios, map])
+  }, [codigoSeleccionado, datosMunicipios, nivelSeleccionado, map])
 
   return null
 }
@@ -132,6 +132,7 @@ function MapView({
   departamentos,
   datosMunicipios,
   codigoSeleccionado,
+  nivelSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
   const [isLegendOpen, setIsLegendOpen] = useState(false)
@@ -140,7 +141,9 @@ function MapView({
     (feature) => {
       const score = feature.properties?.score_privacion
       const codigo = feature.properties?.codigo
-      const atenuado = Boolean(codigoSeleccionado) && codigo !== codigoSeleccionado
+      const atenuado = nivelSeleccionado === 'municipio'
+        && Boolean(codigoSeleccionado)
+        && codigo !== codigoSeleccionado
       return {
         fillColor: getColor(score),
         weight: 1,
@@ -149,7 +152,7 @@ function MapView({
         fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
       }
     },
-    [codigoSeleccionado]
+    [codigoSeleccionado, nivelSeleccionado]
   )
 
   // Tooltip liviano con solo el nombre (nada de score ni otras
@@ -169,7 +172,9 @@ function MapView({
             (f) => f.properties.codigo === feature.properties.codigo
           )
           onZonaSeleccionada?.(
-            featureConIndicadores ? featureConIndicadores.properties : null
+            featureConIndicadores
+              ? { ...featureConIndicadores.properties, nivel: 'municipio' }
+              : null
           )
         },
       })
@@ -182,7 +187,7 @@ function MapView({
       layer.on({
         click: (evento) => {
           L.DomEvent.stopPropagation(evento)
-          onZonaSeleccionada?.(feature.properties)
+          onZonaSeleccionada?.({ ...feature.properties, nivel: 'departamento' })
         },
       })
     },
@@ -211,6 +216,7 @@ function MapView({
         <ManejadorDeClicVacio onClicVacio={() => onZonaSeleccionada?.(null)} />
         <ControladorDeFoco
           codigoSeleccionado={codigoSeleccionado}
+          nivelSeleccionado={nivelSeleccionado}
           datosMunicipios={datosMunicipios}
         />
         <TileLayer
