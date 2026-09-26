@@ -138,10 +138,27 @@ body {
 }
 
 .map-legend-gradient {
+  position: relative; /* ancla map-legend-marker */
   width: 100%;
   height: 14px;
   border-radius: 4px;
   background: linear-gradient(to right, hsl(55, 85%, 80%), hsl(0, 100%, 35%));
+}
+
+/* Marcador de la zona seleccionada -- triangulo apuntando hacia abajo,
+   posicionado via "left" en linea (score_privacion * 100%) desde
+   MapView.jsx. Mismo azul que COLOR_BORDE en MapView.jsx para
+   consistencia visual con el resto del mapa. */
+.map-legend-marker {
+  position: absolute;
+  top: -7px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #1E3A8A;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .map-legend-labels {

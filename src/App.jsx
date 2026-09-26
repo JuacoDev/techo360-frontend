@@ -132,6 +132,7 @@ function App() {
               departamentos={departamentos}
               datosMunicipios={datosMunicipios}
               codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+              scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
             />
           </div>
         </>
@@ -160,6 +161,7 @@ function App() {
                   departamentos={departamentos}
                   datosMunicipios={datosMunicipios}
                   codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+                  scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
                 />
               </div>
             </section>
