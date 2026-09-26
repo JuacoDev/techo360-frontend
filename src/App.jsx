@@ -132,6 +132,7 @@ function App() {
               departamentos={departamentos}
               datosMunicipios={datosMunicipios}
               codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+              nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
             />
           </div>
         </>
@@ -152,6 +153,7 @@ function App() {
                 onSeleccionarZona={seleccionarZona}
                 departamentos={departamentos}
                 datosMunicipios={datosMunicipios}
+                zonaActiva={zonaSeleccionada}
               />
               <div className="dashboard-map-container">
                 <MapView
@@ -160,6 +162,7 @@ function App() {
                   departamentos={departamentos}
                   datosMunicipios={datosMunicipios}
                   codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+                  nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
                 />
               </div>
             </section>

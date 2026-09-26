@@ -326,24 +326,6 @@ BarraBuscadora Styles
   gap: 10px;                
 }
 
-.BarraResultados {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: min(360px, 50vh);
-  overflow-y: auto;
-  padding: 8px 12px;
-  box-sizing: border-box;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
-  z-index: 10;
-}
-
-.BarraResultadoGrupo h4 {
-  margin: 6px 0;
-}
 .BarraBuscadora h3 {
   font-size: 15px;
   font-weight: 600;
@@ -351,9 +333,14 @@ BarraBuscadora Styles
   text-align: center; 
 }
 
-.BarraInput {
-  width: 100%;               
-  box-sizing: border-box;    
+.BarraSelectores {
+  display: flex;
+  gap: 10px;
+}
+
+.BarraSelect {
+  min-width: 0;
+  flex: 1;
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 6px;
@@ -361,34 +348,10 @@ BarraBuscadora Styles
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.BarraInput:focus {
+.BarraSelect:focus {
   border-color: #0077cc;
   box-shadow: 0 0 5px rgba(0,119,204,0.3);
   outline: none;
-}
-
-.BarraSugerencias {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-height: 160px;   
-  overflow-y: auto;    
-  border: 1px solid #eee;
-  border-radius: 6px;
-  background-color: #fafafa;
-}
-
-.BarraSugerencias li {
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
-  border-bottom: 1px solid #eee;
-}
-
-.BarraSugerencias li:hover {
-  background-color: #0077cc;
-  color: #fff;
 }
 
 

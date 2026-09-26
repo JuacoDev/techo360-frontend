@@ -1,13 +1,18 @@
-import { useMemo, useState, useEffect } from "react"; 
+import { useMemo, useState, useEffect } from "react";
 
 // departamentos y datosMunicipios ya fueron descargados una vez por App
 // (misma respuesta que ya usa MapView) -- este componente NO vuelve a
-// pedirlos ni hace ningun fetch al seleccionar un resultado: solo busca
+// pedirlos ni hace ningun fetch al seleccionar una zona: solo filtra
 // dentro de los datos que ya llegaron por props.
-function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios, onBuscadorReady }) {
-  const [busqueda, setBusqueda] = useState("");
-  const [mostrarDeptos, setMostrarDeptos] = useState(true);
-  const [mostrarMunicipios, setMostrarMunicipios] = useState(true);
+function BarraBuscadora({
+  onSeleccionarZona,
+  departamentos,
+  datosMunicipios,
+  zonaActiva,
+  onBuscadorReady,
+}) {
+  const [codigoDepartamento, setCodigoDepartamento] = useState("");
+  const [codigoMunicipio, setCodigoMunicipio] = useState("");
 
   useEffect(() => {
     if (departamentos && datosMunicipios) {
@@ -15,71 +20,92 @@ function BarraBuscadora({ onSeleccionarZona, departamentos, datosMunicipios, onB
     }
   }, [departamentos, datosMunicipios, onBuscadorReady]);
 
+  useEffect(() => {
+    if (!zonaActiva?.codigo) {
+      setCodigoDepartamento("");
+      setCodigoMunicipio("");
+      return;
+    }
+
+    const codigo = String(zonaActiva.codigo);
+    if (codigo.length > 2) {
+      setCodigoDepartamento(codigo.substring(0, 2));
+      setCodigoMunicipio(codigo);
+    } else {
+      setCodigoDepartamento(codigo);
+      setCodigoMunicipio("");
+    }
+  }, [zonaActiva]);
+
   const listaDepartamentos = useMemo(
-    () => departamentos?.features.map((f) => f.properties) ?? [],
+    () => (departamentos?.features ?? [])
+      .map((feature) => feature.properties)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
     [departamentos]
   );
-  const listaMunicipios = useMemo(
-    () => datosMunicipios?.features.map((f) => f.properties) ?? [],
-    [datosMunicipios]
+  const municipiosDelDepartamento = useMemo(
+    () => (datosMunicipios?.features ?? [])
+      .filter((feature) => String(feature.properties.codigo).startsWith(String(codigoDepartamento)))
+      .map((feature) => feature.properties)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [datosMunicipios, codigoDepartamento]
   );
 
-  const resultadosDeptos = listaDepartamentos.filter((dep) =>
-    dep.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
-  const resultadosMunicipios = listaMunicipios.filter((mun) =>
-    mun.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  function manejarSeleccionDepartamento(evento) {
+    const codigo = evento.target.value;
+    setCodigoDepartamento(codigo);
+    setCodigoMunicipio("");
 
-  function manejarClick(zona) {
-    onSeleccionarZona(zona);
-    setBusqueda(zona.nombre);
+    const departamento = listaDepartamentos.find(
+      (zona) => String(zona.codigo) === codigo
+    );
+    if (departamento) {
+      onSeleccionarZona({ ...departamento, nivel: "departamento" });
+    }
+  }
+
+  function manejarSeleccionMunicipio(evento) {
+    const municipio = municipiosDelDepartamento.find(
+      (zona) => String(zona.codigo) === evento.target.value
+    );
+    setCodigoMunicipio(evento.target.value);
+    if (municipio) {
+      onSeleccionarZona({ ...municipio, nivel: "municipio" });
+    }
   }
 
   return (
     <div className="BarraBuscadora">
-      <h3>Buscar departamento o municipio</h3>
-      <input
-        type="text"
-        placeholder="Escribe aquí..."
-        className="BarraInput"
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-      />
+      <h3>Seleccionar zona</h3>
+      <div className="BarraSelectores">
+        <select
+          className="BarraSelect"
+          value={codigoDepartamento}
+          onChange={manejarSeleccionDepartamento}
+          disabled={!departamentos}
+        >
+          <option value="" disabled>Seleccione un departamento...</option>
+          {listaDepartamentos.map((departamento) => (
+            <option key={departamento.codigo} value={departamento.codigo}>
+              {departamento.nombre}
+            </option>
+          ))}
+        </select>
 
-      {busqueda && (
-        <div className="BarraResultados">
-          <div className="BarraResultadoGrupo">
-            <h4 onClick={() => setMostrarDeptos(!mostrarDeptos)} style={{cursor: "pointer"}}>
-              Departamentos {mostrarDeptos ? "▼" : "▶"}
-            </h4>
-            {mostrarDeptos && (
-              <ul className="BarraSugerencias">
-                {resultadosDeptos.map((dep) => (
-                  <li key={dep.codigo} onClick={() => manejarClick(dep)}>
-                    {dep.nombre}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="BarraResultadoGrupo">
-            <h4 onClick={() => setMostrarMunicipios(!mostrarMunicipios)} style={{cursor: "pointer"}}>
-              Municipios {mostrarMunicipios ? "▼" : "▶"}
-            </h4>
-            {mostrarMunicipios && (
-              <ul className="BarraSugerencias">
-                {resultadosMunicipios.map((mun) => (
-                  <li key={mun.codigo} onClick={() => manejarClick(mun)}>
-                    {mun.nombre}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
+        <select
+          className="BarraSelect"
+          value={codigoMunicipio}
+          onChange={manejarSeleccionMunicipio}
+          disabled={!codigoDepartamento || !datosMunicipios}
+        >
+          <option value="" disabled>Seleccione un municipio...</option>
+          {municipiosDelDepartamento.map((municipio) => (
+            <option key={municipio.codigo} value={municipio.codigo}>
+              {municipio.nombre}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
