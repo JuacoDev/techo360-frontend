@@ -13,7 +13,7 @@ import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
-import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion } from "./services/api";
+import { getToken, limpiarToken, ANIO_INDICADORES, getZonasMunicipios, getZonasDepartamentos, getProyeccionZonas, } from "./services/api";
 
 const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
 
@@ -22,6 +22,14 @@ function App() {
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
+  const [departamentosAnio, setDepartamentosAnio] = useState(null);
+  const [anioMapa, setAnioMapa] = useState(ANIO_INDICADORES);
+  const [selectorAnioActivo, setSelectorAnioActivo] = useState(false);
+  const [datosMapaReales, setDatosMapaReales] = useState(null);
+  const [datosMapaProyectados, setDatosMapaProyectados] = useState(null);
+  const [fiabilidadMapa, setFiabilidadMapa] = useState(null);
+  const [cargandoAnioMapa, setCargandoAnioMapa] = useState(false);
+  const datosMapaPorAnio = useRef(new Map());
 
   const [mapReady, setMapReady] = useState(false);
   const [departamentosReady, setDepartamentosReady] = useState(false);
@@ -65,6 +73,13 @@ function App() {
     limpiarToken();
     setDepartamentos(null);
     setDatosMunicipios(null);
+    setDepartamentosAnio(null);
+    setDatosMapaReales(null);
+    setDatosMapaProyectados(null);
+    setFiabilidadMapa(null);
+    setSelectorAnioActivo(false);
+    setAnioMapa(ANIO_INDICADORES);
+    datosMapaPorAnio.current.clear();
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
     setMapReady(false);
@@ -93,9 +108,11 @@ function App() {
     if (!token || departamentosSolicitados.current) return;
     departamentosSolicitados.current = true;
 
-    fetchConSesion(`${API_URL}/api/zonas?nivel=departamento`, {}, logout)
-      .then((res) => res.json())
-      .then(setDepartamentos)
+    getZonasDepartamentos(ANIO_INDICADORES, logout)
+      .then((datos) => {
+        datosMapaPorAnio.current.set(`departamentos-${ANIO_INDICADORES}`, datos);
+        setDepartamentos(datos);
+      })
       .catch((err) => console.error("Error cargando limites de departamentos:", err));
   }, [screen, logout]);
 
@@ -104,11 +121,66 @@ function App() {
     if (!token || municipiosSolicitados.current) return;
     municipiosSolicitados.current = true;
 
-    fetchConSesion(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {}, logout)
-      .then((res) => res.json())
-      .then(setDatosMunicipios)
+    getZonasMunicipios(ANIO_INDICADORES, logout)
+      .then((datos) => {
+        datosMapaPorAnio.current.set(`municipios-${ANIO_INDICADORES}`, datos);
+        setDatosMunicipios(datos);
+      })
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
   }, [screen, logout]);
+
+  useEffect(() => {
+    if (!selectorAnioActivo || screen !== "app") {
+      setCargandoAnioMapa(false);
+      return undefined;
+    }
+
+    let cancelado = false;
+    setCargandoAnioMapa(true);
+    setDatosMapaReales(null);
+    setDepartamentosAnio(null);
+    setDatosMapaProyectados(null);
+    setFiabilidadMapa(null);
+    const temporizador = setTimeout(async () => {
+      try {
+        if (anioMapa < 2025) {
+          const [datos, departamentosDatos] = await Promise.all([
+            datosMapaPorAnio.current.get(`municipios-${anioMapa}`)
+              ?? getZonasMunicipios(anioMapa, logout),
+            datosMapaPorAnio.current.get(`departamentos-${anioMapa}`)
+              ?? getZonasDepartamentos(anioMapa, logout),
+          ]);
+          if (cancelado) return;
+          datosMapaPorAnio.current.set(`municipios-${anioMapa}`, datos);
+          datosMapaPorAnio.current.set(`departamentos-${anioMapa}`, departamentosDatos);
+          setDatosMapaReales(datos);
+          setDepartamentosAnio(departamentosDatos);
+          setDatosMapaProyectados(null);
+          setFiabilidadMapa(null);
+        } else {
+          let respuesta = datosMapaPorAnio.current.get(`proyeccion-${anioMapa}`);
+          if (!respuesta) {
+            respuesta = await getProyeccionZonas(anioMapa, undefined, logout);
+            datosMapaPorAnio.current.set(`proyeccion-${anioMapa}`, respuesta);
+          }
+          if (cancelado) return;
+          setDatosMapaReales(null);
+          setDepartamentosAnio(null);
+          setDatosMapaProyectados(respuesta.zonas ?? []);
+          setFiabilidadMapa(respuesta.intervalo_confianza ?? respuesta.fiabilidad ?? null);
+        }
+      } catch (error) {
+        if (!cancelado) console.error("Error cargando el año del mapa:", error);
+      } finally {
+        if (!cancelado) setCargandoAnioMapa(false);
+      }
+    }, 200);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+    };
+  }, [anioMapa, logout, screen, selectorAnioActivo]);
 
   // Punto unico de seleccion de zona, usado tanto por el clic en el mapa
   // como por el buscador: si la zona clickeada/elegida es la misma que ya
@@ -120,6 +192,16 @@ function App() {
       zona && actual && actual.codigo === zona.codigo ? null : zona
     );
   };
+
+  const datosMunicipiosMapa = selectorAnioActivo && anioMapa < 2025
+    ? datosMapaReales
+    : datosMunicipios;
+  const datosProyectadosMapa = selectorAnioActivo && anioMapa >= 2025
+    ? datosMapaProyectados
+    : null;
+  const departamentosMapa = selectorAnioActivo && anioMapa < 2025
+    ? departamentosAnio
+    : departamentos;
 
   return (
     <>
@@ -135,6 +217,7 @@ function App() {
               codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
               scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
               nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
+              mostrarSelectorAnio={false}
             />
           </div>
         </>
@@ -163,11 +246,19 @@ function App() {
                 <MapView
                   onMapLoaded={handleMapLoaded}
                   onZonaSeleccionada={seleccionarZona}
-                  departamentos={departamentos}
-                  datosMunicipios={datosMunicipios}
+                  departamentos={departamentosMapa}
                   codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
                   scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
                   nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
+                  datosMunicipios={datosMunicipiosMapa}
+                  datosProyectados={datosProyectadosMapa}
+                  claveDatosMapa={selectorAnioActivo ? `anio-${anioMapa}` : "base"}
+                  anioSeleccionado={anioMapa}
+                  selectorAnioActivo={selectorAnioActivo}
+                  cargandoAnio={cargandoAnioMapa}
+                  fiabilidadProyeccion={fiabilidadMapa}
+                  onAnioSeleccionado={setAnioMapa}
+                  onSelectorAnioActivo={setSelectorAnioActivo}
                 />
               </div>
             </section>

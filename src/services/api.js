@@ -47,6 +47,40 @@ export async function fetchConSesion(url, options = {}, logout) {
   return response;
 }
 
+export async function getZonasMunicipios(anio, logout) {
+  const response = await fetchConSesion(
+    `${API_URL}/api/zonas?nivel=municipio&anio=${anio}`,
+    {},
+    logout
+  );
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(result.detail || "Error al obtener los datos del mapa");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result;
+}
+
+export async function getZonasDepartamentos(anio, logout) {
+  const response = await fetchConSesion(
+    `${API_URL}/api/zonas?nivel=departamento&anio=${anio}`,
+    {},
+    logout
+  );
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(result.detail || "Error al obtener los departamentos del mapa");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result;
+}
+
 // -------------------
 // Login
 // -------------------
