@@ -51,7 +51,7 @@ function esSinDato(origen) {
 // mas abajo); `proyectado`/`onClick` son del estado "sin zona todavia"
 // que agrega Luis (tarjetas clickeables para pedir una proyeccion
 // puntual) -- ambos casos conviven, ninguno reemplaza al otro.
-function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick }) {
+function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProyectada }) {
   const nombreFormateado = nombre.replace(/_/g, " ");
   const unidad = UNIDADES[nombre] || "";
   const claseTipo =
@@ -109,7 +109,7 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
   if (!zonaSeleccionada) return;
 
   manejarClickIndicador("densidad_poblacional");
-}, [zonaSeleccionada]);
+}, [zonaSeleccionada, anioInicio, anioFin]);
 
    async function manejarClickIndicador(indicador) {
   if (!zonaSeleccionada) return;
