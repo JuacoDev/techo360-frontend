@@ -13,7 +13,7 @@ import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
-import { getToken, limpiarToken, ANIO_INDICADORES, getZonasMunicipios, getZonasDepartamentos, getProyeccionZonas, } from "./services/api";
+import {getToken, limpiarToken, getZonasMunicipios, getZonasDepartamentos, getProyeccionZonas, } from "./services/api";
 
 const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
 
@@ -23,7 +23,7 @@ function App() {
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
   const [departamentosAnio, setDepartamentosAnio] = useState(null);
-  const [anioMapa, setAnioMapa] = useState(ANIO_INDICADORES);
+  const [anioMapa, setAnioMapa] = useState(2025);
   const [selectorAnioActivo, setSelectorAnioActivo] = useState(false);
   const [datosMapaReales, setDatosMapaReales] = useState(null);
   const [datosMapaProyectados, setDatosMapaProyectados] = useState(null);
@@ -78,7 +78,7 @@ function App() {
     setDatosMapaProyectados(null);
     setFiabilidadMapa(null);
     setSelectorAnioActivo(false);
-    setAnioMapa(ANIO_INDICADORES);
+    setAnioMapa(2025);
     datosMapaPorAnio.current.clear();
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
@@ -108,9 +108,9 @@ function App() {
     if (!token || departamentosSolicitados.current) return;
     departamentosSolicitados.current = true;
 
-    getZonasDepartamentos(ANIO_INDICADORES, logout)
+    getZonasDepartamentos(2025, logout)
       .then((datos) => {
-        datosMapaPorAnio.current.set(`departamentos-${ANIO_INDICADORES}`, datos);
+        datosMapaPorAnio.current.set("departamentos-2025", datos);
         setDepartamentos(datos);
       })
       .catch((err) => console.error("Error cargando limites de departamentos:", err));
@@ -121,9 +121,9 @@ function App() {
     if (!token || municipiosSolicitados.current) return;
     municipiosSolicitados.current = true;
 
-    getZonasMunicipios(ANIO_INDICADORES, logout)
+    getZonasMunicipios(2025, logout)
       .then((datos) => {
-        datosMapaPorAnio.current.set(`municipios-${ANIO_INDICADORES}`, datos);
+        datosMapaPorAnio.current.set("municipios-2025", datos);
         setDatosMunicipios(datos);
       })
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));

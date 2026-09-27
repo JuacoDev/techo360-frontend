@@ -1,56 +1,83 @@
-import React from "react";
+import React, { useId, useState } from "react";
 
 function SelectorAnioMapa({
-  anio = 2024,
+  anio = 2025,
   activo = false,
-  anioMinimo = 2024,
+  anioMinimo = 2025,
   anioMaximo = 2050,
   cargando = false,
   fiabilidad,
   onCambioAnio,
   onCambioActivo,
 }) {
+  const [abierto, setAbierto] = useState(false);
+  const sliderId = useId();
   const esProyectado = anio >= 2025;
 
   return (
-    <section className="map-year-control" aria-label="Selector de año del mapa">
-      <label className="map-year-toggle">
-        <input
-          type="checkbox"
-          checked={activo}
-          onChange={(evento) => onCambioActivo?.(evento.target.checked)}
-        />
-        <span>Seleccionar año</span>
-      </label>
+    <div className="map-year-control">
+      {abierto ? (
+        <section className="map-legend-panel" aria-label="Selector de año del mapa">
+          <div className="map-legend-header">
+            <h2>Año del mapa</h2>
+            <button
+              type="button"
+              className="map-legend-close"
+              aria-label="Cerrar selector de año"
+              onClick={() => setAbierto(false)}
+            >
+              X
+            </button>
+          </div>
 
-      <label className="map-year-slider-label" htmlFor="map-year-slider">
-        Año seleccionado: <strong>{anio}</strong>
-      </label>
-      <input
-        id="map-year-slider"
-        className="map-year-slider"
-        type="range"
-        min={anioMinimo}
-        max={anioMaximo}
-        step="1"
-        value={anio}
-        disabled={!activo}
-        aria-label="Año mostrado en todo el mapa"
-        onChange={(evento) => onCambioAnio?.(Number(evento.target.value))}
-      />
-      <div className="map-year-slider-labels" aria-hidden="true">
-        <span>{anioMinimo}</span>
-        <span>{anioMaximo}</span>
-      </div>
+          <label className="map-year-toggle">
+            <input
+              type="checkbox"
+              checked={activo}
+              onChange={(evento) => onCambioActivo?.(evento.target.checked)}
+            />
+            <span>Seleccionar año</span>
+          </label>
 
-      {cargando && <span className="map-year-status">Cargando año...</span>}
-      {!cargando && activo && esProyectado && (
-        <span className="map-year-reliability" role="status">
-          Fiabilidad: {fiabilidad ?? "No disponible"}
-          {fiabilidad != null && typeof fiabilidad === "number" ? "%" : ""}
-        </span>
+          <label className="map-year-slider-label" htmlFor={sliderId}>
+            Año seleccionado: <strong>{anio}</strong>
+          </label>
+          <input
+            id={sliderId}
+            className="map-year-slider"
+            type="range"
+            min={anioMinimo}
+            max={anioMaximo}
+            step="1"
+            value={anio}
+            disabled={!activo}
+            aria-label="Año mostrado en todo el mapa"
+            onChange={(evento) => onCambioAnio?.(Number(evento.target.value))}
+          />
+          <div className="map-year-slider-labels" aria-hidden="true">
+            <span>{anioMinimo}</span>
+            <span>{anioMaximo}</span>
+          </div>
+
+          {cargando && <span className="map-year-status">Cargando año...</span>}
+          {!cargando && activo && esProyectado && (
+            <span className="map-year-reliability" role="status">
+              Fiabilidad: {fiabilidad ?? "No disponible"}
+              {fiabilidad != null && typeof fiabilidad === "number" ? "%" : ""}
+            </span>
+          )}
+        </section>
+      ) : (
+        <button
+          type="button"
+          className="map-legend-toggle"
+          aria-expanded="false"
+          onClick={() => setAbierto(true)}
+        >
+          Seleccionar año
+        </button>
       )}
-    </section>
+    </div>
   );
 }
 

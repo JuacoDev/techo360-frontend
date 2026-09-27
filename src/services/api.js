@@ -48,8 +48,10 @@ export async function fetchConSesion(url, options = {}, logout) {
 }
 
 export async function getZonasMunicipios(anio, logout) {
+  const parametros = new URLSearchParams({ nivel: "municipio" });
+  if (anio != null) parametros.set("anio", String(anio));
   const response = await fetchConSesion(
-    `${API_URL}/api/zonas?nivel=municipio&anio=${anio}`,
+    `${API_URL}/api/zonas?${parametros}`,
     {},
     logout
   );
@@ -65,8 +67,10 @@ export async function getZonasMunicipios(anio, logout) {
 }
 
 export async function getZonasDepartamentos(anio, logout) {
+  const parametros = new URLSearchParams({ nivel: "departamento" });
+  if (anio != null) parametros.set("anio", String(anio));
   const response = await fetchConSesion(
-    `${API_URL}/api/zonas?nivel=departamento&anio=${anio}`,
+    `${API_URL}/api/zonas?${parametros}`,
     {},
     logout
   );

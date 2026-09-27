@@ -139,7 +139,7 @@ function MapView({
   codigoSeleccionado,
   scoreSeleccionado,
   nivelSeleccionado,
-  anioSeleccionado = 2024,
+  anioSeleccionado = 2025,
   selectorAnioActivo = false,
   cargandoAnio = false,
   fiabilidadProyeccion,

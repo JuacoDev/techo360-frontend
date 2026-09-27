@@ -77,18 +77,9 @@ body {
 
 .map-year-control {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  bottom: 68px;
+  left: 20px;
   z-index: 1000;
-  width: min(300px, calc(100% - 32px));
-  box-sizing: border-box;
-  padding: 12px;
-  border: 1px solid #d7d7d7;
-  border-radius: 6px;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  color: #333230;
-  font-size: 12px;
 }
 
 .map-year-toggle {
