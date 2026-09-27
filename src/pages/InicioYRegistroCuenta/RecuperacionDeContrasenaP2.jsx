@@ -5,16 +5,21 @@ import OjoCerradoContrasena from "../../assets/OjoCerradoContrasena.png";
 import FondoLogin from "../../assets/FondoLogin.jpg";
 import { resetPassword } from "../../services/api";
 
-function RecuperacionDeContrasenaP2({ email, code, onChangePassword, onBack }) {
+function RecuperacionDeContrasenaP2({ email, onChangePassword, onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [codigo, setCodigo] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleChangePassword = async () => {
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+    if (codigo.trim().length === 0) {
+      setError("Ingresa el código que enviamos a tu correo");
+      return;
+    }
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres");
       return;
     }
     if (password !== confirmPassword) {
@@ -24,8 +29,8 @@ function RecuperacionDeContrasenaP2({ email, code, onChangePassword, onBack }) {
 
     try {
       setError("");
-      await resetPassword(email, code, password);
-      onChangePassword(password); 
+      await resetPassword(email, codigo, password);
+      onChangePassword(password);
     } catch (err) {
       if (err.status === 400) {
         setError("Código inválido o datos incorrectos.");
@@ -46,6 +51,14 @@ function RecuperacionDeContrasenaP2({ email, code, onChangePassword, onBack }) {
       <div className="auth-form-panel">
         <div className="form-container recuperacion-container">
           <h2>Nueva contraseña</h2>
+
+          <input
+            type="text"
+            placeholder="Código de verificación"
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
+            maxLength={6}
+          />
 
           <div className="password-field">
             <input
@@ -80,7 +93,7 @@ function RecuperacionDeContrasenaP2({ email, code, onChangePassword, onBack }) {
           {error && <p style={{ color: "red" }}>{error}</p>}
 
           <p className="form-note">
-            Mínimo 6 caracteres y ambas contraseñas deben coincidir.
+            Mínimo 8 caracteres y ambas contraseñas deben coincidir.
           </p>
 
           <button onClick={handleChangePassword}>Cambiar contraseña</button>

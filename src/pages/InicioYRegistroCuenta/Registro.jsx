@@ -19,8 +19,13 @@ function Registro({ onCodigoEnviado, goToLogin }) {
   const handleRegister = async () => {
     setError("");
 
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+    if (username.length < 3 || username.length > 20) {
+      setError("El usuario debe tener entre 3 y 20 caracteres");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres");
       return;
     }
 
@@ -74,6 +79,7 @@ function Registro({ onCodigoEnviado, goToLogin }) {
             placeholder="Usuario"
             value={username}
             onChange={e => setUsername(e.target.value)}
+            maxLength={20}
           />
 
           <input
