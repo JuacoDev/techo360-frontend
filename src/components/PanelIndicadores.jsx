@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState , useEffect } from "react"
 import "../Css/StyleComponents.css";
 import { getProyeccion } from "../services/api";
 
@@ -34,22 +34,38 @@ function esProyeccion(origen) {
   return typeof origen === "string" && origen.startsWith(PREFIJO_PROYECCION);
 }
 
-function TarjetaIndicador({ nombre, datos, proyectado, onClick }) {
+function TarjetaIndicador({ nombre, datos, proyectado, onClick, serieProyectada }) {
   const nombreFormateado = nombre.replace(/_/g, " ");
   const unidad = UNIDADES[nombre] || "";
 
   return (
-    <div className={`indicador-card${proyectado ? " indicador-card-proyeccion" : ""}`}
+    <div
+      className={`indicador-card${proyectado ? " indicador-card-proyeccion" : ""}`}
       onClick={onClick}
-      style={{ cursor: onClick ? "pointer" : "default" }}
-      >
-      <strong className="indicador-nombre">{nombreFormateado}</strong>
+    >
+      <strong className="indicador-nombre">
+        {nombreFormateado}
+      </strong>
+
       <p className="indicador-valor">
         {datos.valor ?? "Sin dato"} {datos.valor ? unidad : ""}
       </p>
+
+      {serieProyectada?.length > 0 && (
+        <div className="indicador-serie">
+          {serieProyectada.map((punto) => (
+            <div key={punto.anio}>
+              {punto.anio} → {punto.valor} {unidad}
+            </div>
+          ))}
+        </div>
+      )}
+
       {proyectado ? (
         datos.intervalo_confianza != null && (
-          <p className="indicador-proyeccion-badge">Fiabilidad: {datos.intervalo_confianza}%</p>
+          <p className="indicador-proyeccion-badge">
+            Fiabilidad: {datos.intervalo_confianza}%
+          </p>
         )
       ) : (
         datos.origen && (
@@ -63,35 +79,41 @@ function TarjetaIndicador({ nombre, datos, proyectado, onClick }) {
   );
 }
 
-function PanelIndicadores({ zonaSeleccionada, onActualizarZona  }) {
+function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFin }) {
   const [cargando, setCargando] = useState(false);
-   async function manejarClickIndicador(indicador) { 
-    if (!zonaSeleccionada) return;
-    try {
-      setCargando(true);
-      const respuesta = await getProyeccion(
-        zonaSeleccionada.codigo,
-        indicador,
-        2025,
-        2029
-      );
-      onActualizarZona({
-        ...zonaSeleccionada,
-        indicadores: {
-          ...zonaSeleccionada.indicadores,
-          [indicador]: {
-            valor: null,
-            origen: PREFIJO_PROYECCION,
-            anio_real: null,
-            intervalo_confianza: 95,
-            serie: respuesta.serie,
-          },
-        },
-      });
-    } finally {
-      setCargando(false);
-    }
+  const [proyecciones, setProyecciones] = useState({});
+  useEffect(() => {
+  if (!zonaSeleccionada) return;
+
+  manejarClickIndicador("densidad_poblacional");
+}, [zonaSeleccionada]);
+
+   async function manejarClickIndicador(indicador) {
+  if (!zonaSeleccionada) return;
+  
+
+  try {
+    setCargando(true);
+
+    const respuesta = await getProyeccion(
+      zonaSeleccionada.codigo,
+      indicador,
+      anioInicio,
+      anioFin
+    );
+
+
+    setProyecciones((prev) => ({
+      ...prev,
+      [indicador]: respuesta.serie,
+    }));
+
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setCargando(false);
   }
+}
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
       <div className="panel-indicadores-header">
@@ -115,26 +137,45 @@ function PanelIndicadores({ zonaSeleccionada, onActualizarZona  }) {
         (() => {
           const entradas = Object.entries(zonaSeleccionada.indicadores);
           const confirmadas = entradas.filter(([, datos]) => !esProyeccion(datos.origen));
-          const proyecciones = entradas.filter(([, datos]) => esProyeccion(datos.origen));
+          const tarjetasProyeccion = entradas.filter(([, datos]) => esProyeccion(datos.origen));
 
           return (
             <>
               {confirmadas.length > 0 && (
                 <div className="panel-indicadores-grupo">
                   <h3 className="panel-indicadores-subtitulo">Fuentes confirmadas</h3>
-                  <div className="panel-indicadores-grid">
+                  <div className={  
+                    modo === "proyeccion"
+                    ? "panel-indicadores-grid-proyeccion"
+                    : "panel-indicadores-grid"
+                    }>
                     {confirmadas.map(([nombre, datos]) => (
-                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} proyectado={false} />
+                      <TarjetaIndicador
+                        key={nombre}
+                        nombre={nombre}
+                        datos={datos}
+                        proyectado={false}
+                        onClick={
+                          nombre === "densidad_poblacional"
+                            ? () => manejarClickIndicador(nombre)
+                            : undefined
+                        }
+                        serieProyectada={proyecciones[nombre] || []}
+                      />
                     ))}
                   </div>
                 </div>
               )}
 
-              {proyecciones.length > 0 && (
-                <div className="panel-indicadores-grupo">
+              {tarjetasProyeccion.length > 0 && (
+                <div className="panel-indicadores-grupo"> 
                   <h3 className="panel-indicadores-subtitulo">Proyecciones</h3>
-                  <div className="panel-indicadores-grid">
-                    {proyecciones.map(([nombre, datos]) => (
+                  <div className={
+                    modo === "proyeccion"
+                      ? "panel-indicadores-grid-proyeccion"
+                      : "panel-indicadores-grid"
+                  }>
+                    {tarjetasProyeccion.map(([nombre, datos]) => (
                       <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} proyectado={true} />
                     ))}
                   </div>
@@ -145,7 +186,7 @@ function PanelIndicadores({ zonaSeleccionada, onActualizarZona  }) {
         })()
       ) : (
         <div className="panel-indicadores-grid">
-          {INDICADORES.map((indicador) => {
+          {INDICADORES.map((indicador) => (
             <TarjetaIndicador
               key={indicador}
               nombre={indicador}
@@ -153,7 +194,7 @@ function PanelIndicadores({ zonaSeleccionada, onActualizarZona  }) {
               proyectado={false}
               onClick={() => manejarClickIndicador(indicador)}
             />
-          })}
+          ))}
         </div>
       )}
       {cargando && <p>Cargando proyección...</p>}

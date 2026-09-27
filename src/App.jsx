@@ -12,9 +12,10 @@ import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
 import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
+import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
 import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion } from "./services/api";
 
-const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot"];
+const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
 
 function App() {
   const [screen, setScreen] = useState("home");
@@ -143,6 +144,8 @@ function App() {
       {screen === "chatbot" && <ChatBotScreen setScreen={setScreen} onLogout={logout} />}
 
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
+      
+      {screen === "proyeccion" && <Proyectadas setScreen={setScreen} onLogout={logout} departamentos={departamentos} datosMunicipios={datosMunicipios} />}
 
       {screen === "app" && (
         <main className="app-shell">

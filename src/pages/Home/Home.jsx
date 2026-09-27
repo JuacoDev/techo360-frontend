@@ -59,7 +59,7 @@ const MODULOS = [
     descripcion: "Visualiza cómo evolucionarán los indicadores a futuro con el modelo predictivo LightGBM.",
     icono: IconoProyeccion,
     color: "sienna",
-    destino: null,
+    destino: "proyeccion",
   },
   {
     id: "chatbot",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -53,13 +53,15 @@ const FILL_OPACITY_NORMAL = 0.75
 const FILL_OPACITY_ATENUADA = 0.18
 
 // Funciones para el choropleth de municipios
-function getColor(score) {
-  if (score === null || score === undefined) return '#808080';
-  if (score >= 0.8) return '#b30000';
-  if (score >= 0.6) return '#e31a1c';
-  if (score >= 0.4) return '#fc4e2a';
-  if (score >= 0.2) return '#fd8d3c';
-  return '#ffeda0';
+function getColor(valor) {
+  if (valor == null) return "#808080";
+
+  if (valor >= 500) return "#b30000";
+  if (valor >= 250) return "#e31a1c";
+  if (valor >= 100) return "#fc4e2a";
+  if (valor >= 50) return "#fd8d3c";
+
+  return "#ffeda0";
 }
 
 // Componente sin render propio -- solo escucha el evento de zoom del
@@ -131,29 +133,66 @@ function MapView({
   onZonaSeleccionada,
   departamentos,
   datosMunicipios,
+  datosProyectados,
   codigoSeleccionado,
   nivelSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
   const [isLegendOpen, setIsLegendOpen] = useState(false)
 
+  const proyeccionesPorCodigo = useMemo(
+  () =>
+    datosProyectados
+      ? Object.fromEntries(
+          datosProyectados.map((z) => [
+            z.codigo_municipio,
+            z.valor,
+          ])
+        )
+      : {},
+  [datosProyectados]
+);
+
+
+
   const estiloMunicipios = useCallback(
-    (feature) => {
-      const score = feature.properties?.score_privacion
-      const codigo = feature.properties?.codigo
-      const atenuado = nivelSeleccionado === 'municipio'
-        && Boolean(codigoSeleccionado)
-        && codigo !== codigoSeleccionado
-      return {
-        fillColor: getColor(score),
-        weight: 1,
-        opacity: 1,
-        color: '#ffffff',
-        fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
-      }
-    },
-    [codigoSeleccionado, nivelSeleccionado]
-  )
+  (feature) => {
+    const codigo = feature.properties?.codigo;
+
+    const codigoNormalizado = String(codigo)
+      .padStart(5, "0");
+     
+    const valorProyectado =
+      proyeccionesPorCodigo[codigoNormalizado]; 
+
+    const valorColor =
+      datosProyectados
+        ? valorProyectado
+        : feature.properties?.score_privacion;
+
+
+    const atenuado =
+      nivelSeleccionado === "municipio" &&
+      Boolean(codigoSeleccionado) &&
+      codigo !== codigoSeleccionado;
+
+    return {
+      fillColor: getColor(valorColor),
+      weight: 1,
+      opacity: 1,
+      color: "#ffffff",
+      fillOpacity: atenuado
+        ? FILL_OPACITY_ATENUADA
+        : FILL_OPACITY_NORMAL,
+    };
+  },
+  [
+    codigoSeleccionado,
+    nivelSeleccionado,
+    datosProyectados,
+    proyeccionesPorCodigo,
+  ]
+);
 
   // Tooltip liviano con solo el nombre (nada de score ni otras
   // variables): se dispara en cada movimiento del mouse, asi que usamos

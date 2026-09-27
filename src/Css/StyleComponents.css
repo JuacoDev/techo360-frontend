@@ -401,6 +401,12 @@ PanelIndicadores Styles
   gap: 28px 18px;
 }
 
+.panel-indicadores-grid-proyeccion {
+display: grid;
+grid-template-columns: 1fr;
+gap: 16px;
+}
+
 .indicador-placeholder {
   min-height: 76px;
   display: flex;
@@ -804,4 +810,62 @@ Panel Indicadores
   color: #6b7280;
   padding-bottom: 6px;
   border-bottom: 1px solid #e5e7eb;
+}
+
+/*
+==================================
+proyecciones
+==================================
+*/
+.btn-proyeccion {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: #f57c00;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-proyeccion:hover {
+  background-color: #e65100;
+}
+
+.indicador-serie {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #444;
+}
+
+.panel-proyeccion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+}
+
+.panel-proyeccion select {
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.btn-generar-proyeccion {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background-color: #f57c00;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-generar-proyeccion:hover {
+  background-color: #e65100;
 }
