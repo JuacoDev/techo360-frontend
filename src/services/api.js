@@ -47,6 +47,44 @@ export async function fetchConSesion(url, options = {}, logout) {
   return response;
 }
 
+export async function getZonasMunicipios(anio, logout) {
+  const parametros = new URLSearchParams({ nivel: "municipio" });
+  if (anio != null) parametros.set("anio", String(anio));
+  const response = await fetchConSesion(
+    `${API_URL}/api/zonas?${parametros}`,
+    {},
+    logout
+  );
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(result.detail || "Error al obtener los datos del mapa");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result;
+}
+
+export async function getZonasDepartamentos(anio, logout) {
+  const parametros = new URLSearchParams({ nivel: "departamento" });
+  if (anio != null) parametros.set("anio", String(anio));
+  const response = await fetchConSesion(
+    `${API_URL}/api/zonas?${parametros}`,
+    {},
+    logout
+  );
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(result.detail || "Error al obtener los departamentos del mapa");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result;
+}
+
 // -------------------
 // Login
 // -------------------
@@ -173,12 +211,13 @@ export async function resetPassword(email, code, newPassword) {
   return result;
 }
 
+
 // -------------------
 // Proyecciones de indicadores
 // -------------------
 export async function getProyeccion(zonaCodigo, indicador, desde, hasta, logout) {
   const response = await fetchConSesion(
-    `${API_URL}/api/proyecciones?codigo_municipio=${zonaCodigo}&indicador=${indicador}&desde=${desde}&hasta=${hasta}`,
+    `${API_URL}/api/proyecciones/serie?codigo_municipio=${zonaCodigo}&indicador=${indicador}&desde=${desde}&hasta=${hasta}`,
     { method: "GET", headers: { "Content-Type": "application/json" } },
     logout
   );
@@ -188,5 +227,36 @@ export async function getProyeccion(zonaCodigo, indicador, desde, hasta, logout)
     error.status = response.status;
     throw error;
   }
+  return result;
+}
+
+export async function getProyeccionZonas(
+  anio,
+  indicador = "densidad_poblacional",
+  logout
+) {
+  const response = await fetchConSesion(
+    `${API_URL}/api/proyecciones/zonas?anio=${anio}&indicador=${indicador}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+    logout
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(
+      result.detail || "Error al obtener proyección de zonas"
+    );
+
+    error.status = response.status;
+
+    throw error;
+  }
+
   return result;
 }

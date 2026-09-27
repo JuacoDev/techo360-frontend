@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import SelectorAnioMapa from './SelectorAnioMapa'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -53,13 +54,15 @@ const FILL_OPACITY_NORMAL = 0.75
 const FILL_OPACITY_ATENUADA = 0.18
 
 // Funciones para el choropleth de municipios
-function getColor(score) {
-  if (score === null || score === undefined) return '#808080';
-  if (score >= 0.8) return '#b30000';
-  if (score >= 0.6) return '#e31a1c';
-  if (score >= 0.4) return '#fc4e2a';
-  if (score >= 0.2) return '#fd8d3c';
-  return '#ffeda0';
+function getColor(valor) {
+  if (valor == null) return "#808080";
+
+  if (valor >= 500) return "#b30000";
+  if (valor >= 250) return "#e31a1c";
+  if (valor >= 100) return "#fc4e2a";
+  if (valor >= 50) return "#fd8d3c";
+
+  return "#ffeda0";
 }
 
 // Componente sin render propio -- solo escucha el evento de zoom del
@@ -131,30 +134,109 @@ function MapView({
   onZonaSeleccionada,
   departamentos,
   datosMunicipios,
+  datosProyectados,
+  claveDatosMapa = "base",
   codigoSeleccionado,
   scoreSeleccionado,
   nivelSeleccionado,
+  anioSeleccionado = 2025,
+  selectorAnioActivo = false,
+  cargandoAnio = false,
+  fiabilidadProyeccion,
+  mostrarSelectorAnio = true,
+  onAnioSeleccionado,
+  onSelectorAnioActivo,
 }) {
   const [zoom, setZoom] = useState(6)
   const [isLegendOpen, setIsLegendOpen] = useState(false)
 
+  const proyeccionesPorCodigo = useMemo(
+  () =>
+    datosProyectados
+      ? Object.fromEntries(
+          datosProyectados.map((z) => [
+            z.codigo_municipio,
+            z.valor,
+          ])
+        )
+      : {},
+  [datosProyectados]
+);
+
+  const proyeccionesPorDepartamento = useMemo(() => {
+    const acumulados = {};
+
+    datosProyectados?.forEach((zona) => {
+      const codigoDepartamento = String(zona.codigo_municipio ?? "")
+        .padStart(5, "0")
+        .slice(0, 2);
+      const valor = Number(zona.valor);
+      if (!codigoDepartamento || !Number.isFinite(valor)) return;
+
+      acumulados[codigoDepartamento] ??= { total: 0, cantidad: 0 };
+      acumulados[codigoDepartamento].total += valor;
+      acumulados[codigoDepartamento].cantidad += 1;
+    });
+
+    return Object.fromEntries(
+      Object.entries(acumulados).map(([codigo, datos]) => [
+        codigo,
+        datos.total / datos.cantidad,
+      ])
+    );
+  }, [datosProyectados]);
+
+  const fiabilidadSeleccionada = useMemo(() => {
+    const codigoNormalizado = String(codigoSeleccionado ?? "").padStart(5, "0");
+    const proyeccionSeleccionada = datosProyectados?.find(
+      (zona) => String(zona.codigo_municipio ?? "").padStart(5, "0") === codigoNormalizado
+    );
+
+    return proyeccionSeleccionada?.intervalo_confianza
+      ?? proyeccionSeleccionada?.fiabilidad
+      ?? fiabilidadProyeccion;
+  }, [codigoSeleccionado, datosProyectados, fiabilidadProyeccion]);
+
+
+
   const estiloMunicipios = useCallback(
-    (feature) => {
-      const score = feature.properties?.score_privacion
-      const codigo = feature.properties?.codigo
-      const atenuado = nivelSeleccionado === 'municipio'
-        && Boolean(codigoSeleccionado)
-        && codigo !== codigoSeleccionado
-      return {
-        fillColor: getColor(score),
-        weight: 1,
-        opacity: 1,
-        color: '#ffffff',
-        fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
-      }
-    },
-    [codigoSeleccionado, nivelSeleccionado]
-  )
+  (feature) => {
+    const codigo = feature.properties?.codigo;
+
+    const codigoNormalizado = String(codigo)
+      .padStart(5, "0");
+     
+    const valorProyectado =
+      proyeccionesPorCodigo[codigoNormalizado]; 
+
+    const valorColor =
+      datosProyectados
+        ? valorProyectado
+        : feature.properties?.score_privacion;
+
+
+    const atenuado =
+      nivelSeleccionado === "municipio" &&
+      Boolean(codigoSeleccionado) &&
+      codigo !== codigoSeleccionado;
+
+    return {
+      fillColor: getColor(valorColor),
+      weight: 1,
+      opacity: 1,
+      color: "#ffffff",
+      fillOpacity: atenuado
+        ? FILL_OPACITY_ATENUADA
+        : FILL_OPACITY_NORMAL,
+    };
+  },
+  [
+    codigoSeleccionado,
+    nivelSeleccionado,
+    datosProyectados,
+    proyeccionesPorCodigo,
+  ]
+);
 
   // Mismo criterio que estiloMunicipios (mismo getColor, mismo atenuado
   // por seleccion) -- el pedido fue agregar choropleth a departamento,
@@ -163,8 +245,12 @@ function MapView({
   // relleno pasa de fijo a dinamico por score_privacion.
   const estiloDepartamentos = useCallback(
     (feature) => {
-      const score = feature.properties?.score_privacion
       const codigo = feature.properties?.codigo
+      const codigoNormalizado = String(codigo ?? "").padStart(2, "0")
+      const valorProyectado = proyeccionesPorDepartamento[codigoNormalizado]
+      const valor = datosProyectados
+        ? valorProyectado
+        : feature.properties?.score_privacion
       // Mismo criterio que estiloMunicipios (linea de arriba): solo se
       // atenua el resto de departamentos cuando la seleccion activa ES
       // un departamento -- si el usuario selecciono un municipio (otro
@@ -175,11 +261,11 @@ function MapView({
         && codigo !== codigoSeleccionado
       return {
         ...ESTILO_DEPARTAMENTOS,
-        fillColor: getColor(score),
+        fillColor: getColor(valor),
         fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
       }
     },
-    [codigoSeleccionado, nivelSeleccionado]
+    [codigoSeleccionado, nivelSeleccionado, datosProyectados, proyeccionesPorDepartamento]
   )
 
   // Tooltip liviano con solo el nombre (nada de score ni otras
@@ -272,12 +358,23 @@ function MapView({
             esta en la `key`. */}
         {mostrarMunicipios
           ? datosMunicipios && (
-              <GeoJSON key="municipios" data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
+              <GeoJSON key={`municipios-${claveDatosMapa}`} data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
             )
-          : departamentos && (
-              <GeoJSON key="departamentos" data={departamentos} style={estiloDepartamentos} onEachFeature={manejarEventosDepartamento} />
+            : departamentos && (
+              <GeoJSON key={`departamentos-${claveDatosMapa}`} data={departamentos} style={estiloDepartamentos} onEachFeature={manejarEventosDepartamento} />
             )}
       </MapContainer>
+
+      {mostrarSelectorAnio && (
+        <SelectorAnioMapa
+          anio={anioSeleccionado}
+          activo={selectorAnioActivo}
+          cargando={cargandoAnio}
+          fiabilidad={fiabilidadSeleccionada}
+          onCambioAnio={onAnioSeleccionado}
+          onCambioActivo={onSelectorAnioActivo}
+        />
+      )}
 
       <div className="map-legend">
         {!isLegendOpen ? (
