@@ -12,7 +12,6 @@ function AuthScreens({ screen, setScreen }) {
   // que sobreviva el cambio de pantalla a "verificar-otp".
   const [datosRegistroPendiente, setDatosRegistroPendiente] = useState(null);
   const [emailRecuperacion, setEmailRecuperacion] = useState("");
-  const [codigoRecuperacion, setCodigoRecuperacion] = useState("");
 
   switch (screen) {
     case "registro":
@@ -59,7 +58,6 @@ function AuthScreens({ screen, setScreen }) {
       return (
         <RecuperacionDeContrasenaP2
           email={emailRecuperacion}
-          code={codigoRecuperacion}
           onChangePassword={() => setScreen("login")}
           onBack={() => setScreen("login")}
         />

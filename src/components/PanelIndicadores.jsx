@@ -34,9 +34,32 @@ function esProyeccion(origen) {
   return typeof origen === "string" && origen.startsWith(PREFIJO_PROYECCION);
 }
 
-function TarjetaIndicador({ nombre, datos, proyectado, onClick, serieProyectada }) {
+// Tercer estado explicito (ver caso real verificado con Ebejico/05240,
+// municipios sin cobertura_acueducto/alcantarillado en 2024, y con los
+// 816 municipios sin dato real de tenencia_informal_terrenos tras el
+// fix de ingestion/igac_catastro_adapter.py): origen=null NO es lo
+// mismo que "fuente confirmada" (no hay fuente) ni "proyeccion" (no es
+// un relleno estimado con metodo conocido) -- es ausencia total de
+// fila en mapcalordb para esa variable+año. Antes caia por defecto en
+// "confirmadas" solo porque !esProyeccion(null) es true.
+function esSinDato(origen) {
+  return origen == null;
+}
+
+// `tipo` (3 estados: confirmada/proyeccion/sin_dato) se sigue usando
+// cuando ya hay zonaSeleccionada.indicadores real (ver PanelIndicadores
+// mas abajo); `proyectado`/`onClick` son del estado "sin zona todavia"
+// que agrega Luis (tarjetas clickeables para pedir una proyeccion
+// puntual) -- ambos casos conviven, ninguno reemplaza al otro.
+function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick }) {
   const nombreFormateado = nombre.replace(/_/g, " ");
   const unidad = UNIDADES[nombre] || "";
+  const claseTipo =
+    tipo === "proyeccion" || proyectado
+      ? " indicador-card-proyeccion"
+      : tipo === "sin_dato"
+        ? " indicador-card-sin-dato"
+        : "";
 
   return (
     <div
@@ -136,8 +159,9 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
       {zonaSeleccionada && zonaSeleccionada.indicadores ? (
         (() => {
           const entradas = Object.entries(zonaSeleccionada.indicadores);
-          const confirmadas = entradas.filter(([, datos]) => !esProyeccion(datos.origen));
-          const tarjetasProyeccion = entradas.filter(([, datos]) => esProyeccion(datos.origen));
+          const confirmadas = entradas.filter(([, datos]) => !esSinDato(datos.origen) && !esProyeccion(datos.origen));
+          const tarjetasProyeccion = entradas.filter(([, datos]) => !esSinDato(datos.origen) && esProyeccion(datos.origen));
+          const sinDato = entradas.filter(([, datos]) => esSinDato(datos.origen));
 
           return (
             <>
@@ -176,7 +200,18 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
                       : "panel-indicadores-grid"
                   }>
                     {tarjetasProyeccion.map(([nombre, datos]) => (
-                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} proyectado={true} />
+                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} tipo="proyeccion" />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {sinDato.length > 0 && (
+                <div className="panel-indicadores-grupo">
+                  <h3 className="panel-indicadores-subtitulo">Sin dato</h3>
+                  <div className="panel-indicadores-grid">
+                    {sinDato.map(([nombre, datos]) => (
+                      <TarjetaIndicador key={nombre} nombre={nombre} datos={datos} tipo="sin_dato" />
                     ))}
                   </div>
                 </div>
@@ -203,3 +238,5 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
 }
 
 export default PanelIndicadores;
+
+

@@ -56,7 +56,7 @@ const MODULOS = [
   {
     id: "mapa-proyeccion",
     titulo: "Mapa de Proyección",
-    descripcion: "Visualiza cómo evolucionarán los indicadores a futuro con el modelo predictivo LightGBM.",
+    descripcion: "Visualiza cómo evolucionarán los indicadores a futuro con el modelo predictivo.",
     icono: IconoProyeccion,
     color: "sienna",
     destino: "proyeccion",

@@ -135,6 +135,7 @@ function MapView({
   datosMunicipios,
   datosProyectados,
   codigoSeleccionado,
+  scoreSeleccionado,
   nivelSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
@@ -194,6 +195,32 @@ function MapView({
   ]
 );
 
+  // Mismo criterio que estiloMunicipios (mismo getColor, mismo atenuado
+  // por seleccion) -- el pedido fue agregar choropleth a departamento,
+  // no un estilo nuevo. Se mantiene el color/weight de borde de
+  // ESTILO_DEPARTAMENTOS (mas fino que el de municipios), solo el
+  // relleno pasa de fijo a dinamico por score_privacion.
+  const estiloDepartamentos = useCallback(
+    (feature) => {
+      const score = feature.properties?.score_privacion
+      const codigo = feature.properties?.codigo
+      // Mismo criterio que estiloMunicipios (linea de arriba): solo se
+      // atenua el resto de departamentos cuando la seleccion activa ES
+      // un departamento -- si el usuario selecciono un municipio (otro
+      // nivel/capa), los departamentos no aplican, no tiene sentido
+      // atenuarlos.
+      const atenuado = nivelSeleccionado === 'departamento'
+        && Boolean(codigoSeleccionado)
+        && codigo !== codigoSeleccionado
+      return {
+        ...ESTILO_DEPARTAMENTOS,
+        fillColor: getColor(score),
+        fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
+      }
+    },
+    [codigoSeleccionado, nivelSeleccionado]
+  )
+
   // Tooltip liviano con solo el nombre (nada de score ni otras
   // variables): se dispara en cada movimiento del mouse, asi que usamos
   // el tooltip nativo de Leaflet (bindTooltip) en vez de estado de React,
@@ -235,6 +262,18 @@ function MapView({
 
   const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
 
+  // Estado de la leyenda respecto a la zona seleccionada (municipio o
+  // departamento, da igual -- ambos exponen score_privacion con el
+  // mismo contrato). Tres estados distintos, no dos: sin seleccion
+  // (neutro), seleccion CON score (marcador en la barra), seleccion SIN
+  // score (badge "Sin dato" resaltado -- ej. Nuevo Belen de Bajira,
+  // 27493, o cualquier departamento sin ningun municipio con score
+  // valido). null/undefined tratados igual (el backend manda null;
+  // undefined cubre el caso en que no llegue la propiedad).
+  const hayZonaSeleccionada = Boolean(codigoSeleccionado)
+  const tieneScoreValido =
+    hayZonaSeleccionada && scoreSeleccionado !== null && scoreSeleccionado !== undefined
+
   return (
     <div className="map-view-wrapper">
       <MapContainer
@@ -275,7 +314,7 @@ function MapView({
               <GeoJSON key="municipios" data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
             )
           : departamentos && (
-              <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventosDepartamento} />
+              <GeoJSON key="departamentos" data={departamentos} style={estiloDepartamentos} onEachFeature={manejarEventosDepartamento} />
             )}
       </MapContainer>
 
@@ -301,15 +340,24 @@ function MapView({
                 X
               </button>
             </div>
-            <div className="map-legend-gradient" aria-hidden="true" />
+            <div className="map-legend-gradient" aria-hidden="true">
+              {tieneScoreValido && (
+                <span
+                  className="map-legend-marker"
+                  style={{ left: `${scoreSeleccionado * 100}%` }}
+                />
+              )}
+            </div>
             <div className="map-legend-labels">
               <span>0 (Menor)</span>
               <span>1 (Mayor)</span>
             </div>
-            <div className="map-legend-no-data">
-              <span className="map-legend-gray" aria-hidden="true" />
-              <span>Sin dato</span>
-            </div>
+            {hayZonaSeleccionada && !tieneScoreValido && (
+              <div className="map-legend-no-data">
+                <span className="map-legend-gray" aria-hidden="true" />
+                <span>Sin dato</span>
+              </div>
+            )}
           </section>
         )}
       </div>
