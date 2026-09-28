@@ -967,3 +967,14 @@ proyecciones
 .btn-generar-proyeccion:hover {
   background-color: #e65100;
 }
+
+.panel-proyeccion-error {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fdecea;
+  color: #611a15;
+  font-weight: 600;
+}

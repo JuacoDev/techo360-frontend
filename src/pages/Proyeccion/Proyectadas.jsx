@@ -10,11 +10,33 @@ import {
   getZonasMunicipios,
 } from "../../services/api";
 
+// Traduce el status HTTP que ya trae el Error (ver error.status en
+// getProyeccionZonas, api.js) a un mensaje que el usuario pueda entender
+// -- antes esto solo se mandaba a console.error y el usuario se quedaba
+// con un spinner que desaparecia sin ninguna pista de que paso.
+function mensajeErrorProyeccion(error) {
+  if (error?.status === 422) {
+    return (
+      error.message ||
+      "El año pedido está fuera del rango de datos disponibles para la proyección."
+    );
+  }
+  if (error?.status === 503) {
+    return "El servicio de proyección no está disponible en este momento. Intenta de nuevo más tarde.";
+  }
+  if (error?.status === 504) {
+    return "El servicio de proyección no respondió a tiempo. Intenta de nuevo en unos segundos.";
+  }
+  return "No se pudo generar la proyección. Intenta de nuevo.";
+}
+
 function Proyectadas({
   setScreen,
   onLogout,
   departamentos,
   datosMunicipios,
+  rangoProyeccion,
+  errorRangoProyeccion,
 }) {
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [anioInicio, setAnioInicio] = useState(2027);
@@ -28,8 +50,19 @@ function Proyectadas({
   const [datosProyectadosMapa, setDatosProyectadosMapa] = useState(null);
   const [fiabilidadMapa, setFiabilidadMapa] = useState(null);
   const [cargandoAnioMapa, setCargandoAnioMapa] = useState(false);
+  const [errorProyeccion, setErrorProyeccion] = useState(null);
   const datosMapaPorAnio = useRef(new Map());
 
+  // Rango real de años, tal como lo confirmó el backend (GET
+  // /api/proyecciones/rango) -- nunca un número hardcodeado aquí. Mientras
+  // no haya llegado, se colapsa a un solo año para no ofrecer opciones que
+  // el backend todavía no confirmó como válidas.
+  const anioMinimo = rangoProyeccion?.anioMinimo ?? 2025;
+  const anioMaximo = rangoProyeccion?.anioMaximo ?? anioMinimo;
+  const aniosDisponibles = Array.from(
+    { length: anioMaximo - anioMinimo + 1 },
+    (_, i) => anioMinimo + i
+  );
 
   const seleccionarZona = (zona) => {
     setZonaSeleccionada((actual) =>
@@ -42,6 +75,7 @@ function Proyectadas({
   const generarProyeccion = async () => {
   try {
     setCargandoProyeccion(true);
+    setErrorProyeccion(null);
 
     const resultados = {};
 
@@ -56,15 +90,12 @@ function Proyectadas({
       resultados[anio] = resultado;
       datosMapaPorAnio.current.set(`proyeccion-${anio}`, resultado);
     }
-    console.log(
-      "PROYECCIONES POR ANIO",
-      resultados
-      );
     setDatosProyectados(resultados[anioInicio]?.zonas ?? []);
     setAnioMapa(anioInicio);
 
   } catch (error) {
     console.error(error);
+    setErrorProyeccion(mensajeErrorProyeccion(error));
   } finally {
     setCargandoProyeccion(false);
   }
@@ -78,6 +109,7 @@ function Proyectadas({
 
     let cancelado = false;
     setCargandoAnioMapa(true);
+    setErrorProyeccion(null);
     setDatosRealesMapa(null);
     setDepartamentosRealesMapa(null);
     setDatosProyectadosMapa(null);
@@ -111,7 +143,10 @@ function Proyectadas({
           setFiabilidadMapa(respuesta.intervalo_confianza ?? respuesta.fiabilidad ?? null);
         }
       } catch (error) {
-        if (!cancelado) console.error("Error cargando el año del mapa:", error);
+        if (!cancelado) {
+          console.error("Error cargando el año del mapa:", error);
+          setErrorProyeccion(mensajeErrorProyeccion(error));
+        }
       } finally {
         if (!cancelado) setCargandoAnioMapa(false);
       }
@@ -147,35 +182,31 @@ function Proyectadas({
 
             <select
               value={anioInicio}
+              disabled={!rangoProyeccion}
               onChange={(e) =>
                 setAnioInicio(Number(e.target.value))
               }
             >
-              {Array.from(
-                { length: 26 },
-                (_, i) => 2025 + i
-              ).map((anio) => (
+              {aniosDisponibles.map((anio) => (
                 <option
                   key={anio}
                   value={anio}
                 >
                   {anio}
                 </option>
-              ))} 
+              ))}
             </select>
 
             <label>Año fin</label>
 
             <select
               value={anioFin}
+              disabled={!rangoProyeccion}
               onChange={(e) =>
                 setAnioFin(Number(e.target.value))
               }
             >
-              {Array.from(
-                { length: 26 },
-                (_, i) => 2025 + i
-              ).map((anio) => (
+              {aniosDisponibles.map((anio) => (
                 <option
                   key={anio}
                   value={anio}
@@ -188,9 +219,16 @@ function Proyectadas({
             <button
               className="btn-generar-proyeccion"
               onClick={generarProyeccion}
+              disabled={!rangoProyeccion || cargandoProyeccion}
             >
-              Generar proyección
+              {cargandoProyeccion ? "Generando..." : "Generar proyección"}
             </button>
+
+            {(errorProyeccion || errorRangoProyeccion) && (
+              <span className="panel-proyeccion-error" role="alert">
+                {errorProyeccion || errorRangoProyeccion}
+              </span>
+            )}
 
           </div>
 
@@ -206,6 +244,8 @@ function Proyectadas({
             selectorAnioActivo={selectorAnioActivo}
             cargandoAnio={cargandoAnioMapa}
             fiabilidadProyeccion={fiabilidadMapa}
+            anioMinimoSelector={rangoProyeccion?.anioMinimo}
+            anioMaximoSelector={rangoProyeccion?.anioMaximo}
             onAnioSeleccionado={setAnioMapa}
             onSelectorAnioActivo={setSelectorAnioActivo}
             />

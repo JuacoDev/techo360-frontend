@@ -13,7 +13,7 @@ import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
-import {getToken, limpiarToken, getZonasMunicipios, getZonasDepartamentos, getProyeccionZonas, } from "./services/api";
+import {getToken, limpiarToken, getZonasMunicipios, getZonasDepartamentos, getProyeccionZonas, getRangoProyeccionZonas, } from "./services/api";
 
 const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
 
@@ -30,6 +30,8 @@ function App() {
   const [datosMapaProyectados, setDatosMapaProyectados] = useState(null);
   const [fiabilidadMapa, setFiabilidadMapa] = useState(null);
   const [cargandoAnioMapa, setCargandoAnioMapa] = useState(false);
+  const [rangoProyeccion, setRangoProyeccion] = useState(null);
+  const [errorRangoProyeccion, setErrorRangoProyeccion] = useState(null);
   const datosMapaPorAnio = useRef(new Map());
 
   const [mapReady, setMapReady] = useState(false);
@@ -56,6 +58,7 @@ function App() {
   // identica todavia en curso.
   const departamentosSolicitados = useRef(false);
   const municipiosSolicitados = useRef(false);
+  const rangoProyeccionSolicitado = useRef(false);
 
   
   const handleMapLoaded = () => {
@@ -80,9 +83,12 @@ function App() {
     setFiabilidadMapa(null);
     setSelectorAnioActivo(false);
     setAnioMapa(2025);
+    setRangoProyeccion(null);
+    setErrorRangoProyeccion(null);
     datosMapaPorAnio.current.clear();
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
+    rangoProyeccionSolicitado.current = false;
     setMapReady(false);
     setDepartamentosReady(false);
     setMunicipiosReady(false);
@@ -130,6 +136,29 @@ function App() {
         setDatosMunicipios(datos);
       })
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
+  }, [screen, logout]);
+
+  // Rango de años valido para el selector de año (real, no hardcodeado):
+  // se pide una sola vez, igual que departamentos/municipios arriba, y se
+  // comparte por props con Proyectadas y con el MapView del dashboard
+  // principal -- asi ambos quedan sincronizados con
+  // ANIO_MINIMO_ZONAS/ANIO_MAXIMO_ZONAS del backend sin que el frontend
+  // tenga que repetir el numero.
+  useEffect(() => {
+    const token = getToken();
+    if (!token || rangoProyeccionSolicitado.current) return;
+    rangoProyeccionSolicitado.current = true;
+
+    getRangoProyeccionZonas(logout)
+      .then((datos) => {
+        setRangoProyeccion({ anioMinimo: datos.anio_minimo, anioMaximo: datos.anio_maximo });
+      })
+      .catch((err) => {
+        console.error("Error cargando el rango de años de proyeccion:", err);
+        setErrorRangoProyeccion(
+          "No se pudo cargar el rango de años disponible para la proyección."
+        );
+      });
   }, [screen, logout]);
 
   useEffect(() => {
@@ -245,7 +274,16 @@ function App() {
 
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
       
-      {screen === "proyeccion" && <Proyectadas setScreen={setScreen} onLogout={logout} departamentos={departamentos} datosMunicipios={datosMunicipios} />}
+      {screen === "proyeccion" && (
+        <Proyectadas
+          setScreen={setScreen}
+          onLogout={logout}
+          departamentos={departamentos}
+          datosMunicipios={datosMunicipios}
+          rangoProyeccion={rangoProyeccion}
+          errorRangoProyeccion={errorRangoProyeccion}
+        />
+      )}
 
       {screen === "app" && (
         <main className="app-shell">
@@ -273,6 +311,8 @@ function App() {
                   selectorAnioActivo={selectorAnioActivo}
                   cargandoAnio={cargandoAnioMapa}
                   fiabilidadProyeccion={fiabilidadMapa}
+                  anioMinimoSelector={rangoProyeccion?.anioMinimo}
+                  anioMaximoSelector={rangoProyeccion?.anioMaximo}
                   onAnioSeleccionado={setAnioMapa}
                   onSelectorAnioActivo={setSelectorAnioActivo}
                 />

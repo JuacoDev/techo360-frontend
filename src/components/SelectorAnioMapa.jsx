@@ -4,7 +4,11 @@ function SelectorAnioMapa({
   anio = 2025,
   activo = false,
   anioMinimo = 2025,
-  anioMaximo = 2050,
+  // Sin tope real confirmado todavia (ver GET /api/proyecciones/rango en
+  // techo360-backend) colapsa a un solo año en vez de inventar un
+  // maximo -- antes esto hardcodeaba 2050, un numero que se desincroniza
+  // en cuanto cambie el rango de datos DANE cargado (hoy 2025-2042).
+  anioMaximo = anioMinimo,
   cargando = false,
   fiabilidad,
   onCambioAnio,

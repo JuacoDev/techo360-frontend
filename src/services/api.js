@@ -261,6 +261,29 @@ export async function getProyeccionZonas(
   return result;
 }
 
+export async function getRangoProyeccionZonas(logout) {
+  const response = await fetchConSesion(
+    `${API_URL}/api/proyecciones/rango`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+    logout
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(result.detail || "Error al obtener el rango de años");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result;
+}
+
 // -------------------
 // ChatBot
 // -------------------

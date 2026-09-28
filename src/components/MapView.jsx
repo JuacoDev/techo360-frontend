@@ -144,6 +144,8 @@ function MapView({
   cargandoAnio = false,
   fiabilidadProyeccion,
   mostrarSelectorAnio = true,
+  anioMinimoSelector,
+  anioMaximoSelector,
   onAnioSeleccionado,
   onSelectorAnioActivo,
 }) {
@@ -369,6 +371,8 @@ function MapView({
         <SelectorAnioMapa
           anio={anioSeleccionado}
           activo={selectorAnioActivo}
+          anioMinimo={anioMinimoSelector}
+          anioMaximo={anioMaximoSelector}
           cargando={cargandoAnio}
           fiabilidad={fiabilidadSeleccionada}
           onCambioAnio={onAnioSeleccionado}
