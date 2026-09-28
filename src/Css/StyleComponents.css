@@ -75,6 +75,71 @@ body {
   z-index: 0;
 }
 
+.map-year-control {
+  position: absolute;
+  bottom: 68px;
+  left: 20px;
+  z-index: 1000;
+}
+
+.map-year-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.map-year-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #1e3a8a;
+}
+
+.map-year-slider-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.map-year-slider-label strong {
+  margin-left: 4px;
+  font-size: 14px;
+}
+
+.map-year-slider {
+  display: block;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  accent-color: #1e3a8a;
+  cursor: pointer;
+}
+
+.map-year-slider:disabled {
+  cursor: not-allowed;
+}
+
+.map-year-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  color: #626262;
+  font-size: 11px;
+}
+
+.map-year-status,
+.map-year-reliability {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #fff1d6;
+  color: #714400;
+  font-weight: 600;
+}
+
 .map-legend {
   position: absolute;
   bottom: 20px;
@@ -416,6 +481,12 @@ PanelIndicadores Styles
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 28px 18px;
+}
+
+.panel-indicadores-grid-proyeccion {
+display: grid;
+grid-template-columns: 1fr;
+gap: 16px;
 }
 
 .indicador-placeholder {
@@ -837,4 +908,62 @@ Panel Indicadores
   color: #6b7280;
   padding-bottom: 6px;
   border-bottom: 1px solid #e5e7eb;
+}
+
+/*
+==================================
+proyecciones
+==================================
+*/
+.btn-proyeccion {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: #f57c00;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-proyeccion:hover {
+  background-color: #e65100;
+}
+
+.indicador-serie {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #444;
+}
+
+.panel-proyeccion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+}
+
+.panel-proyeccion select {
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.btn-generar-proyeccion {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background-color: #f57c00;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-generar-proyeccion:hover {
+  background-color: #e65100;
 }

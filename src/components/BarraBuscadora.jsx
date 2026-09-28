@@ -43,16 +43,31 @@ function BarraBuscadora({
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
     [departamentos]
   );
-  const municipiosDelDepartamento = useMemo(
-    () => (datosMunicipios?.features ?? [])
-      .filter((feature) => String(feature.properties.codigo).startsWith(String(codigoDepartamento)))
-      .map((feature) => feature.properties)
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
-    [datosMunicipios, codigoDepartamento]
-  );
+  const municipiosDelDepartamento = useMemo(() => {
+  const municipios = (datosMunicipios?.features ?? [])
+    .map((feature) => feature.properties);
+
+  if (!codigoDepartamento) {
+    return municipios.sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es")
+    );
+  }
+
+  return municipios
+    .filter((municipio) =>
+      String(municipio.codigo).startsWith(
+        String(codigoDepartamento)
+      )
+    )
+    .sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es")
+    );
+}, [datosMunicipios, codigoDepartamento]);
 
   function manejarSeleccionDepartamento(evento) {
     const codigo = evento.target.value;
+    console.log("Departamento seleccionado:", codigo);
+    console.log("zonaActiva:", zonaActiva);
     setCodigoDepartamento(codigo);
     setCodigoMunicipio("");
 
@@ -73,6 +88,10 @@ function BarraBuscadora({
       onSeleccionarZona({ ...municipio, nivel: "municipio" });
     }
   }
+  console.log("departamentos:", departamentos);
+  console.log("datosMunicipios:", datosMunicipios);
+  console.log("listaDepartamentos:", listaDepartamentos.length);
+  console.log("municipiosDelDepartamento:", municipiosDelDepartamento.length);
 
   return (
     <div className="BarraBuscadora">
@@ -96,7 +115,7 @@ function BarraBuscadora({
           className="BarraSelect"
           value={codigoMunicipio}
           onChange={manejarSeleccionMunicipio}
-          disabled={!codigoDepartamento || !datosMunicipios}
+          disabled={!datosMunicipios}
         >
           <option value="" disabled>Seleccione un municipio...</option>
           {municipiosDelDepartamento.map((municipio) => (
