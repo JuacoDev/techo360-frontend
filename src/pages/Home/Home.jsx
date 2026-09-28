@@ -67,7 +67,7 @@ const MODULOS = [
     descripcion: "Resuelve tus dudas sobre el proyecto y sobre pobreza y déficit de vivienda en Colombia.",
     icono: IconoChatBot,
     color: "marron",
-    destino: null,
+    destino: "chatbot",
   },
   {
     id: "reportes",
@@ -84,7 +84,7 @@ const MODULOS = [
 // con getCurrentUser() -- el mismo mecanismo que ya usan PerfilUsuario y
 // CabezaDeNavegacion, en vez de inventar un chequeo nuevo -- y si no hay
 // sesion valida se redirige a Login en vez de navegar al modulo.
-function Home({ setScreen, onLogout }) {
+function Home({ setScreen, onLogout, onRequireLogin, onLoginFromHome }) {
   const [user, setUser] = useState(null);
   const [verificando, setVerificando] = useState(false);
 
@@ -101,7 +101,7 @@ function Home({ setScreen, onLogout }) {
       await getCurrentUser();
       setScreen(destino);
     } catch {
-      setScreen("login");
+      onRequireLogin?.(destino);
     } finally {
       setVerificando(false);
     }
@@ -109,7 +109,7 @@ function Home({ setScreen, onLogout }) {
 
   return (
     <div className="home-screen">
-      <CabezaDeNavegacion setScreen={setScreen} onLogout={onLogout} />
+      <CabezaDeNavegacion setScreen={setScreen} onLogout={onLogout} onLogin={onLoginFromHome} />
 
       <section className="home-hero">
         <img src={FondoHome} alt="Medellín, Colombia" className="home-hero-img" />

@@ -5,7 +5,7 @@ import VerificarCodigoOTP from "./VerificarCodigoOTP.jsx";
 import RecuperacionDeContrasenaP1 from "./RecuperacionDeContrasenaP1.jsx";
 import RecuperacionDeContrasenaP2 from "./RecuperacionDeContrasenaP2.jsx";
 
-function AuthScreens({ screen, setScreen }) {
+function AuthScreens({ screen, setScreen, onLoginComplete }) {
   // Datos del formulario de registro, en memoria -- nunca en
   // localStorage, porque todavia no hay cuenta creada (recien se crea
   // tras verificar el codigo OTP). Vive aqui, no en Registro.jsx, para
@@ -37,7 +37,7 @@ function AuthScreens({ screen, setScreen }) {
     case "login":
       return (
         <Login
-          onContinue={() => setScreen("loading")}
+          onContinue={onLoginComplete}
           goToRegister={() => setScreen("registro")}
           goToRecovery={() => setScreen("recuperacion1")}
         />

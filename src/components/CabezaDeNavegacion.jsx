@@ -22,7 +22,7 @@ function obtenerIniciales(nombreCompleto) {
 // usuario -- `revisado` distingue "todavia no se sabe" (no renderiza nada
 // a la derecha, evita el parpadeo "Iniciar sesion" -> avatar) de
 // "ya se confirmo que no hay sesion" (muestra "Iniciar sesion").
-function CabezaDeNavegacion({ setScreen, onLogout }) {
+function CabezaDeNavegacion({ setScreen, onLogout, onLogin }) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [revisado, setRevisado] = useState(false);
@@ -63,7 +63,7 @@ function CabezaDeNavegacion({ setScreen, onLogout }) {
 
       <div className="CabezaDeNavegacion-links">
         {revisado && !user && (
-          <button type="button" className="CabezaDeNavegacion-login" onClick={() => setScreen("login")}>
+          <button type="button" className="CabezaDeNavegacion-login" onClick={() => (onLogin ? onLogin() : setScreen("login"))}>
             Iniciar sesión
           </button>
         )}

@@ -18,6 +18,7 @@ const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot"];
 
 function App() {
   const [screen, setScreen] = useState("home");
+  const [pantallaDespuesDeLogin, setPantallaDespuesDeLogin] = useState("loading");
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
@@ -70,7 +71,9 @@ function App() {
     setDepartamentosReady(false);
     setMunicipiosReady(false);
     setBuscadorReady(false);
-    setScreen("login");
+    setPantallaDespuesDeLogin("loading");
+    setScreen("home");
+    window.location.reload();
     
   }, []);
 
@@ -139,7 +142,20 @@ function App() {
         </>
       )}
 
-      {screen === "home" && <Home setScreen={setScreen} onLogout={logout} />}
+      {screen === "home" && (
+        <Home
+          setScreen={setScreen}
+          onLogout={logout}
+          onLoginFromHome={() => {
+            setPantallaDespuesDeLogin("home");
+            setScreen("login");
+          }}
+          onRequireLogin={(destino) => {
+            setPantallaDespuesDeLogin(destino);
+            setScreen("login");
+          }}
+        />
+      )}
 
       {screen === "chatbot" && <ChatBotScreen setScreen={setScreen} onLogout={logout} />}
 
@@ -179,7 +195,15 @@ function App() {
       )}
 
       {!PANTALLAS_PROPIAS.includes(screen) && (
-        <AutenticarScreens screen={screen} setScreen={setScreen} />
+        <AutenticarScreens
+          screen={screen}
+          setScreen={setScreen}
+          onLoginComplete={() => {
+            const destino = pantallaDespuesDeLogin;
+            setPantallaDespuesDeLogin("loading");
+            setScreen(destino);
+          }}
+        />
       )}
     </>
   );
