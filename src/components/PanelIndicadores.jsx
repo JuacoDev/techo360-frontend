@@ -105,6 +105,7 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
 function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFin }) {
   const [cargando, setCargando] = useState(false);
   const [proyecciones, setProyecciones] = useState({});
+  const [errorSerie, setErrorSerie] = useState(null);
   useEffect(() => {
   if (!zonaSeleccionada) return;
 
@@ -117,6 +118,7 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
 
   try {
     setCargando(true);
+    setErrorSerie(null);
 
     const respuesta = await getProyeccion(
       zonaSeleccionada.codigo,
@@ -132,11 +134,16 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
     }));
 
   } catch (error) {
-    console.error(error);
-  } finally {
-    setCargando(false);
-  }
+  console.error(error);
+
+  setErrorSerie(
+    error?.message ||
+    "No existe un modelo de proyección vigente para este municipio."
+  );
+} finally {
+  setCargando(false);
 }
+   }
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
       <div className="panel-indicadores-header">
@@ -233,6 +240,11 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
         </div>
       )}
       {cargando && <p>Cargando proyección...</p>}
+      {errorSerie && (
+        <p className="panel-proyeccion-error">
+          {errorSerie}
+        </p>
+      )}
     </aside>
   );
 }

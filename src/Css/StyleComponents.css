@@ -58,6 +58,7 @@ body {
   min-height: 0;
   overflow: hidden;
   border-radius: 8px;
+  position: relative;
 }
 
 .map-view-wrapper {
@@ -977,4 +978,15 @@ proyecciones
   background: #fdecea;
   color: #611a15;
   font-weight: 600;
+}
+
+.pantalla-carga-transparente {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(255, 255, 255, 0.25);
+
+  backdrop-filter: blur(2px);
+
+  z-index: 1000;
 }

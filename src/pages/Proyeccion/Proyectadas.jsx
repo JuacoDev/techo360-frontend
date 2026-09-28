@@ -4,6 +4,7 @@ import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import BarraBuscadora from "../../components/BarraBuscadora";
 import MapView from "../../components/MapView";
 import PanelIndicadores from "../../components/PanelIndicadores";
+import PantallaCarga from "../../components/PantallaCarga";
 import {
   getProyeccionZonas,
   getZonasDepartamentos,
@@ -233,6 +234,17 @@ function Proyectadas({
           </div>
 
           <div className="dashboard-map-container">
+            {(cargandoProyeccion || cargandoAnioMapa) && (
+              <PantallaCarga
+                transparente={true}
+                mensaje={
+                  cargandoProyeccion
+                    ? "Generando proyección..."
+                    : "Cargando año seleccionado..."
+                }
+              />
+            )}
+
             <MapView
             onZonaSeleccionada={seleccionarZona}
             departamentos={selectorAnioActivo && anioMapa < 2025 ? departamentosRealesMapa : departamentos}
