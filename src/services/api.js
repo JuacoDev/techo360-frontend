@@ -48,10 +48,8 @@ export async function fetchConSesion(url, options = {}, logout) {
 }
 
 export async function getZonasMunicipios(anio, logout) {
-  const parametros = new URLSearchParams({ nivel: "municipio" });
-  if (anio != null) parametros.set("anio", String(anio));
   const response = await fetchConSesion(
-    `${API_URL}/api/zonas?${parametros}`,
+    `${API_URL}/api/zonas?nivel=municipio&anio=${anio}`,
     {},
     logout
   );
@@ -67,10 +65,8 @@ export async function getZonasMunicipios(anio, logout) {
 }
 
 export async function getZonasDepartamentos(anio, logout) {
-  const parametros = new URLSearchParams({ nivel: "departamento" });
-  if (anio != null) parametros.set("anio", String(anio));
   const response = await fetchConSesion(
-    `${API_URL}/api/zonas?${parametros}`,
+    `${API_URL}/api/zonas?nivel=departamento&anio=${anio}`,
     {},
     logout
   );
@@ -258,125 +254,5 @@ export async function getProyeccionZonas(
     throw error;
   }
 
-  return result;
-}
-
-export async function getRangoProyeccionZonas(logout) {
-  const response = await fetchConSesion(
-    `${API_URL}/api/proyecciones/rango`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    },
-    logout
-  );
-
-  const result = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const error = new Error(result.detail || "Error al obtener el rango de años");
-    error.status = response.status;
-    throw error;
-  }
-
-  return result;
-}
-
-// -------------------
-// ChatBot
-// -------------------
-// consentimiento_entrenamiento siempre true: es obligatorio como
-// condicion del registro de cuenta (decision de producto), no hay
-// control de consentimiento por conversacion en la UI.
-export async function crearConversacion(logout) {
-  const response = await fetchConSesion(
-    `${API_URL}/chatbot/conversaciones`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ consentimiento_entrenamiento: true }),
-    },
-    logout
-  );
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(result.detail || "No se pudo crear la conversación");
-    error.status = response.status;
-    throw error;
-  }
-  return result;
-}
-
-export async function listarConversaciones(logout) {
-  const response = await fetchConSesion(`${API_URL}/chatbot/conversaciones`, { method: "GET" }, logout);
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(result.detail || "No se pudo cargar el historial de conversaciones");
-    error.status = response.status;
-    throw error;
-  }
-  return result;
-}
-
-export async function listarMensajes(conversacionId, logout) {
-  const response = await fetchConSesion(
-    `${API_URL}/chatbot/conversaciones/${conversacionId}/mensajes`,
-    { method: "GET" },
-    logout
-  );
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(result.detail || "No se pudo cargar la conversación");
-    error.status = response.status;
-    throw error;
-  }
-  return result;
-}
-
-// La respuesta real del asistente corre sobre Ollama sin GPU en el VPS
-// -- puede tardar varios segundos; no hay timeout del lado del cliente,
-// el backend ya controla el suyo (services/chatbot_rpc_client.py) y
-// responde 503/504 si el asistente no esta disponible o no contesta a
-// tiempo.
-export async function enviarMensaje(conversacionId, contenido, logout) {
-  const response = await fetchConSesion(
-    `${API_URL}/chatbot/conversaciones/${conversacionId}/mensajes/enviar`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contenido }),
-    },
-    logout
-  );
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    let mensaje = result.detail || "El asistente no pudo responder";
-    if (response.status === 503) mensaje = result.detail || "El asistente no está disponible en este momento";
-    if (response.status === 504) mensaje = "El asistente tardó demasiado en responder, intenta de nuevo";
-    const error = new Error(mensaje);
-    error.status = response.status;
-    throw error;
-  }
-  return result;
-}
-
-export async function enviarFeedbackMensaje(mensajeId, feedbackUtil, logout) {
-  const response = await fetchConSesion(
-    `${API_URL}/chatbot/mensajes/${mensajeId}/feedback`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ feedback_util: feedbackUtil }),
-    },
-    logout
-  );
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(result.detail || "No se pudo registrar tu opinión");
-    error.status = response.status;
-    throw error;
-  }
   return result;
 }

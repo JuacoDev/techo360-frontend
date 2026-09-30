@@ -13,18 +13,15 @@ import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
-import { getToken, limpiarToken, ANIO_INDICADORES, getZonasMunicipios, getZonasDepartamentos, getRangoProyeccionZonas, } from "./services/api";
+import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion } from "./services/api";
 
 const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
 
 function App() {
   const [screen, setScreen] = useState("home");
-  const [pantallaDespuesDeLogin, setPantallaDespuesDeLogin] = useState("loading");
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
-  const [rangoProyeccion, setRangoProyeccion] = useState(null);
-  const [errorRangoProyeccion, setErrorRangoProyeccion] = useState(null);
 
   const [mapReady, setMapReady] = useState(false);
   const [departamentosReady, setDepartamentosReady] = useState(false);
@@ -50,7 +47,6 @@ function App() {
   // identica todavia en curso.
   const departamentosSolicitados = useRef(false);
   const municipiosSolicitados = useRef(false);
-  const rangoProyeccionSolicitado = useRef(false);
 
   
   const handleMapLoaded = () => {
@@ -69,18 +65,13 @@ function App() {
     limpiarToken();
     setDepartamentos(null);
     setDatosMunicipios(null);
-    setRangoProyeccion(null);
-    setErrorRangoProyeccion(null);
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
-    rangoProyeccionSolicitado.current = false;
     setMapReady(false);
     setDepartamentosReady(false);
     setMunicipiosReady(false);
     setBuscadorReady(false);
-    setPantallaDespuesDeLogin("loading");
-    setScreen("home");
-    window.location.reload();
+    setScreen("login");
     
   }, []);
 
@@ -102,7 +93,8 @@ function App() {
     if (!token || departamentosSolicitados.current) return;
     departamentosSolicitados.current = true;
 
-    getZonasDepartamentos(undefined, logout)
+    fetchConSesion(`${API_URL}/api/zonas?nivel=departamento`, {}, logout)
+      .then((res) => res.json())
       .then(setDepartamentos)
       .catch((err) => console.error("Error cargando limites de departamentos:", err));
   }, [screen, logout]);
@@ -112,32 +104,10 @@ function App() {
     if (!token || municipiosSolicitados.current) return;
     municipiosSolicitados.current = true;
 
-    getZonasMunicipios(ANIO_INDICADORES, logout)
+    fetchConSesion(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {}, logout)
+      .then((res) => res.json())
       .then(setDatosMunicipios)
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
-  }, [screen, logout]);
-
-  // Rango de años valido para el selector de año (real, no hardcodeado):
-  // se pide una sola vez, igual que departamentos/municipios arriba, y se
-  // comparte por props con Proyectadas y con el MapView del dashboard
-  // principal -- asi ambos quedan sincronizados con
-  // ANIO_MINIMO_ZONAS/ANIO_MAXIMO_ZONAS del backend sin que el frontend
-  // tenga que repetir el numero.
-  useEffect(() => {
-    const token = getToken();
-    if (!token || rangoProyeccionSolicitado.current) return;
-    rangoProyeccionSolicitado.current = true;
-
-    getRangoProyeccionZonas(logout)
-      .then((datos) => {
-        setRangoProyeccion({ anioMinimo: datos.anio_minimo, anioMaximo: datos.anio_maximo });
-      })
-      .catch((err) => {
-        console.error("Error cargando el rango de años de proyeccion:", err);
-        setErrorRangoProyeccion(
-          "No se pudo cargar el rango de años disponible para la proyección."
-        );
-      });
   }, [screen, logout]);
 
   // Punto unico de seleccion de zona, usado tanto por el clic en el mapa
@@ -165,41 +135,18 @@ function App() {
               codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
               scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
               nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
-              mostrarSelectorAnio={false}
             />
           </div>
         </>
       )}
 
-      {screen === "home" && (
-        <Home
-          setScreen={setScreen}
-          onLogout={logout}
-          onLoginFromHome={() => {
-            setPantallaDespuesDeLogin("home");
-            setScreen("login");
-          }}
-          onRequireLogin={(destino) => {
-            setPantallaDespuesDeLogin(destino);
-            setScreen("login");
-          }}
-        />
-      )}
+      {screen === "home" && <Home setScreen={setScreen} onLogout={logout} />}
 
       {screen === "chatbot" && <ChatBotScreen setScreen={setScreen} onLogout={logout} />}
 
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
       
-      {screen === "proyeccion" && (
-        <Proyectadas
-          setScreen={setScreen}
-          onLogout={logout}
-          departamentos={departamentos}
-          datosMunicipios={datosMunicipios}
-          rangoProyeccion={rangoProyeccion}
-          errorRangoProyeccion={errorRangoProyeccion}
-        />
-      )}
+      {screen === "proyeccion" && <Proyectadas setScreen={setScreen} onLogout={logout} departamentos={departamentos} datosMunicipios={datosMunicipios} />}
 
       {screen === "app" && (
         <main className="app-shell">
@@ -217,13 +164,10 @@ function App() {
                   onMapLoaded={handleMapLoaded}
                   onZonaSeleccionada={seleccionarZona}
                   departamentos={departamentos}
+                  datosMunicipios={datosMunicipios}
                   codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
                   scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
                   nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
-                  datosMunicipios={datosMunicipios}
-                  mostrarSelectorAnio={false}
-                  anioMinimoSelector={rangoProyeccion?.anioMinimo}
-                  anioMaximoSelector={rangoProyeccion?.anioMaximo}
                 />
               </div>
             </section>
@@ -238,15 +182,7 @@ function App() {
       )}
 
       {!PANTALLAS_PROPIAS.includes(screen) && (
-        <AutenticarScreens
-          screen={screen}
-          setScreen={setScreen}
-          onLoginComplete={() => {
-            const destino = pantallaDespuesDeLogin;
-            setPantallaDespuesDeLogin("loading");
-            setScreen(destino);
-          }}
-        />
+        <AutenticarScreens screen={screen} setScreen={setScreen} />
       )}
     </>
   );
