@@ -4,7 +4,6 @@ import "../../Css/StyleComponents.css";
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import ChatbotLogo from "../../assets/chatbot_grueso.png";
 import {
-  crearConversacion,
   enviarFeedbackMensaje,
   enviarMensaje,
   getCurrentUser,
