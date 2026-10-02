@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import SelectorAnioMapa from './SelectorAnioMapa'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -139,15 +138,6 @@ function MapView({
   codigoSeleccionado,
   scoreSeleccionado,
   nivelSeleccionado,
-  anioSeleccionado = 2025,
-  selectorAnioActivo = false,
-  cargandoAnio = false,
-  fiabilidadProyeccion,
-  mostrarSelectorAnio = true,
-  anioMinimoSelector,
-  anioMaximoSelector,
-  onAnioSeleccionado,
-  onSelectorAnioActivo,
 }) {
   const [zoom, setZoom] = useState(6)
   const [isLegendOpen, setIsLegendOpen] = useState(false)
@@ -187,19 +177,6 @@ function MapView({
       ])
     );
   }, [datosProyectados]);
-
-  const fiabilidadSeleccionada = useMemo(() => {
-    const codigoNormalizado = String(codigoSeleccionado ?? "").padStart(5, "0");
-    const proyeccionSeleccionada = datosProyectados?.find(
-      (zona) => String(zona.codigo_municipio ?? "").padStart(5, "0") === codigoNormalizado
-    );
-
-    return proyeccionSeleccionada?.intervalo_confianza
-      ?? proyeccionSeleccionada?.fiabilidad
-      ?? fiabilidadProyeccion;
-  }, [codigoSeleccionado, datosProyectados, fiabilidadProyeccion]);
-
-
 
   const estiloMunicipios = useCallback(
   (feature) => {
@@ -366,19 +343,6 @@ function MapView({
               <GeoJSON key={`departamentos-${claveDatosMapa}`} data={departamentos} style={estiloDepartamentos} onEachFeature={manejarEventosDepartamento} />
             )}
       </MapContainer>
-
-      {mostrarSelectorAnio && (
-        <SelectorAnioMapa
-          anio={anioSeleccionado}
-          activo={selectorAnioActivo}
-          anioMinimo={anioMinimoSelector}
-          anioMaximo={anioMaximoSelector}
-          cargando={cargandoAnio}
-          fiabilidad={fiabilidadSeleccionada}
-          onCambioAnio={onAnioSeleccionado}
-          onCambioActivo={onSelectorAnioActivo}
-        />
-      )}
 
       <div className="map-legend">
         {!isLegendOpen ? (
