@@ -4,7 +4,7 @@ import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import BarraBuscadora from "../../components/BarraBuscadora";
 import MapView from "../../components/MapView";
 import PanelIndicadores from "../../components/PanelIndicadores";
-import { extraerMensajeDetalle, getProyeccionZonas } from "../../services/api";
+import { INDICADOR_PROYECCION_MAPA, extraerMensajeDetalle, getProyeccionZonas } from "../../services/api";
 
 // Traduce el status HTTP que ya trae el Error (ver error.status en
 // getProyeccionZonas, api.js) a un mensaje que el usuario pueda entender
@@ -103,7 +103,7 @@ function Proyectadas({
       anio++
     ) {
       const resultado =
-        await getProyeccionZonas(anio, "score_privacion", onLogout);
+        await getProyeccionZonas(anio, INDICADOR_PROYECCION_MAPA, onLogout);
 
       resultadosPorAnio[anio] = resultado.zonas ?? [];
     }

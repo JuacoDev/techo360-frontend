@@ -11,6 +11,13 @@ export const API_URL = import.meta.env.VITE_API_URL;
 // escrito literal.
 export const ANIO_INDICADORES = 2024;
 
+// Indicador que pide el mapa de proyección a GET /api/proyecciones/zonas
+// (ver Proyectadas.jsx::generarProyeccion). Si el backend con soporte
+// para "score_privacion" se despliega DESPUES que este frontend,
+// cambiar esto a "densidad_poblacional" (lo único que el backend viejo
+// acepta) hasta que el despliegue del backend esté al día.
+export const INDICADOR_PROYECCION_MAPA = "score_privacion";
+
 // -------------------
 // Token guardado tras el login (localStorage si "Recordarme" estaba
 // marcado, sessionStorage si no -- ver Login.jsx) -- centralizado aqui
