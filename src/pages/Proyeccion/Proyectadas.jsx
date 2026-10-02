@@ -199,7 +199,7 @@ function Proyectadas({
             anioMinimoSelector={rangoGenerado?.anioInicio}
             anioMaximoSelector={rangoGenerado?.anioFin}
             cargandoAnio={cargandoProyeccion}
-            avisoSelectorAnio="Genera una proyección para activar el año"
+            avisoSelectorAnio="Genera la proyección"
             onAnioSeleccionado={setAnioSeleccionadoMapa}
             />
           </div>

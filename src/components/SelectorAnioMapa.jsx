@@ -34,7 +34,7 @@ function SelectorAnioMapa({
       />
       <span className="map-year-bar-limite">{anioMaximo ?? ""}</span>
       <span className="map-year-bar-actual">
-        {activo ? anio : cargando ? "Generando..." : aviso}
+        {activo ? `Año: ${anio}` : cargando ? "Generando..." : aviso}
       </span>
     </div>
   );
