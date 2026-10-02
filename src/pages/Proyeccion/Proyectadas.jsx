@@ -4,37 +4,12 @@ import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import BarraBuscadora from "../../components/BarraBuscadora";
 import MapView from "../../components/MapView";
 import PanelIndicadores from "../../components/PanelIndicadores";
-import { INDICADOR_PROYECCION_MAPA, extraerMensajeDetalle, getProyeccionZonas } from "../../services/api";
-
-// Traduce el status HTTP que ya trae el Error (ver error.status en
-// getProyeccionZonas, api.js) a un mensaje que el usuario pueda entender
-// -- antes esto solo se mandaba a console.error y el usuario se quedaba
-// con un spinner que desaparecia sin ninguna pista de que paso.
-//
-// error.message ya viene limpio desde getProyeccionZonas (nunca
-// "[object Object]": ahi ya se extrajo de error.detail, que puede ser un
-// string plano o la lista de validacion automatica de FastAPI
-// [{msg, loc}, ...]) -- pero se vuelve a intentar con
-// extraerMensajeDetalle(error.detail) aqui tambien, por si algun otro
-// punto de la app alguna vez lanza un error con detail sin pasar por
-// getProyeccionZonas. Si nada de eso se puede interpretar, se usa el
-// mensaje generico de respaldo -- nunca un objeto crudo en pantalla.
-function mensajeErrorProyeccion(error) {
-  if (error?.status === 422) {
-    return (
-      extraerMensajeDetalle(error.detail) ||
-      error.message ||
-      "El año pedido está fuera del rango de datos disponibles para la proyección."
-    );
-  }
-  if (error?.status === 503) {
-    return "El servicio de proyección no está disponible en este momento. Intenta de nuevo más tarde.";
-  }
-  if (error?.status === 504) {
-    return "El servicio de proyección no respondió a tiempo. Intenta de nuevo en unos segundos.";
-  }
-  return "No se pudo generar la proyección. Intenta de nuevo.";
-}
+import { INDICADOR_PROYECCION_MAPA, getProyeccionZonas } from "../../services/api";
+import {
+  avisoAniosFallidos,
+  combinarResultadosProyeccion,
+  mensajeErrorProyeccion,
+} from "./combinarProyeccion.js";
 
 function Proyectadas({
   setScreen,
@@ -51,13 +26,15 @@ function Proyectadas({
   const [errorProyeccion, setErrorProyeccion] = useState(null);
 
   // Cache de la ultima proyeccion generada: un array de zonas por cada
-  // año del rango ya consultado, para que mover la barra de año solo
-  // lea de aqui -- cero llamadas nuevas a la API. rangoGenerado es el
-  // anioInicio/anioFin usados en esa generacion (no los valores actuales
-  // de los selects, que el usuario puede seguir cambiando sin que eso
-  // mueva la barra hasta que vuelva a pulsar "Generar proyección").
+  // año que SI se pudo generar (aniosGenerados puede tener huecos si
+  // algun año del rango fallo -- ver generarProyeccion). Mover la barra
+  // de año solo lee de aqui -- cero llamadas nuevas a la API. No
+  // depende de los valores actuales de los selects, que el usuario
+  // puede seguir cambiando sin que eso mueva la barra hasta que vuelva
+  // a pulsar "Generar proyección".
   const [datosPorAnio, setDatosPorAnio] = useState({});
-  const [rangoGenerado, setRangoGenerado] = useState(null);
+  const [aniosGenerados, setAniosGenerados] = useState([]);
+  const [aniosFallidos, setAniosFallidos] = useState([]);
   const [anioSeleccionadoMapa, setAnioSeleccionadoMapa] = useState(null);
 
   const datosProyectados =
@@ -88,40 +65,48 @@ function Proyectadas({
   setCargandoProyeccion(true);
   setErrorProyeccion(null);
   // Se vacia el cache de inmediato: mientras se genera (o si falla) la
-  // barra no debe seguir mostrando el rango/año de una generacion
-  // anterior.
+  // barra no debe seguir mostrando los años de una generacion anterior.
   setDatosPorAnio({});
-  setRangoGenerado(null);
+  setAniosGenerados([]);
+  setAniosFallidos([]);
   setAnioSeleccionadoMapa(null);
 
-  try {
-    const resultadosPorAnio = {};
+  // Cada año en su propio try/catch -- si uno falla (p.ej. un 504 con
+  // cache frio en el backend) se registra y se sigue con el siguiente,
+  // en vez de descartar los que ya salieron bien.
+  const resultadosPorAnio = {};
+  const fallosPorAnio = {};
 
-    for (
-      let anio = anioInicio;
-      anio <= anioFin;
-      anio++
-    ) {
-      const resultado =
-        await getProyeccionZonas(anio, INDICADOR_PROYECCION_MAPA, onLogout);
-
+  for (
+    let anio = anioInicio;
+    anio <= anioFin;
+    anio++
+  ) {
+    try {
+      const resultado = await getProyeccionZonas(anio, INDICADOR_PROYECCION_MAPA, onLogout);
       resultadosPorAnio[anio] = resultado.zonas ?? [];
+    } catch (error) {
+      console.error(`Error generando el año ${anio}:`, error);
+      fallosPorAnio[anio] = mensajeErrorProyeccion(error);
     }
-
-    // Solo se confirma en estado si el loop completo tuvo exito -- si
-    // un año a mitad de camino falla, el catch de abajo se encarga y
-    // resultadosPorAnio (local) simplemente se descarta, sin dejar un
-    // cache a medias.
-    setDatosPorAnio(resultadosPorAnio);
-    setRangoGenerado({ anioInicio, anioFin });
-    setAnioSeleccionadoMapa(anioInicio);
-
-  } catch (error) {
-    console.error(error);
-    setErrorProyeccion(mensajeErrorProyeccion(error));
-  } finally {
-    setCargandoProyeccion(false);
   }
+
+  const combinado = combinarResultadosProyeccion(resultadosPorAnio, fallosPorAnio);
+
+  if (!combinado.exito) {
+    // Fallo total (ni un año salio bien) -- igual que antes: error
+    // bloqueante, sin cache, barra deshabilitada.
+    setErrorProyeccion(
+      combinado.aniosFallidos[0]?.mensaje ?? "No se pudo generar la proyección. Intenta de nuevo."
+    );
+  } else {
+    setDatosPorAnio(combinado.datosPorAnio);
+    setAniosGenerados(combinado.aniosDisponibles);
+    setAniosFallidos(combinado.aniosFallidos);
+    setAnioSeleccionadoMapa(combinado.aniosDisponibles[0]);
+  }
+
+  setCargandoProyeccion(false);
 };
 
   return (
@@ -195,6 +180,12 @@ function Proyectadas({
               </span>
             )}
 
+            {!errorProyeccion && aniosFallidos.length > 0 && (
+              <span className="panel-proyeccion-aviso" role="status">
+                {avisoAniosFallidos(aniosFallidos)}
+              </span>
+            )}
+
           </div>
 
           <div className="dashboard-map-container">
@@ -206,8 +197,7 @@ function Proyectadas({
             codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
             mostrarSelectorAnio
             anioSeleccionado={anioSeleccionadoMapa}
-            anioMinimoSelector={rangoGenerado?.anioInicio}
-            anioMaximoSelector={rangoGenerado?.anioFin}
+            aniosDisponiblesSelector={aniosGenerados}
             cargandoAnio={cargandoProyeccion}
             avisoSelectorAnio="Genera la proyección"
             onAnioSeleccionado={setAnioSeleccionadoMapa}

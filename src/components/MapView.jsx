@@ -165,8 +165,7 @@ function MapView({
   // se renderiza ahi.
   mostrarSelectorAnio = false,
   anioSeleccionado,
-  anioMinimoSelector,
-  anioMaximoSelector,
+  aniosDisponiblesSelector = [],
   cargandoAnio = false,
   avisoSelectorAnio,
   onAnioSeleccionado,
@@ -384,9 +383,8 @@ function MapView({
       {mostrarSelectorAnio && (
         <SelectorAnioMapa
           anio={anioSeleccionado}
-          anioMinimo={anioMinimoSelector}
-          anioMaximo={anioMaximoSelector}
-          activo={anioMinimoSelector != null && anioMaximoSelector != null && !cargandoAnio}
+          aniosDisponibles={aniosDisponiblesSelector}
+          activo={aniosDisponiblesSelector.length > 0 && !cargandoAnio}
           cargando={cargandoAnio}
           aviso={avisoSelectorAnio}
           onCambioAnio={onAnioSeleccionado}

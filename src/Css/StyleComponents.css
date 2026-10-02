@@ -1003,6 +1003,20 @@ proyecciones
   font-weight: 600;
 }
 
+/* No bloqueante -- el usuario sigue teniendo una proyección usable con
+   los años que sí se generaron, distinto del error rojo (que implica
+   "no hay nada que mostrar"). */
+.panel-proyeccion-aviso {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff4e5;
+  color: #663c00;
+  font-weight: 600;
+}
+
 .pantalla-carga-transparente {
   position: absolute;
   inset: 0;
