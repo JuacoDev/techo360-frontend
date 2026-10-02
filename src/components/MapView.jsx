@@ -53,16 +53,36 @@ const ESTILO_DEPARTAMENTOS = {
 const FILL_OPACITY_NORMAL = 0.75
 const FILL_OPACITY_ATENUADA = 0.18
 
-// Funciones para el choropleth de municipios
+// Semaforo del score de privacion (0=mejor, 1=peor -- ver
+// _score_privacion en techo360-backend/routers/zonas.py): interpolacion
+// lineal por tramos entre tres puntos, blanco en 0, amarillo en 0.5,
+// rojo en 1 (decision de producto, no buckets absolutos como antes).
+// Antes estos umbrales (50/100/250/500) estaban calibrados para
+// densidad_poblacional (un numero sin acotar), no para score_privacion
+// (acotado a [0,1]) -- por eso TODO score no-nulo caia siempre en el
+// mismo bucket mas bajo ("#ffeda0"), sin importar la diferencia real
+// entre zonas. Clampear a [0,1] es necesario mientras el mapa de
+// proyeccion siga mandando densidad_poblacional en vez de score (ver
+// Parte 2 del plan de correccion).
+const COLOR_SIN_DATO = "#808080"
+const PUNTO_BLANCO = [255, 255, 255]
+const PUNTO_AMARILLO = [255, 221, 51]
+const PUNTO_ROJO = [211, 47, 47]
+
+function interpolarColor(colorA, colorB, t) {
+  return colorA.map((canal, i) => Math.round(canal + (colorB[i] - canal) * t))
+}
+
 function getColor(valor) {
-  if (valor == null) return "#808080";
+  if (valor == null) return COLOR_SIN_DATO;
 
-  if (valor >= 500) return "#b30000";
-  if (valor >= 250) return "#e31a1c";
-  if (valor >= 100) return "#fc4e2a";
-  if (valor >= 50) return "#fd8d3c";
+  const v = Math.min(1, Math.max(0, Number(valor)));
+  const [r, g, b] =
+    v <= 0.5
+      ? interpolarColor(PUNTO_BLANCO, PUNTO_AMARILLO, v / 0.5)
+      : interpolarColor(PUNTO_AMARILLO, PUNTO_ROJO, (v - 0.5) / 0.5);
 
-  return "#ffeda0";
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 // Componente sin render propio -- solo escucha el evento de zoom del
@@ -215,7 +235,12 @@ function MapView({
       fillColor: getColor(valorColor),
       weight: 1,
       opacity: 1,
-      color: "#ffffff",
+      // Antes "#ffffff" -- con el semaforo nuevo el relleno puede ser
+      // blanco (score cerca de 0), y un borde blanco sobre un relleno
+      // blanco se pierde contra el mapa base. COLOR_BORDE (el mismo azul
+      // oscuro que ya usan los departamentos) queda visible en todo el
+      // rango blanco-amarillo-rojo.
+      color: COLOR_BORDE,
       fillOpacity: atenuado
         ? FILL_OPACITY_ATENUADA
         : FILL_OPACITY_NORMAL,
