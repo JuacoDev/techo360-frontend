@@ -433,6 +433,11 @@ function MapView({
                 <span>Sin dato</span>
               </div>
             )}
+            {mostrarSelectorAnio && (
+              <p className="map-legend-nota">
+                El déficit habitacional se mantiene constante (Censo 2018).
+              </p>
+            )}
           </section>
         )}
       </div>

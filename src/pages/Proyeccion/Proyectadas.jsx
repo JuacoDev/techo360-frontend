@@ -93,7 +93,7 @@ function Proyectadas({
       anio++
     ) {
       const resultado =
-        await getProyeccionZonas(anio, "densidad_poblacional", onLogout);
+        await getProyeccionZonas(anio, "score_privacion", onLogout);
 
       resultadosPorAnio[anio] = resultado.zonas ?? [];
     }

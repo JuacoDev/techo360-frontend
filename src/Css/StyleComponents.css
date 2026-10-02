@@ -196,6 +196,15 @@ body {
   background-color: #808080;
 }
 
+/* Solo aparece en el mapa de proyección (mostrarSelectorAnio=true en
+   MapView.jsx) -- el mapa de calor no la renderiza. */
+.map-legend-nota {
+  margin: 10px 0 0;
+  color: #666666;
+  font-size: 11px;
+  font-style: italic;
+}
+
 /* Barra de año del mapa de proyección (SelectorAnioMapa.jsx). Anclada
    en la misma esquina que el control de zoom de Leaflet (arriba a la
    izquierda, margin-top/margin-left de 10px en .leaflet-top.leaflet-left)
