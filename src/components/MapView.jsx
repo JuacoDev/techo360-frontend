@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import SelectorAnioMapa from './SelectorAnioMapa'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -138,6 +139,17 @@ function MapView({
   codigoSeleccionado,
   scoreSeleccionado,
   nivelSeleccionado,
+  // Los seis props siguientes solo los usa el mapa de proyección
+  // (Proyectadas.jsx) -- el MapView del dashboard de calor nunca los
+  // pasa, asi que mostrarSelectorAnio se queda en false y la barra ni
+  // se renderiza ahi.
+  mostrarSelectorAnio = false,
+  anioSeleccionado,
+  anioMinimoSelector,
+  anioMaximoSelector,
+  cargandoAnio = false,
+  avisoSelectorAnio,
+  onAnioSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
   const [isLegendOpen, setIsLegendOpen] = useState(false)
@@ -343,6 +355,18 @@ function MapView({
               <GeoJSON key={`departamentos-${claveDatosMapa}`} data={departamentos} style={estiloDepartamentos} onEachFeature={manejarEventosDepartamento} />
             )}
       </MapContainer>
+
+      {mostrarSelectorAnio && (
+        <SelectorAnioMapa
+          anio={anioSeleccionado}
+          anioMinimo={anioMinimoSelector}
+          anioMaximo={anioMaximoSelector}
+          activo={anioMinimoSelector != null && anioMaximoSelector != null && !cargandoAnio}
+          cargando={cargandoAnio}
+          aviso={avisoSelectorAnio}
+          onCambioAnio={onAnioSeleccionado}
+        />
+      )}
 
       <div className="map-legend">
         {!isLegendOpen ? (

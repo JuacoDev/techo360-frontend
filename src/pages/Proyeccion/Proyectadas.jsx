@@ -38,8 +38,22 @@ function Proyectadas({
   const [anioInicio, setAnioInicio] = useState(2027);
   const [anioFin, setAnioFin] = useState(2030);
   const [cargandoProyeccion, setCargandoProyeccion] = useState(false);
-  const [datosProyectados, setDatosProyectados] = useState(null);
   const [errorProyeccion, setErrorProyeccion] = useState(null);
+
+  // Cache de la ultima proyeccion generada: un array de zonas por cada
+  // año del rango ya consultado, para que mover la barra de año solo
+  // lea de aqui -- cero llamadas nuevas a la API. rangoGenerado es el
+  // anioInicio/anioFin usados en esa generacion (no los valores actuales
+  // de los selects, que el usuario puede seguir cambiando sin que eso
+  // mueva la barra hasta que vuelva a pulsar "Generar proyección").
+  const [datosPorAnio, setDatosPorAnio] = useState({});
+  const [rangoGenerado, setRangoGenerado] = useState(null);
+  const [anioSeleccionadoMapa, setAnioSeleccionadoMapa] = useState(null);
+
+  const datosProyectados =
+    anioSeleccionadoMapa != null
+      ? datosPorAnio[anioSeleccionadoMapa] ?? []
+      : null;
 
   // Rango real de años, tal como lo confirmó el backend (GET
   // /api/proyecciones/rango) -- nunca un número hardcodeado aquí. Mientras
@@ -61,11 +75,17 @@ function Proyectadas({
   };
 
   const generarProyeccion = async () => {
-  try {
-    setCargandoProyeccion(true);
-    setErrorProyeccion(null);
+  setCargandoProyeccion(true);
+  setErrorProyeccion(null);
+  // Se vacia el cache de inmediato: mientras se genera (o si falla) la
+  // barra no debe seguir mostrando el rango/año de una generacion
+  // anterior.
+  setDatosPorAnio({});
+  setRangoGenerado(null);
+  setAnioSeleccionadoMapa(null);
 
-    const resultados = {};
+  try {
+    const resultadosPorAnio = {};
 
     for (
       let anio = anioInicio;
@@ -75,9 +95,16 @@ function Proyectadas({
       const resultado =
         await getProyeccionZonas(anio, "densidad_poblacional", onLogout);
 
-      resultados[anio] = resultado;
+      resultadosPorAnio[anio] = resultado.zonas ?? [];
     }
-    setDatosProyectados(resultados[anioInicio]?.zonas ?? []);
+
+    // Solo se confirma en estado si el loop completo tuvo exito -- si
+    // un año a mitad de camino falla, el catch de abajo se encarga y
+    // resultadosPorAnio (local) simplemente se descarta, sin dejar un
+    // cache a medias.
+    setDatosPorAnio(resultadosPorAnio);
+    setRangoGenerado({ anioInicio, anioFin });
+    setAnioSeleccionadoMapa(anioInicio);
 
   } catch (error) {
     console.error(error);
@@ -167,6 +194,13 @@ function Proyectadas({
             datosMunicipios={datosMunicipios}
             datosProyectados={datosProyectados}
             codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+            mostrarSelectorAnio
+            anioSeleccionado={anioSeleccionadoMapa}
+            anioMinimoSelector={rangoGenerado?.anioInicio}
+            anioMaximoSelector={rangoGenerado?.anioFin}
+            cargandoAnio={cargandoProyeccion}
+            avisoSelectorAnio="Genera una proyección para activar el año"
+            onAnioSeleccionado={setAnioSeleccionadoMapa}
             />
           </div>
 
