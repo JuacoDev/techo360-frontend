@@ -427,12 +427,13 @@ function MapView({
               <span>0 (Menor)</span>
               <span>1 (Mayor)</span>
             </div>
-            {hayZonaSeleccionada && !tieneScoreValido && (
-              <div className="map-legend-no-data">
-                <span className="map-legend-gray" aria-hidden="true" />
-                <span>Sin dato</span>
-              </div>
-            )}
+            {/* Siempre visible (antes solo aparecia al seleccionar una
+                zona gris) -- es una entrada fija de la leyenda, no un
+                mensaje contextual de la seleccion actual. */}
+            <div className="map-legend-no-data">
+              <span className="map-legend-gray" aria-hidden="true" />
+              <span>Sin dato</span>
+            </div>
             {mostrarSelectorAnio && (
               <p className="map-legend-nota">
                 El déficit habitacional se mantiene constante (Censo 2018).
