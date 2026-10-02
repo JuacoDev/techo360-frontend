@@ -4,15 +4,25 @@ import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import BarraBuscadora from "../../components/BarraBuscadora";
 import MapView from "../../components/MapView";
 import PanelIndicadores from "../../components/PanelIndicadores";
-import { getProyeccionZonas } from "../../services/api";
+import { extraerMensajeDetalle, getProyeccionZonas } from "../../services/api";
 
 // Traduce el status HTTP que ya trae el Error (ver error.status en
 // getProyeccionZonas, api.js) a un mensaje que el usuario pueda entender
 // -- antes esto solo se mandaba a console.error y el usuario se quedaba
 // con un spinner que desaparecia sin ninguna pista de que paso.
+//
+// error.message ya viene limpio desde getProyeccionZonas (nunca
+// "[object Object]": ahi ya se extrajo de error.detail, que puede ser un
+// string plano o la lista de validacion automatica de FastAPI
+// [{msg, loc}, ...]) -- pero se vuelve a intentar con
+// extraerMensajeDetalle(error.detail) aqui tambien, por si algun otro
+// punto de la app alguna vez lanza un error con detail sin pasar por
+// getProyeccionZonas. Si nada de eso se puede interpretar, se usa el
+// mensaje generico de respaldo -- nunca un objeto crudo en pantalla.
 function mensajeErrorProyeccion(error) {
   if (error?.status === 422) {
     return (
+      extraerMensajeDetalle(error.detail) ||
       error.message ||
       "El año pedido está fuera del rango de datos disponibles para la proyección."
     );

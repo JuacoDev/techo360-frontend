@@ -26,6 +26,9 @@ export function limpiarToken() {
   sessionStorage.removeItem("token");
 }
 
+export { extraerMensajeDetalle } from "./mensajesError.js";
+import { extraerMensajeDetalle } from "./mensajesError.js";
+
 export async function fetchConSesion(url, options = {}, logout) {
   const token = getToken();
   const response = await fetch(url, {
@@ -249,11 +252,17 @@ export async function getProyeccionZonas(
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error(
-      result.detail || "Error al obtener proyección de zonas"
-    );
+    const mensaje = extraerMensajeDetalle(result.detail);
+    if (result.detail != null && mensaje === null) {
+      console.error(
+        "getProyeccionZonas: detail no interpretable, se muestra mensaje genérico:",
+        result.detail
+      );
+    }
 
+    const error = new Error(mensaje || "Error al obtener proyección de zonas");
     error.status = response.status;
+    error.detail = result.detail;
 
     throw error;
   }
