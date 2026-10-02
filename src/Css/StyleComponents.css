@@ -917,6 +917,12 @@ Panel Indicadores
   margin-bottom: 0;
 }
 
+.panel-indicadores-proyeccion-disclaimer {
+  margin: -8px 0 14px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
 .panel-indicadores-subtitulo {
   margin: 0 0 12px;
   font-size: 12px;
