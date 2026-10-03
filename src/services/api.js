@@ -11,6 +11,13 @@ export const API_URL = import.meta.env.VITE_API_URL;
 // escrito literal.
 export const ANIO_INDICADORES = 2024;
 
+// Indicador que pide el mapa de proyección a GET /api/proyecciones/zonas
+// (ver Proyectadas.jsx::generarProyeccion). Si el backend con soporte
+// para "score_privacion" se despliega DESPUES que este frontend,
+// cambiar esto a "densidad_poblacional" (lo único que el backend viejo
+// acepta) hasta que el despliegue del backend esté al día.
+export const INDICADOR_PROYECCION_MAPA = "score_privacion";
+
 // -------------------
 // Token guardado tras el login (localStorage si "Recordarme" estaba
 // marcado, sessionStorage si no -- ver Login.jsx) -- centralizado aqui
@@ -25,6 +32,9 @@ export function limpiarToken() {
   localStorage.removeItem("token");
   sessionStorage.removeItem("token");
 }
+
+export { extraerMensajeDetalle } from "./mensajesError.js";
+import { extraerMensajeDetalle } from "./mensajesError.js";
 
 export async function fetchConSesion(url, options = {}, logout) {
   const token = getToken();
@@ -249,11 +259,17 @@ export async function getProyeccionZonas(
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error(
-      result.detail || "Error al obtener proyección de zonas"
-    );
+    const mensaje = extraerMensajeDetalle(result.detail);
+    if (result.detail != null && mensaje === null) {
+      console.error(
+        "getProyeccionZonas: detail no interpretable, se muestra mensaje genérico:",
+        result.detail
+      );
+    }
 
+    const error = new Error(mensaje || "Error al obtener proyección de zonas");
     error.status = response.status;
+    error.detail = result.detail;
 
     throw error;
   }

@@ -143,7 +143,15 @@ body {
   width: 100%;
   height: 14px;
   border-radius: 4px;
-  background: linear-gradient(to right, hsl(55, 85%, 80%), hsl(0, 100%, 35%));
+  border: 1px solid #d7d7d7; /* el extremo blanco se pierde sin esto */
+  /* Mismos 3 puntos que getColor() en MapView.jsx: blanco en 0, amarillo
+     en 0.5, rojo en 1. */
+  background: linear-gradient(
+    to right,
+    rgb(255, 255, 255) 0%,
+    rgb(255, 221, 51) 50%,
+    rgb(211, 47, 47) 100%
+  );
 }
 
 /* Marcador de la zona seleccionada -- triangulo apuntando hacia abajo,
@@ -186,6 +194,80 @@ body {
   flex-shrink: 0;
   border-radius: 3px;
   background-color: #808080;
+}
+
+/* Solo aparece en el mapa de proyección (mostrarSelectorAnio=true en
+   MapView.jsx) -- el mapa de calor no la renderiza. */
+.map-legend-nota {
+  margin: 10px 0 0;
+  color: #666666;
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* Barra de año del mapa de proyección (SelectorAnioMapa.jsx). Anclada
+   en la misma esquina que el control de zoom de Leaflet (arriba a la
+   izquierda, margin-top/margin-left de 10px en .leaflet-top.leaflet-left)
+   pero a su derecha, sin taparlo: el control de zoom por defecto mide
+   26px de ancho, así que left arranca despues de esos 26px + su margen
+   de 10px + un hueco de 10px. */
+.map-year-bar {
+  position: absolute;
+  top: 10px;
+  left: 56px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid #d7d7d7;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  color: #333230;
+  max-width: calc(100% - 76px);
+}
+
+.map-year-bar-limite {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.map-year-bar-slider {
+  width: 110px;
+  flex-shrink: 1;
+  min-width: 40px;
+}
+
+.map-year-bar-actual {
+  flex-shrink: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid #d7d7d7;
+}
+
+@media (max-width: 700px) {
+  .map-year-bar {
+    top: 46px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+  }
+
+  .map-year-bar-slider {
+    width: 70px;
+  }
+
+  .map-year-bar-actual {
+    max-width: 110px;
+  }
 }
 
 /*
@@ -835,6 +917,12 @@ Panel Indicadores
   margin-bottom: 0;
 }
 
+.panel-indicadores-proyeccion-disclaimer {
+  margin: -8px 0 14px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
 .panel-indicadores-subtitulo {
   margin: 0 0 12px;
   font-size: 12px;
@@ -912,6 +1000,20 @@ proyecciones
   border-radius: 6px;
   background: #fdecea;
   color: #611a15;
+  font-weight: 600;
+}
+
+/* No bloqueante -- el usuario sigue teniendo una proyección usable con
+   los años que sí se generaron, distinto del error rojo (que implica
+   "no hay nada que mostrar"). */
+.panel-proyeccion-aviso {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff4e5;
+  color: #663c00;
   font-weight: 600;
 }
 

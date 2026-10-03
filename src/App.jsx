@@ -13,15 +13,18 @@ import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
-import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion } from "./services/api";
+import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion, getRangoProyeccionZonas } from "./services/api";
 
 const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
 
 function App() {
   const [screen, setScreen] = useState("home");
+  const [pantallaDespuesDeLogin, setPantallaDespuesDeLogin] = useState("loading");
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
+  const [rangoProyeccion, setRangoProyeccion] = useState(null);
+  const [errorRangoProyeccion, setErrorRangoProyeccion] = useState(null);
 
   const [mapReady, setMapReady] = useState(false);
   const [departamentosReady, setDepartamentosReady] = useState(false);
@@ -47,8 +50,9 @@ function App() {
   // identica todavia en curso.
   const departamentosSolicitados = useRef(false);
   const municipiosSolicitados = useRef(false);
+  const rangoProyeccionSolicitado = useRef(false);
 
-  
+
   const handleMapLoaded = () => {
     setScreen("app");
   };
@@ -65,14 +69,19 @@ function App() {
     limpiarToken();
     setDepartamentos(null);
     setDatosMunicipios(null);
+    setRangoProyeccion(null);
+    setErrorRangoProyeccion(null);
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
+    rangoProyeccionSolicitado.current = false;
     setMapReady(false);
     setDepartamentosReady(false);
     setMunicipiosReady(false);
     setBuscadorReady(false);
-    setScreen("login");
-    
+    setPantallaDespuesDeLogin("loading");
+    setScreen("home");
+    window.location.reload();
+
   }, []);
 
   // Datos geograficos de departamentos y municipios (con sus 7 indicadores
@@ -110,6 +119,27 @@ function App() {
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
   }, [screen, logout]);
 
+  // Rango de años valido para la proyeccion (real, no hardcodeado): se
+  // pide una sola vez, igual que departamentos/municipios arriba, y se
+  // comparte por props solo con Proyectadas -- el MapView del dashboard
+  // de calor no usa años de proyeccion.
+  useEffect(() => {
+    const token = getToken();
+    if (!token || rangoProyeccionSolicitado.current) return;
+    rangoProyeccionSolicitado.current = true;
+
+    getRangoProyeccionZonas(logout)
+      .then((datos) => {
+        setRangoProyeccion({ anioMinimo: datos.anio_minimo, anioMaximo: datos.anio_maximo });
+      })
+      .catch((err) => {
+        console.error("Error cargando el rango de años de proyeccion:", err);
+        setErrorRangoProyeccion(
+          "No se pudo cargar el rango de años disponible para la proyección."
+        );
+      });
+  }, [screen, logout]);
+
   // Punto unico de seleccion de zona, usado tanto por el clic en el mapa
   // como por el buscador: si la zona clickeada/elegida es la misma que ya
   // esta seleccionada, se deselecciona (vuelve a null) en vez de quedar
@@ -140,13 +170,35 @@ function App() {
         </>
       )}
 
-      {screen === "home" && <Home setScreen={setScreen} onLogout={logout} />}
+      {screen === "home" && (
+        <Home
+          setScreen={setScreen}
+          onLogout={logout}
+          onLoginFromHome={() => {
+            setPantallaDespuesDeLogin("home");
+            setScreen("login");
+          }}
+          onRequireLogin={(destino) => {
+            setPantallaDespuesDeLogin(destino);
+            setScreen("login");
+          }}
+        />
+      )}
 
       {screen === "chatbot" && <ChatBotScreen setScreen={setScreen} onLogout={logout} />}
 
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
       
-      {screen === "proyeccion" && <Proyectadas setScreen={setScreen} onLogout={logout} departamentos={departamentos} datosMunicipios={datosMunicipios} />}
+      {screen === "proyeccion" && (
+        <Proyectadas
+          setScreen={setScreen}
+          onLogout={logout}
+          departamentos={departamentos}
+          datosMunicipios={datosMunicipios}
+          rangoProyeccion={rangoProyeccion}
+          errorRangoProyeccion={errorRangoProyeccion}
+        />
+      )}
 
       {screen === "app" && (
         <main className="app-shell">
@@ -182,7 +234,15 @@ function App() {
       )}
 
       {!PANTALLAS_PROPIAS.includes(screen) && (
-        <AutenticarScreens screen={screen} setScreen={setScreen} />
+        <AutenticarScreens
+          screen={screen}
+          setScreen={setScreen}
+          onLoginComplete={() => {
+            const destino = pantallaDespuesDeLogin;
+            setPantallaDespuesDeLogin("loading");
+            setScreen(destino);
+          }}
+        />
       )}
     </>
   );

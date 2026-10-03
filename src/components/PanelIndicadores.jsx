@@ -201,6 +201,11 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
               {tarjetasProyeccion.length > 0 && (
                 <div className="panel-indicadores-grupo"> 
                   <h3 className="panel-indicadores-subtitulo">Proyecciones</h3>
+                  <p className="panel-indicadores-proyeccion-disclaimer">
+                    Las proyecciones se generan a partir de cálculos hechos
+                    por Techo 360, con el fin de corregir y aprovechar las
+                    fuentes de TerriData.
+                  </p>
                   <div className={
                     modo === "proyeccion"
                       ? "panel-indicadores-grid-proyeccion"
