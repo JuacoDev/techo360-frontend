@@ -106,14 +106,30 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
   const [cargando, setCargando] = useState(false);
   const [proyecciones, setProyecciones] = useState({});
   const [errorSerie, setErrorSerie] = useState(null);
+
+  // La serie proyectada solo existe para un MUNICIPIO (el backend exige un
+  // codigo DIVIPOLA de 5 digitos) y solo tiene sentido en el mapa de
+  // proyeccion, que es el unico que pasa anioInicio/anioFin. En el mapa de
+  // calor, o con un departamento seleccionado, no se llama al backend:
+  // antes se pedia con desde=undefined&hasta=undefined (o con el codigo de
+  // un departamento) y siempre devolvia 422.
+  const puedeProyectar =
+    modo === "proyeccion" &&
+    zonaSeleccionada?.nivel === "municipio" &&
+    anioInicio != null &&
+    anioFin != null;
+
   useEffect(() => {
-  if (!zonaSeleccionada) return;
+  if (!puedeProyectar) {
+    setErrorSerie(null);
+    return;
+  }
 
   manejarClickIndicador("densidad_poblacional");
-}, [zonaSeleccionada, anioInicio, anioFin]);
+}, [zonaSeleccionada, anioInicio, anioFin, modo]);
 
    async function manejarClickIndicador(indicador) {
-  if (!zonaSeleccionada) return;
+  if (!puedeProyectar) return;
   
 
   try {
@@ -245,7 +261,7 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
         </div>
       )}
       {cargando && <p>Cargando proyección...</p>}
-      {errorSerie && (
+      {modo === "proyeccion" && errorSerie && (
         <p className="panel-proyeccion-error">
           {errorSerie}
         </p>

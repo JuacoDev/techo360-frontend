@@ -233,7 +233,7 @@ export async function getProyeccion(zonaCodigo, indicador, desde, hasta, logout)
   );
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(result.detail || "Error al obtener proyección");
+    const error = new Error(extraerMensajeDetalle(result.detail) || "Error al obtener proyección");
     error.status = response.status;
     throw error;
   }
