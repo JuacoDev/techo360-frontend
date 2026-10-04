@@ -35,6 +35,7 @@ export function limpiarToken() {
 
 export { extraerMensajeDetalle } from "./mensajesError.js";
 import { extraerMensajeDetalle } from "./mensajesError.js";
+import { normalizarIntercambio, normalizarMensaje, normalizarMensajes } from "./estadosMensaje.js";
 
 export async function fetchConSesion(url, options = {}, logout) {
   const token = getToken();
@@ -348,7 +349,20 @@ export async function listarMensajes(conversacionId, logout) {
     error.status = response.status;
     throw error;
   }
-  return result;
+  return normalizarMensajes(result);
+}
+
+// Errores de enviar/reintentar/cancelar/eliminar (fase C): el backend con
+// estados activos devuelve, ademas de `detail` (texto), el mensaje ya guardado
+// con su estado (`mensaje_usuario`, o `mensaje_pendiente` en el 409 por bloqueo).
+// Se adjuntan al error para que la pantalla los muestre con sus botones. Un
+// backend sin estados no manda esos campos: quedan en undefined.
+function errorDeChatbot(response, result, mensajePorDefecto) {
+  const error = new Error(extraerMensajeDetalle(result.detail) || mensajePorDefecto);
+  error.status = response.status;
+  error.mensajeUsuario = normalizarMensaje(result.mensaje_usuario);
+  error.mensajePendiente = normalizarMensaje(result.mensaje_pendiente);
+  return error;
 }
 
 // La respuesta real del asistente corre sobre Ollama sin GPU en el VPS
@@ -371,11 +385,49 @@ export async function enviarMensaje(conversacionId, contenido, logout) {
     let mensaje = result.detail || "El asistente no pudo responder";
     if (response.status === 503) mensaje = result.detail || "El asistente no está disponible en este momento";
     if (response.status === 504) mensaje = "El asistente tardó demasiado en responder, intenta de nuevo";
-    const error = new Error(mensaje);
-    error.status = response.status;
+    const error = errorDeChatbot(response, result, mensaje);
+    error.message = mensaje;
     throw error;
   }
-  return result;
+  return normalizarIntercambio(result);
+}
+
+// Fase C: reintentar (error|cancelado -> procesando) con el MISMO mensaje.
+// Devuelve el intercambio completo, igual que enviarMensaje.
+export async function reintentarMensaje(mensajeId, logout) {
+  const response = await fetchConSesion(
+    `${API_URL}/chatbot/mensajes/${mensajeId}/reintentar`,
+    { method: "POST" },
+    logout
+  );
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw errorDeChatbot(response, result, "No se pudo reintentar el mensaje");
+  return normalizarIntercambio(result);
+}
+
+// Fase C: cancelar la espera de un mensaje (devuelve el mensaje, ya 'cancelado').
+export async function cancelarMensaje(mensajeId, logout) {
+  const response = await fetchConSesion(
+    `${API_URL}/chatbot/mensajes/${mensajeId}/cancelar`,
+    { method: "POST" },
+    logout
+  );
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw errorDeChatbot(response, result, "No se pudo cancelar el mensaje");
+  return normalizarMensaje(result);
+}
+
+// Fase C: eliminar un mensaje sin resolver (204 sin cuerpo).
+export async function eliminarMensaje(mensajeId, logout) {
+  const response = await fetchConSesion(
+    `${API_URL}/chatbot/mensajes/${mensajeId}`,
+    { method: "DELETE" },
+    logout
+  );
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw errorDeChatbot(response, result, "No se pudo eliminar el mensaje");
+  }
 }
 
 export async function enviarFeedbackMensaje(mensajeId, feedbackUtil, logout) {
@@ -394,5 +446,5 @@ export async function enviarFeedbackMensaje(mensajeId, feedbackUtil, logout) {
     error.status = response.status;
     throw error;
   }
-  return result;
+  return normalizarMensaje(result);
 }
