@@ -66,6 +66,7 @@ export async function getZonasMunicipios(anio, logout) {
     logout
   );
   const result = await response.json().catch(() => ({}));
+  
 
   if (!response.ok) {
     const error = new Error(result.detail || "Error al obtener los datos del mapa");
@@ -232,6 +233,7 @@ export async function getProyeccion(zonaCodigo, indicador, desde, hasta, logout)
     logout
   );
   const result = await response.json().catch(() => ({}));
+  console.log("RESPUESTA ERROR", result);
   if (!response.ok) {
     const error = new Error(result.detail || "Error al obtener proyección");
     error.status = response.status;
@@ -257,6 +259,7 @@ export async function getProyeccionZonas(
   );
 
   const result = await response.json().catch(() => ({}));
+  
 
   if (!response.ok) {
     const mensaje = extraerMensajeDetalle(result.detail);

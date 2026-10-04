@@ -106,8 +106,81 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
   const [cargando, setCargando] = useState(false);
   const [proyecciones, setProyecciones] = useState({});
   const [errorSerie, setErrorSerie] = useState(null);
+  const [incluirGraficas, setIncluirGraficas] = useState(true);
+  const [departamentosInforme, setDepartamentosInforme] = useState([]);
+  const [municipiosInforme, setMunicipiosInforme] = useState([]);
+  const [variablesInforme, setVariablesInforme] = useState([
+  "score_privacion",
+  "densidad_poblacional",
+]);
+
+  function agregarZonaInforme() {
+  if (!zonaSeleccionada) return;
+
+  if (zonaSeleccionada.nivel === "departamento") {
+    setDepartamentosInforme((prev) => {
+      const existe = prev.some(
+        (zona) => zona.codigo === zonaSeleccionada.codigo
+      );
+
+      if (existe) return prev;
+
+      return [...prev, zonaSeleccionada];
+    });
+
+    return;
+  }
+
+  if (zonaSeleccionada.nivel === "municipio") {
+    setMunicipiosInforme((prev) => {
+      const existe = prev.some(
+        (zona) => zona.codigo === zonaSeleccionada.codigo
+      );
+
+      if (existe) return prev;
+
+      return [...prev, zonaSeleccionada];
+    });
+  }
+}
+
+
+function eliminarDepartamentoInforme(codigo) {
+  setDepartamentosInforme((prev) =>
+    prev.filter((zona) => zona.codigo !== codigo)
+  );
+}
+
+function eliminarMunicipioInforme(codigo) {
+  setMunicipiosInforme((prev) =>
+    prev.filter((zona) => zona.codigo !== codigo)
+  );
+}
+
+function toggleVariable(variable) {
+  setVariablesInforme((prev) =>
+    prev.includes(variable)
+      ? prev.filter((v) => v !== variable)
+      : [...prev, variable]
+  );
+}
+function generarInforme() {
+  const payload = {
+    incluirGraficas,
+    variables: variablesInforme,
+    departamentos: departamentosInforme,
+    municipios: municipiosInforme,
+    anioInicio,
+    anioFin,
+  };
+
+  console.log("INFORME", payload);
+}
+
   useEffect(() => {
   if (!zonaSeleccionada) return;
+
+  if (zonaSeleccionada.nivel !== "municipio") return;
 
   manejarClickIndicador("densidad_poblacional");
 }, [zonaSeleccionada, anioInicio, anioFin]);
@@ -115,17 +188,25 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
    async function manejarClickIndicador(indicador) {
   if (!zonaSeleccionada) return;
   
-
+    if (zonaSeleccionada?.nivel !== "municipio") {
+    return;
+}
   try {
     setCargando(true);
     setErrorSerie(null);
 
+    const desde = anioInicio ?? 2024;
+    const hasta = anioFin ?? 2030;
     const respuesta = await getProyeccion(
       zonaSeleccionada.codigo,
       indicador,
-      anioInicio,
-      anioFin
+      desde,
+      hasta
     );
+
+    console.log("RESPUESTA COMPLETA", respuesta);
+    console.log("SERIE", respuesta.serie);
+    console.log("PRIMER ELEMENTO", respuesta?.serie?.[0]);
 
 
     setProyecciones((prev) => ({
@@ -143,6 +224,7 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
 } finally {
   setCargando(false);
 }
+
    }
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
@@ -244,6 +326,133 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
           ))}
         </div>
       )}
+      <div className="panel-indicadores-grupo">
+  <h3 className="panel-indicadores-subtitulo">
+    📄 Informe
+  </h3>
+
+  <label className="informe-checkbox">
+    <input
+      type="checkbox"
+      checked={incluirGraficas}
+      onChange={(e) =>
+        setIncluirGraficas(e.target.checked)
+      }
+    />
+    Incluir gráficas
+  </label>
+
+  <div className="informe-seccion">
+    <strong>Variables incluidas</strong>
+
+    <label>
+      <input
+        type="checkbox"
+        checked={variablesInforme.includes("score_privacion")}
+        onChange={() =>
+          toggleVariable("score_privacion")
+        }
+      />
+      Score de Privación
+    </label>
+
+    <label>
+      <input
+        type="checkbox"
+        checked={variablesInforme.includes("densidad_poblacional")}
+        onChange={() =>
+          toggleVariable("densidad_poblacional")
+        }
+      />
+      Densidad poblacional
+    </label>
+
+    <label>
+      <input
+        type="checkbox"
+        checked={variablesInforme.includes("cobertura_acueducto")}
+        onChange={() =>
+          toggleVariable("cobertura_acueducto")
+        }
+      />
+      Cobertura acueducto
+    </label>
+
+    <label>
+      <input
+        type="checkbox"
+        checked={variablesInforme.includes("cobertura_alcantarillado")}
+        onChange={() =>
+          toggleVariable("cobertura_alcantarillado")
+        }
+      />
+      Cobertura alcantarillado
+    </label>
+  </div>
+
+  <div className="informe-seccion">
+  <strong>Departamentos</strong>
+
+  <div className="informe-tags">
+    {departamentosInforme.map((zona) => (
+      <span
+        key={zona.codigo}
+        className="informe-tag"
+      >
+        {zona.nombre}
+
+        <button
+          type="button"
+          onClick={() =>
+            eliminarDepartamentoInforme(zona.codigo)
+          }
+        >
+          ✕
+        </button>
+      </span>
+    ))}
+  </div>
+</div>
+
+<div className="informe-seccion">
+  <strong>Municipios</strong>
+
+  <div className="informe-tags">
+    {municipiosInforme.map((zona) => (
+      <span
+        key={zona.codigo}
+        className="informe-tag"
+      >
+        {zona.nombre}
+
+        <button
+          type="button"
+          onClick={() =>
+            eliminarMunicipioInforme(zona.codigo)
+          }
+        >
+          ✕
+        </button>
+      </span>
+    ))}
+  </div>
+</div>
+
+  <button
+    className="btn-proyeccion"
+    onClick={agregarZonaInforme}
+  >
+    Añadir zona actual al informe
+  </button>
+
+  <button
+  className="btn-proyeccion"
+  type="button"
+  onClick={generarInforme}
+  >
+    Generar informe
+  </button>
+</div>
       {cargando && <p>Cargando proyección...</p>}
       {errorSerie && (
         <p className="panel-proyeccion-error">
