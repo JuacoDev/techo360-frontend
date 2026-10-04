@@ -510,17 +510,17 @@ Home (pantalla inicial publica)
 }
 
 /* Fase C: estados de los mensajes del chatbot */
-.chatbot-message-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 6px; font-size: 11px; color: #8b877f; }
-.chatbot-message-status-text { display: inline-flex; align-items: center; gap: 6px; text-align: right; }
+.chatbot-message-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 6px; font-size: 11px; color: #6f6b63; }
+.chatbot-message-status-text { display: inline-flex; align-items: center; gap: 6px; text-align: right; max-width: 100%; overflow-wrap: anywhere; }
 .chatbot-message-status-animation { width: 44px; height: 14px; }
 .chatbot-message-status--error { color: #b3261e; }
-.chatbot-message-status--cancelado { color: #8b877f; }
+.chatbot-message-status--cancelado { color: #6f6b63; }
 .chatbot-message-actions { display: inline-flex; gap: 6px; }
 .chatbot-message-actions button { padding: 3px 9px; border: 1px solid #ddd9d0; border-radius: 6px; background: #fff; color: #6b4a3d; font-size: 11px; cursor: pointer; }
 .chatbot-message-actions button:hover:not(:disabled) { border-color: #f57c00; background: #fff9f3; }
 .chatbot-message-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 .chatbot-user-response:has(.chatbot-message-status--error) .chatbot-conversation-message--user { background: #b3261e; }
-.chatbot-user-response:has(.chatbot-message-status--cancelado) .chatbot-conversation-message--user { background: #9a9892; }
+.chatbot-user-response:has(.chatbot-message-status--cancelado) .chatbot-conversation-message--user { background: #76726a; }
 .chatbot-thinking-cancel { align-self: flex-start; padding: 3px 9px; border: 1px solid #ddd9d0; border-radius: 6px; background: #fff; color: #6b4a3d; font-size: 11px; cursor: pointer; }
 .chatbot-thinking-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
 .chatbot-user-response:has(.chatbot-message-status) .chatbot-conversation-message--user { width: fit-content; margin-left: auto; }

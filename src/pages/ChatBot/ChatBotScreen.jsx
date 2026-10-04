@@ -226,9 +226,19 @@ function ChatConversationView({
   const conversacionEnVuelo = useRef(null);
   const [cancelandoEnvio, setCancelandoEnvio] = useState(false);
 
+  const entradaRef = useRef(null);
+
   // Fase C: una conversacion con un mensaje sin resolver (pendiente, procesando,
   // error o cancelado) no admite otra pregunta: hay que reintentarlo o eliminarlo.
   const bloqueada = conversacionBloqueada(messages);
+
+  // Al desbloquearse la conversacion (reintento que responde, mensaje eliminado) el foco vuelve
+  // al cuadro de texto: sin esto, el boton pulsado desaparece y el foco se pierde.
+  const estabaBloqueada = useRef(bloqueada);
+  useEffect(() => {
+    if (estabaBloqueada.current && !bloqueada && !sending) entradaRef.current?.focus();
+    estabaBloqueada.current = bloqueada;
+  }, [bloqueada, sending]);
 
   const actualizarMensajes = (convId, calcular) => {
     const actualizados = calcular(mensajesRef.current);
@@ -289,6 +299,7 @@ function ChatConversationView({
           // El servidor ya guardo el mensaje (con su estado, p. ej. 'error'): vive en
           // el historial con sus botones; no se restaura el texto en el cuadro.
           actualizarMensajes(conversacionId ?? err.mensajeUsuario.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajeUsuario));
+          if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(conversacionId ?? err.mensajeUsuario.conversacion_id);
         } else if (err.mensajePendiente) {
           // 409: ya habia un mensaje sin resolver (p. ej. enviado desde otra pestana).
           actualizarMensajes(conversacionId ?? err.mensajePendiente.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajePendiente));
@@ -313,12 +324,19 @@ function ChatConversationView({
   // al instante y descarta lo que llegue despues.
   const cancelarEnVuelo = async () => {
     const convId = conversacionEnVuelo.current;
-    if (convId == null || cancelandoEnvio) return;
+    if (cancelandoEnvio) return;
+    if (convId == null) {
+      setSendError("Todavía no se pudo registrar el mensaje; inténtalo de nuevo en un momento.");
+      return;
+    }
     setCancelandoEnvio(true);
     try {
       const lista = await listarMensajes(convId, onLogout);
       const enProceso = lista.find((m) => m.rol === "usuario" && (m.estado === "procesando" || m.estado === "pendiente"));
-      if (!enProceso) return; // ya termino: la respuesta normal llegara sola
+      if (!enProceso) {
+        setSendError("No hay un mensaje en proceso para cancelar (puede que ya haya terminado).");
+        return;
+      }
       const cancelado = await cancelarMensaje(enProceso.id, onLogout);
       contadorEnvios.current += 1; // invalida el envio en curso
       actualizarMensajes(convId, () => aplicarMensaje(lista, cancelado));
@@ -328,6 +346,17 @@ function ChatConversationView({
       if (err.status !== 401) setSendError(err.message || "No se pudo cancelar el mensaje");
     } finally {
       setCancelandoEnvio(false);
+    }
+  };
+
+  // Un 409 que informa que el mensaje YA esta 'respondido' (lo cerro otro intento) no trae la
+  // respuesta del asistente: se vuelve a leer la conversacion para mostrarla.
+  const refrescarConversacion = async (convId) => {
+    try {
+      const lista = await listarMensajes(convId, onLogout);
+      actualizarMensajes(convId, () => lista);
+    } catch {
+      /* el sondeo o la siguiente accion lo corrigen */
     }
   };
 
@@ -358,6 +387,7 @@ function ChatConversationView({
       if (err.status === 401 || miAccion !== contadorAcciones.current) return;
       if (err.mensajeUsuario) {
         actualizarMensajes(convId, (lista) => aplicarMensaje(lista, err.mensajeUsuario));
+        if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(convId);
       } else if (accion === "reintentar") {
         actualizarMensajes(convId, (lista) => aplicarMensaje(lista, mensaje)); // deshace el "procesando" optimista
       }
@@ -458,7 +488,7 @@ function ChatConversationView({
           <div className="chatbot-thinking chatbot-thinking--barras">
             <span className="chatbot-thinking-animation" aria-label="TechoBot está generando una respuesta"><i /><i /><i /></span>
             <span className="chatbot-thinking-text">TechoBot está analizando tu consulta...</span>
-            <button type="button" className="chatbot-thinking-cancel" disabled={cancelandoEnvio} onClick={cancelarEnVuelo}>
+            <button type="button" className="chatbot-thinking-cancel" aria-label="Cancelar el mensaje que se está enviando" disabled={cancelandoEnvio} onClick={cancelarEnVuelo}>
               {cancelandoEnvio ? "Cancelando…" : "Cancelar"}
             </button>
           </div>
@@ -468,7 +498,7 @@ function ChatConversationView({
       {sendError && <p className="chatbot-history-error">{sendError}</p>}
       {feedbackError && <p className="chatbot-history-error">{feedbackError}</p>}
       {bloqueada && !sending && (
-        <p className="chatbot-composer-bloqueado" role="status">
+        <p id="chatbot-aviso-bloqueo" className="chatbot-composer-bloqueado" role="status">
           Tienes un mensaje sin respuesta. Reintenta o elimínalo para poder enviar otra pregunta.
         </p>
       )}
@@ -495,6 +525,8 @@ function ChatConversationView({
           }}
           placeholder={bloqueada ? "Resuelve el mensaje pendiente (reintentar o eliminar)..." : "Escribe tu pregunta..."}
           aria-label="Mensaje"
+          aria-describedby={bloqueada && !sending ? "chatbot-aviso-bloqueo" : undefined}
+          ref={entradaRef}
           disabled={sending || bloqueada}
         />
         <button type="button" aria-label="Enviar mensaje" onClick={handleSend} disabled={sending || bloqueada || !input.trim()}>→</button>
@@ -509,25 +541,26 @@ function MensajeEstado({ mensaje, accionEnCurso, onAccion }) {
   const acciones = accionesDe(mensaje);
   const ocupado = accionEnCurso?.id === mensaje.id;
   const enProceso = estado === "procesando" || estado === "pendiente";
+  const resumen = mensaje.contenido.length > 40 ? `${mensaje.contenido.slice(0, 40)}…` : mensaje.contenido;
   return (
-    <div className={`chatbot-message-status chatbot-message-status--${estado}`} role="status">
+    <div className={`chatbot-message-status chatbot-message-status--${estado}`} role="status" aria-live="polite">
       <span className="chatbot-message-status-text">
         {enProceso && <span className="chatbot-thinking-animation chatbot-message-status-animation" aria-hidden="true"><i /><i /><i /></span>}
         {etiquetaEstado(mensaje)}
       </span>
       <span className="chatbot-message-actions">
         {acciones.reintentar && (
-          <button type="button" disabled={Boolean(accionEnCurso)} onClick={() => onAccion("reintentar")}>
+          <button type="button" aria-label={`Reintentar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("reintentar")}>
             {ocupado && accionEnCurso.accion === "reintentar" ? "Reintentando…" : "Reintentar"}
           </button>
         )}
         {acciones.cancelar && (
-          <button type="button" disabled={Boolean(accionEnCurso) && !enProceso} onClick={() => onAccion("cancelar")}>
+          <button type="button" aria-label={`Cancelar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso) && !enProceso} onClick={() => onAccion("cancelar")}>
             Cancelar
           </button>
         )}
         {acciones.eliminar && (
-          <button type="button" disabled={Boolean(accionEnCurso)} onClick={() => onAccion("eliminar")}>
+          <button type="button" aria-label={`Eliminar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("eliminar")}>
             Eliminar
           </button>
         )}
