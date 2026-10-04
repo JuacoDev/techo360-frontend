@@ -174,7 +174,6 @@ function generarInforme() {
     anioFin,
   };
 
-  console.log("INFORME", payload);
 }
 
   useEffect(() => {
@@ -204,9 +203,6 @@ function generarInforme() {
       hasta
     );
 
-    console.log("RESPUESTA COMPLETA", respuesta);
-    console.log("SERIE", respuesta.serie);
-    console.log("PRIMER ELEMENTO", respuesta?.serie?.[0]);
 
 
     setProyecciones((prev) => ({
