@@ -66,8 +66,6 @@ function BarraBuscadora({
 
   function manejarSeleccionDepartamento(evento) {
     const codigo = evento.target.value;
-    console.log("Departamento seleccionado:", codigo);
-    console.log("zonaActiva:", zonaActiva);
     setCodigoDepartamento(codigo);
     setCodigoMunicipio("");
 
@@ -88,10 +86,6 @@ function BarraBuscadora({
       onSeleccionarZona({ ...municipio, nivel: "municipio" });
     }
   }
-  console.log("departamentos:", departamentos);
-  console.log("datosMunicipios:", datosMunicipios);
-  console.log("listaDepartamentos:", listaDepartamentos.length);
-  console.log("municipiosDelDepartamento:", municipiosDelDepartamento.length);
 
   return (
     <div className="BarraBuscadora">
