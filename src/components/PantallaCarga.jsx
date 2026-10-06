@@ -1,8 +1,14 @@
-function PantallaCarga() {
+function PantallaCarga({ transparente = false, mensaje = "Cargando mapa..." }) {
   return (
-    <div className="pantalla-carga">
+    <div
+      className={
+        transparente
+          ? "pantalla-carga pantalla-carga-transparente"
+          : "pantalla-carga"
+      }
+    >
       <div className="loader"></div>
-      <p>Cargando mapa...</p>
+      <p>{mensaje}</p>
     </div>
   );
 }

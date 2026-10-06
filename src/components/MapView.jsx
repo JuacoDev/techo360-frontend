@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import SelectorAnioMapa from './SelectorAnioMapa'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -53,13 +54,15 @@ const FILL_OPACITY_NORMAL = 0.75
 const FILL_OPACITY_ATENUADA = 0.18
 
 // Funciones para el choropleth de municipios
-function getColor(score) {
-  if (score === null || score === undefined) return '#808080';
-  if (score >= 0.8) return '#b30000';
-  if (score >= 0.6) return '#e31a1c';
-  if (score >= 0.4) return '#fc4e2a';
-  if (score >= 0.2) return '#fd8d3c';
-  return '#ffeda0';
+function getColor(valor) {
+  if (valor == null) return "#808080";
+
+  if (valor >= 500) return "#b30000";
+  if (valor >= 250) return "#e31a1c";
+  if (valor >= 100) return "#fc4e2a";
+  if (valor >= 50) return "#fd8d3c";
+
+  return "#ffeda0";
 }
 
 // Componente sin render propio -- solo escucha el evento de zoom del
@@ -86,11 +89,11 @@ function ManejadorDeClicVacio({ onClicVacio }) {
 // Centra/hace zoom hacia el municipio seleccionado, sin importar si la
 // seleccion vino de un clic en el mapa o del buscador -- mismo efecto en
 // ambos casos. No hace nada al deseleccionar (no se aleja el mapa solo).
-function ControladorDeFoco({ codigoSeleccionado, datosMunicipios }) {
+function ControladorDeFoco({ codigoSeleccionado, nivelSeleccionado, datosMunicipios }) {
   const map = useMap()
 
   useEffect(() => {
-    if (!codigoSeleccionado || !datosMunicipios) return
+    if (nivelSeleccionado !== 'municipio' || !codigoSeleccionado || !datosMunicipios) return
 
     const feature = datosMunicipios.features.find(
       (f) => f.properties.codigo === codigoSeleccionado
@@ -104,7 +107,24 @@ function ControladorDeFoco({ codigoSeleccionado, datosMunicipios }) {
         duration: 0.75,
       })
     }
-  }, [codigoSeleccionado, datosMunicipios, map])
+  }, [codigoSeleccionado, datosMunicipios, nivelSeleccionado, map])
+
+  return null
+}
+
+function AjustarTamanoMapa() {
+  const map = useMap()
+
+  useEffect(() => {
+    const ajustar = () => map.invalidateSize()
+    const contenedor = map.getContainer()
+    const observer = new ResizeObserver(ajustar)
+
+    observer.observe(contenedor)
+    ajustar()
+
+    return () => observer.disconnect()
+  }, [map])
 
   return null
 }
@@ -114,24 +134,140 @@ function MapView({
   onZonaSeleccionada,
   departamentos,
   datosMunicipios,
+  datosProyectados,
+  claveDatosMapa = "base",
   codigoSeleccionado,
+  scoreSeleccionado,
+  nivelSeleccionado,
+  anioSeleccionado = 2025,
+  selectorAnioActivo = false,
+  cargandoAnio = false,
+  fiabilidadProyeccion,
+  mostrarSelectorAnio = true,
+  anioMinimoSelector,
+  anioMaximoSelector,
+  onAnioSeleccionado,
+  onSelectorAnioActivo,
 }) {
   const [zoom, setZoom] = useState(6)
+  const [isLegendOpen, setIsLegendOpen] = useState(false)
+
+  const proyeccionesPorCodigo = useMemo(
+  () =>
+    datosProyectados
+      ? Object.fromEntries(
+          datosProyectados.map((z) => [
+            z.codigo_municipio,
+            z.valor,
+          ])
+        )
+      : {},
+  [datosProyectados]
+);
+
+  const proyeccionesPorDepartamento = useMemo(() => {
+    const acumulados = {};
+
+    datosProyectados?.forEach((zona) => {
+      const codigoDepartamento = String(zona.codigo_municipio ?? "")
+        .padStart(5, "0")
+        .slice(0, 2);
+      const valor = Number(zona.valor);
+      if (!codigoDepartamento || !Number.isFinite(valor)) return;
+
+      acumulados[codigoDepartamento] ??= { total: 0, cantidad: 0 };
+      acumulados[codigoDepartamento].total += valor;
+      acumulados[codigoDepartamento].cantidad += 1;
+    });
+
+    return Object.fromEntries(
+      Object.entries(acumulados).map(([codigo, datos]) => [
+        codigo,
+        datos.total / datos.cantidad,
+      ])
+    );
+  }, [datosProyectados]);
+
+  const fiabilidadSeleccionada = useMemo(() => {
+    const codigoNormalizado = String(codigoSeleccionado ?? "").padStart(5, "0");
+    const proyeccionSeleccionada = datosProyectados?.find(
+      (zona) => String(zona.codigo_municipio ?? "").padStart(5, "0") === codigoNormalizado
+    );
+
+    return proyeccionSeleccionada?.intervalo_confianza
+      ?? proyeccionSeleccionada?.fiabilidad
+      ?? fiabilidadProyeccion;
+  }, [codigoSeleccionado, datosProyectados, fiabilidadProyeccion]);
+
+
 
   const estiloMunicipios = useCallback(
+  (feature) => {
+    const codigo = feature.properties?.codigo;
+
+    const codigoNormalizado = String(codigo)
+      .padStart(5, "0");
+     
+    const valorProyectado =
+      proyeccionesPorCodigo[codigoNormalizado]; 
+
+    const valorColor =
+      datosProyectados
+        ? valorProyectado
+        : feature.properties?.score_privacion;
+
+
+    const atenuado =
+      nivelSeleccionado === "municipio" &&
+      Boolean(codigoSeleccionado) &&
+      codigo !== codigoSeleccionado;
+
+    return {
+      fillColor: getColor(valorColor),
+      weight: 1,
+      opacity: 1,
+      color: "#ffffff",
+      fillOpacity: atenuado
+        ? FILL_OPACITY_ATENUADA
+        : FILL_OPACITY_NORMAL,
+    };
+  },
+  [
+    codigoSeleccionado,
+    nivelSeleccionado,
+    datosProyectados,
+    proyeccionesPorCodigo,
+  ]
+);
+
+  // Mismo criterio que estiloMunicipios (mismo getColor, mismo atenuado
+  // por seleccion) -- el pedido fue agregar choropleth a departamento,
+  // no un estilo nuevo. Se mantiene el color/weight de borde de
+  // ESTILO_DEPARTAMENTOS (mas fino que el de municipios), solo el
+  // relleno pasa de fijo a dinamico por score_privacion.
+  const estiloDepartamentos = useCallback(
     (feature) => {
-      const score = feature.properties?.score_privacion
       const codigo = feature.properties?.codigo
-      const atenuado = Boolean(codigoSeleccionado) && codigo !== codigoSeleccionado
+      const codigoNormalizado = String(codigo ?? "").padStart(2, "0")
+      const valorProyectado = proyeccionesPorDepartamento[codigoNormalizado]
+      const valor = datosProyectados
+        ? valorProyectado
+        : feature.properties?.score_privacion
+      // Mismo criterio que estiloMunicipios (linea de arriba): solo se
+      // atenua el resto de departamentos cuando la seleccion activa ES
+      // un departamento -- si el usuario selecciono un municipio (otro
+      // nivel/capa), los departamentos no aplican, no tiene sentido
+      // atenuarlos.
+      const atenuado = nivelSeleccionado === 'departamento'
+        && Boolean(codigoSeleccionado)
+        && codigo !== codigoSeleccionado
       return {
-        fillColor: getColor(score),
-        weight: 1,
-        opacity: 1,
-        color: '#ffffff',
+        ...ESTILO_DEPARTAMENTOS,
+        fillColor: getColor(valor),
         fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
       }
     },
-    [codigoSeleccionado]
+    [codigoSeleccionado, nivelSeleccionado, datosProyectados, proyeccionesPorDepartamento]
   )
 
   // Tooltip liviano con solo el nombre (nada de score ni otras
@@ -151,7 +287,9 @@ function MapView({
             (f) => f.properties.codigo === feature.properties.codigo
           )
           onZonaSeleccionada?.(
-            featureConIndicadores ? featureConIndicadores.properties : null
+            featureConIndicadores
+              ? { ...featureConIndicadores.properties, nivel: 'municipio' }
+              : null
           )
         },
       })
@@ -164,7 +302,7 @@ function MapView({
       layer.on({
         click: (evento) => {
           L.DomEvent.stopPropagation(evento)
-          onZonaSeleccionada?.(feature.properties)
+          onZonaSeleccionada?.({ ...feature.properties, nivel: 'departamento' })
         },
       })
     },
@@ -173,46 +311,119 @@ function MapView({
 
   const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
 
-  return (
-    <MapContainer
-      center={COLOMBIA_CENTER}
-      zoom={6}
-      minZoom={5}
-      maxZoom={12}
-      maxBounds={COLOMBIA_BOUNDS}
-      maxBoundsViscosity={1.0}
-      className="map-view"
-      whenReady={() => {
-        if (onMapLoaded) onMapLoaded();
-      }}
-    >
+  // Estado de la leyenda respecto a la zona seleccionada (municipio o
+  // departamento, da igual -- ambos exponen score_privacion con el
+  // mismo contrato). Tres estados distintos, no dos: sin seleccion
+  // (neutro), seleccion CON score (marcador en la barra), seleccion SIN
+  // score (badge "Sin dato" resaltado -- ej. Nuevo Belen de Bajira,
+  // 27493, o cualquier departamento sin ningun municipio con score
+  // valido). null/undefined tratados igual (el backend manda null;
+  // undefined cubre el caso en que no llegue la propiedad).
+  const hayZonaSeleccionada = Boolean(codigoSeleccionado)
+  const tieneScoreValido =
+    hayZonaSeleccionada && scoreSeleccionado !== null && scoreSeleccionado !== undefined
 
-      <ListenerDeZoom onZoomChange={setZoom} />
-      <ManejadorDeClicVacio onClicVacio={() => onZonaSeleccionada?.(null)} />
-      <ControladorDeFoco
-        codigoSeleccionado={codigoSeleccionado}
-        datosMunicipios={datosMunicipios}
-      />
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {/* Solo una capa montada a la vez, segun el zoom actual -- nunca
-          ambas juntas, para no duplicar hit-testing/renderizado. La
-          `key` distinta obliga a remontar el <GeoJSON> al cambiar de
-          capa: react-leaflet no actualiza la geometria si solo cambia
-          la prop `data` de una instancia ya montada. Cambiar solo
-          `style` (ej. al seleccionar un municipio) SI actualiza sin
-          remontar, via layer.setStyle -- por eso codigoSeleccionado no
-          esta en la `key`. */}
-      {mostrarMunicipios
-        ? datosMunicipios && (
-            <GeoJSON key="municipios" data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
-          )
-        : departamentos && (
-            <GeoJSON key="departamentos" data={departamentos} style={ESTILO_DEPARTAMENTOS} onEachFeature={manejarEventosDepartamento} />
-          )}
-    </MapContainer>
+  return (
+    <div className="map-view-wrapper">
+      <MapContainer
+        center={COLOMBIA_CENTER}
+        zoom={6}
+        minZoom={5}
+        maxZoom={12}
+        maxBounds={COLOMBIA_BOUNDS}
+        maxBoundsViscosity={1.0}
+        className="map-view"
+        whenReady={() => {
+          if (onMapLoaded) onMapLoaded();
+        }}
+      >
+
+        <AjustarTamanoMapa />
+        <ListenerDeZoom onZoomChange={setZoom} />
+        <ManejadorDeClicVacio onClicVacio={() => onZonaSeleccionada?.(null)} />
+        <ControladorDeFoco
+          codigoSeleccionado={codigoSeleccionado}
+          nivelSeleccionado={nivelSeleccionado}
+          datosMunicipios={datosMunicipios}
+        />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {/* Solo una capa montada a la vez, segun el zoom actual -- nunca
+            ambas juntas, para no duplicar hit-testing/renderizado. La
+            `key` distinta obliga a remontar el <GeoJSON> al cambiar de
+            capa: react-leaflet no actualiza la geometria si solo cambia
+            la prop `data` de una instancia ya montada. Cambiar solo
+            `style` (ej. al seleccionar un municipio) SI actualiza sin
+            remontar, via layer.setStyle -- por eso codigoSeleccionado no
+            esta en la `key`. */}
+        {mostrarMunicipios
+          ? datosMunicipios && (
+              <GeoJSON key={`municipios-${claveDatosMapa}`} data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
+            )
+            : departamentos && (
+              <GeoJSON key={`departamentos-${claveDatosMapa}`} data={departamentos} style={estiloDepartamentos} onEachFeature={manejarEventosDepartamento} />
+            )}
+      </MapContainer>
+
+      {mostrarSelectorAnio && (
+        <SelectorAnioMapa
+          anio={anioSeleccionado}
+          activo={selectorAnioActivo}
+          anioMinimo={anioMinimoSelector}
+          anioMaximo={anioMaximoSelector}
+          cargando={cargandoAnio}
+          fiabilidad={fiabilidadSeleccionada}
+          onCambioAnio={onAnioSeleccionado}
+          onCambioActivo={onSelectorAnioActivo}
+        />
+      )}
+
+      <div className="map-legend">
+        {!isLegendOpen ? (
+          <button
+            type="button"
+            className="map-legend-toggle"
+            onClick={() => setIsLegendOpen(true)}
+          >
+            Ver Leyenda
+          </button>
+        ) : (
+          <section className="map-legend-panel" aria-label="Leyenda del score de privación">
+            <div className="map-legend-header">
+              <h2>Escala de Privación</h2>
+              <button
+                type="button"
+                className="map-legend-close"
+                aria-label="Cerrar leyenda"
+                onClick={() => setIsLegendOpen(false)}
+              >
+                X
+              </button>
+            </div>
+            <div className="map-legend-gradient" aria-hidden="true">
+              {tieneScoreValido && (
+                <span
+                  className="map-legend-marker"
+                  style={{ left: `${scoreSeleccionado * 100}%` }}
+                />
+              )}
+            </div>
+            <div className="map-legend-labels">
+              <span>0 (Menor)</span>
+              <span>1 (Mayor)</span>
+            </div>
+            {hayZonaSeleccionada && !tieneScoreValido && (
+              <div className="map-legend-no-data">
+                <span className="map-legend-gray" aria-hidden="true" />
+                <span>Sin dato</span>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+    </div>
   )
 }
 
