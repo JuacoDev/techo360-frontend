@@ -448,6 +448,83 @@ function generarInforme() {
   >
     Generar informe
   </button>
+  <div className="panel-indicadores-grupo">
+  <h3 className="panel-indicadores-subtitulo">
+    Vista previa
+  </h3>
+
+  <div className="informe-seccion">
+    <strong>Departamentos seleccionados</strong>
+
+    {departamentosInforme.length === 0 ? (
+      <p>No hay departamentos seleccionados</p>
+    ) : (
+      departamentosInforme.map((departamento) => (
+        <div
+          key={departamento.codigo}
+          className="informe-preview-item"
+        >
+          <strong>{departamento.nombre}</strong>
+
+          <div>
+            Score de Privación:
+            {" "}
+            {departamento.score_privacion?.toFixed(4)}
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+
+  <div className="informe-seccion">
+    <strong>Municipios seleccionados</strong>
+
+    {municipiosInforme.length === 0 ? (
+      <p>No hay municipios seleccionados</p>
+    ) : (
+      municipiosInforme.map((municipio) => (
+        <div
+          key={municipio.codigo}
+          className="informe-preview-item"
+        >
+          <strong>{municipio.nombre}</strong>
+
+          <div>
+            Score de Privación:
+            {" "}
+            {municipio.score_privacion?.toFixed(4)}
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+
+  <div className="informe-seccion">
+    <strong>Variables seleccionadas</strong>
+
+    {variablesInforme.map((variable) => (
+      <div key={variable}>
+        {variable}
+      </div>
+    ))}
+  </div>
+
+  <div className="informe-seccion">
+    <strong>Periodo</strong>
+
+    <div>
+      {anioInicio} - {anioFin}
+    </div>
+  </div>
+
+  <div className="informe-seccion">
+    <strong>Gráficas</strong>
+
+    <div>
+      {incluirGraficas ? "Sí" : "No"}
+    </div>
+  </div>
+</div>
 </div>
       {cargando && <p>Cargando proyección...</p>}
       {errorSerie && (

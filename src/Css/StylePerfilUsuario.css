@@ -40,8 +40,9 @@ StylePerfilUsuario Styles
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
 }
+
 
 .perfil-avatar {
   width: 140px;

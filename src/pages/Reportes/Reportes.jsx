@@ -1,79 +1,125 @@
 import { useState } from "react";
+
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import "../../Css/StyleReportes.css";
 
 const VARIABLES = [
   {
     id: "score_privacion",
-    nombre: "Score de Privación"
+    nombre: "Score de Privación",
   },
   {
     id: "cobertura_acueducto",
-    nombre: "Cobertura de Acueducto"
+    nombre: "Cobertura de Acueducto",
   },
   {
     id: "cobertura_alcantarillado",
-    nombre: "Cobertura de Alcantarillado"
+    nombre: "Cobertura de Alcantarillado",
   },
   {
     id: "deficit_habitacional_cuantitativo",
-    nombre: "Déficit Habitacional Cuantitativo"
+    nombre: "Déficit Habitacional Cuantitativo",
   },
   {
     id: "deficit_habitacional_cualitativo",
-    nombre: "Déficit Habitacional Cualitativo"
+    nombre: "Déficit Habitacional Cualitativo",
   },
   {
     id: "densidad_poblacional",
-    nombre: "Densidad Poblacional"
-  }
+    nombre: "Densidad Poblacional",
+  },
 ];
+
+const UNIDADES = {
+  score_privacion: "",
+  densidad_poblacional: "hab/km²",
+  cobertura_acueducto: "%",
+  cobertura_alcantarillado: "%",
+  deficit_habitacional_cuantitativo: "%",
+  deficit_habitacional_cualitativo: "%",
+};
+
 
 function Reportes({
   setScreen,
   onLogout,
   departamentos,
-  datosMunicipios
+  datosMunicipios,
 }) {
+  // =========================
+  // Estados
+  // =========================
 
-  const [modoVista, setModoVista] = useState("comparativo");
   const [incluirGraficas, setIncluirGraficas] = useState(true);
 
   const [anioInicio, setAnioInicio] = useState(2020);
   const [anioFin, setAnioFin] = useState(2025);
 
+  const [departamentosSeleccionados, setDepartamentosSeleccionados] =
+    useState([]);
 
-  const [departamentosSeleccionados, setDepartamentosSeleccionados] = useState([]);
   const [municipiosSeleccionados, setMunicipiosSeleccionados] = useState([]);
+
   const [busquedaDepartamento, setBusquedaDepartamento] = useState("");
   const [busquedaMunicipio, setBusquedaMunicipio] = useState("");
 
   const [variablesSeleccionadas, setVariablesSeleccionadas] = useState([]);
 
-    const listaDepartamentos =
-  (departamentos?.features ?? []).map(
-    (feature) => feature.properties
-  );
+  const [comentarios, setComentarios] = useState({});
 
-const listaMunicipios =
-  (datosMunicipios?.features ?? []).map(
-    (feature) => feature.properties
-  );
+const [tituloInforme, setTituloInforme] = useState(
+  "Informe de Indicadores"
+);
 
-  const departamentosFiltrados = listaDepartamentos.filter(
-  (item) =>
+const [introduccion, setIntroduccion] = useState("");
+
+const [conclusiones, setConclusiones] = useState("");
+
+
+
+
+  function actualizarComentario(clave, texto) {
+  setComentarios((prev) => ({
+    ...prev,
+    [clave]: texto
+  }));
+}
+
+  // =========================
+  // Datos
+  // =========================
+
+  const listaDepartamentos =
+    (departamentos?.features ?? []).map(
+      (feature) => feature.properties
+    );
+
+  const listaMunicipios =
+    (datosMunicipios?.features ?? []).map(
+      (feature) => feature.properties
+    );
+
+  // =========================
+  // Filtros
+  // =========================
+
+  const departamentosFiltrados = listaDepartamentos.filter((item) =>
     item.nombre
       ?.toLowerCase()
       .includes(busquedaDepartamento.toLowerCase())
-);
+  );
 
-const municipiosFiltrados = listaMunicipios.filter(
-  (item) =>
+  const municipiosFiltrados = listaMunicipios.filter((item) =>
     item.nombre
       ?.toLowerCase()
       .includes(busquedaMunicipio.toLowerCase())
-);
+  );
 
+  // =========================
+  // Render
+  // =========================
+console.log("Departamentos:", departamentosSeleccionados);
+console.log("Municipios:", municipiosSeleccionados);
   return (
     <>
       <CabezaDeNavegacion
@@ -82,40 +128,22 @@ const municipiosFiltrados = listaMunicipios.filter(
       />
 
       <div className="perfil-container">
-
         <div className="perfil-card">
 
-          <div className="perfil-left">
+          {/* =========================
+              PANEL IZQUIERDO
+          ========================= */}
 
+          <div className="perfil-left">
             <h3>Configuración</h3>
+
             <p>
-            Selecciona los datos que deseas incluir en el reporte.
+              Selecciona los datos que deseas incluir en el reporte.
             </p>
 
-            
-
             <hr />
 
-            <label>
-              <input
-                type="radio"
-                checked={modoVista === "comparativo"}
-                onChange={() => setModoVista("comparativo")}
-              />
-              Comparativo
-            </label>
-
-            <label>
-              <input
-                type="radio"
-                checked={modoVista === "lista"}
-                onChange={() => setModoVista("lista")}
-              />
-              Lista
-            </label>
-
-            <hr />
-
+            {/* Gráficas */}
             <label>
               <input
                 type="checkbox"
@@ -129,6 +157,7 @@ const municipiosFiltrados = listaMunicipios.filter(
 
             <hr />
 
+            {/* Periodo */}
             <h4>Periodo</h4>
 
             <label>Año inicio</label>
@@ -153,302 +182,495 @@ const municipiosFiltrados = listaMunicipios.filter(
 
             <hr />
 
+              <h4>Título del informe</h4>
+
+              <input
+              className="input-titulo-informe"
+                type="text"
+                value={tituloInforme}
+                onChange={(e) =>
+                  setTituloInforme(e.target.value)
+                }
+              />
+
+              <h4>Introducción</h4>
+
+              <textarea
+                className="comentario-informe"
+                placeholder="Escribe la introducción..."
+                value={introduccion}
+                onChange={(e) =>
+                  setIntroduccion(e.target.value)
+                }
+              />
+
+              <h4>Conclusiones</h4>
+
+              <textarea
+                className="comentario-informe"
+                placeholder="Escribe las conclusiones..."
+                value={conclusiones}
+                onChange={(e) =>
+                  setConclusiones(e.target.value)
+                }
+              />
+
+            {/* Variables */}
             <h4>Variables</h4>
+
             <p>
-            Selecciona una o varias variables para incluir en el informe.
+              Selecciona una o varias variables para incluir en el
+              informe.
             </p>
 
             {VARIABLES.map((variable) => (
-            <label
+              <label
                 key={variable.id}
                 className="opcion-zona"
-            >
+              >
                 <input
-                type="checkbox"
-                checked={variablesSeleccionadas.includes(variable)}
-                onChange={() => {
+                  type="checkbox"
+                  checked={variablesSeleccionadas.includes(variable)}
+                  onChange={() => {
                     setVariablesSeleccionadas((actuales) =>
-                    actuales.includes(variable)
-                        ? actuales.filter((v) => v !== variable)
+                      actuales.includes(variable)
+                        ? actuales.filter(
+                            (v) => v !== variable
+                          )
                         : [...actuales, variable]
                     );
-                }}
+                  }}
                 />
+
+                <span className="texto-opcion-zona">
                 {variable.nombre}
-            </label>
+                </span>
+              </label>
             ))}
+
             <hr />
 
+            {/* Departamentos */}
             <h4>Departamentos</h4>
 
-<p>
-  Escoge los departamentos que aparecerán en el reporte.
-</p>
-<input
-className="buscador-reportes"
-  type="text"
-  placeholder="Buscar departamento..."
-  value={busquedaDepartamento}
-  onChange={(e) =>
-    setBusquedaDepartamento(e.target.value)
-  }
-/>
-<p>
-  Seleccionados: {departamentosSeleccionados.length}
-</p>
+            <p>
+              Escoge los departamentos que aparecerán en el reporte.
+            </p>
 
-<div
-  className="lista-zonas"
->
-  {departamentosFiltrados.map((item) => (
-    <label
-      key={item.codigo}
-      className="opcion-zona"
-    >
-      <input
-        type="checkbox"
-        checked={departamentosSeleccionados.some(
-          (x) => x.codigo === item.codigo
-        )}
-        onChange={() => {
-          const existe =
-            departamentosSeleccionados.some(
-              (x) => x.codigo === item.codigo
-            );
+            <input
+              className="buscador-reportes"
+              type="text"
+              placeholder="Buscar departamento..."
+              value={busquedaDepartamento}
+              onChange={(e) =>
+                setBusquedaDepartamento(e.target.value)
+              }
+            />
 
-          if (existe) {
-            setDepartamentosSeleccionados(
-              departamentosSeleccionados.filter(
-                (x) => x.codigo !== item.codigo
-              )
-            );
-          } else {
-            setDepartamentosSeleccionados([
-              ...departamentosSeleccionados,
-              item
-            ]);
-          }
-        }}
-      />
+            <p>
+              Seleccionados: {departamentosSeleccionados.length}
+            </p>
 
-      {item.nombre}
-    </label>
-  ))}
-</div>
+            <div className="lista-zonas">
+              {departamentosFiltrados.map((item) => (
+                <label
+                  key={item.codigo}
+                  className="opcion-zona"
+                >
+                  <input
+                    type="checkbox"
+                    checked={departamentosSeleccionados.some(
+                      (x) => x.codigo === item.codigo
+                    )}
+                    onChange={() => {
+                      const existe =
+                        departamentosSeleccionados.some(
+                          (x) => x.codigo === item.codigo
+                        );
 
-    <hr />
+                      if (existe) {
+                        setDepartamentosSeleccionados(
+                          departamentosSeleccionados.filter(
+                            (x) => x.codigo !== item.codigo
+                          )
+                        );
+                      } else {
+                        setDepartamentosSeleccionados([
+                          ...departamentosSeleccionados,
+                          item,
+                        ]);
+                      }
+                    }}
+                  />
 
-    <h4>Municipios</h4>
+                  {item.nombre}
+                </label>
+              ))}
+            </div>
 
-    <p>
-    Escoge los municipios que aparecerán en el reporte.
-    </p>
-<input
-className="buscador-reportes"
-  type="text"
-  placeholder="Buscar municipio..."
-  value={busquedaMunicipio}
-  onChange={(e) =>
-    setBusquedaMunicipio(e.target.value)
-  }
-/>
+            <hr />
 
-    <p>
-    Seleccionados: {municipiosSeleccionados.length}
-    </p>
+            {/* Municipios */}
+            <h4>Municipios</h4>
 
-    <div
-    className="lista-zonas"
-    >
-    {municipiosFiltrados.map((item) => (
-        <label
-        key={item.codigo}
-        className="opcion-zona"
-        >
-        <input
-            type="checkbox"
-            checked={municipiosSeleccionados.some(
-            (x) => x.codigo === item.codigo
-            )}
-            onChange={() => {
-            const existe =
-                municipiosSeleccionados.some(
-                (x) => x.codigo === item.codigo
-                );
+            <p>
+              Escoge los municipios que aparecerán en el reporte.
+            </p>
 
-            if (existe) {
-                setMunicipiosSeleccionados(
-                municipiosSeleccionados.filter(
-                    (x) => x.codigo !== item.codigo
-                )
-                );
-            } else {
-                setMunicipiosSeleccionados([
-                ...municipiosSeleccionados,
-                item
-                ]);
-            }
-            }}
-        />
+            <input
+              className="buscador-reportes"
+              type="text"
+              placeholder="Buscar municipio..."
+              value={busquedaMunicipio}
+              onChange={(e) =>
+                setBusquedaMunicipio(e.target.value)
+              }
+            />
 
-        {item.nombre}
-        </label>
-    ))}
-    </div>
-            
-              <br />
+            <p>
+              Seleccionados: {municipiosSeleccionados.length}
+            </p>
+
+            <div className="lista-zonas">
+              {municipiosFiltrados.map((item) => (
+                <label
+                  key={item.codigo}
+                  className="opcion-zona"
+                >
+                  <input
+                    type="checkbox"
+                    checked={municipiosSeleccionados.some(
+                      (x) => x.codigo === item.codigo
+                    )}
+                    onChange={() => {
+                      const existe =
+                        municipiosSeleccionados.some(
+                          (x) => x.codigo === item.codigo
+                        );
+
+                      if (existe) {
+                        setMunicipiosSeleccionados(
+                          municipiosSeleccionados.filter(
+                            (x) => x.codigo !== item.codigo
+                          )
+                        );
+                      } else {
+                        setMunicipiosSeleccionados([
+                          ...municipiosSeleccionados,
+                          item,
+                        ]);
+                      }
+                    }}
+                  />
+
+                  {item.nombre}
+                </label>
+              ))}
+            </div>
+
+            <br />
+
+            {/* Botón generar */}
             <button
-            className="btn-generar-proyeccion"
-            disabled={
-            (
+              className="btn-generar-proyeccion"
+              disabled={
                 departamentosSeleccionados.length +
-                municipiosSeleccionados.length
-            ) === 0 ||
-            variablesSeleccionadas.length === 0
-            }
+                  municipiosSeleccionados.length ===
+                  0 ||
+                variablesSeleccionadas.length === 0
+              }
             >
-            Generar reporte
+              Generar reporte
             </button>
 
             <p>
-            Debes seleccionar al menos una zona y una variable.
+              Debes seleccionar al menos una zona y una variable.
             </p>
-
           </div>
 
+          {/* =========================
+              PANEL DERECHO
+          ========================= */}
+
           <div className="perfil-right">
+            <h4>Resumen del informe</h4>
 
-            <h3>Vista previa</h3>
-            <p>
-            Esta es una simulación del reporte que se generará.
-            </p>
+            <div className="bloque-vista-previa">
 
-            <p>
-            Tipo: Municipios y Departamentos
-            </p>
+              <p>
+                Periodo:{" "}
+                {anioInicio} - {anioFin}
+              </p>
 
-            <p>
-            Vista: {
-                modoVista === "comparativo"
-                ? "Comparativo"
-                : "Lista"
-            }
-            </p>
+              <p>
+                Gráficas:{" "}
+                {incluirGraficas ? "Sí" : "No"}
+              </p>
 
-            <p>
-              Gráficas:
-              {" "}
-              {incluirGraficas ? "Sí" : "No"}
-            </p>
+              <p>
+                Departamentos:{" "}
+                {departamentosSeleccionados.length}
+              </p>
 
-            <p>
-              Periodo:
-              {" "}
-              {anioInicio} - {anioFin}
-              
-            </p>
+              <p>
+                Municipios:{" "}
+                {municipiosSeleccionados.length}
+              </p>
 
-            <p>
-            Años analizados: {Math.max(0, anioFin - anioInicio + 1)}
-            </p>
+              <p>
+                Variables:{" "}
+                {variablesSeleccionadas.length}
+              </p>
 
-            <p>
-              Variables seleccionadas:
-              {" "}
-              {variablesSeleccionadas.length}
-            </p>
+              {/* Variables seleccionadas */}
+              {variablesSeleccionadas.length > 0 && (
+                <>
+                  <hr />
 
-            <p>
-              Departamentos seleccionados:
-              {" "}
-              {departamentosSeleccionados.length}
-            </p>
+                  <strong>
+                    Variables seleccionadas
+                  </strong>
 
-            <p>
-              Municipios seleccionados:
-              {" "}
-              {municipiosSeleccionados.length}
-            </p>
-            <p>
-            Total zonas seleccionadas: {
-            departamentosSeleccionados.length +
-            municipiosSeleccionados.length
-            }
-            </p>
+                  <ul>
+                    {variablesSeleccionadas.map((variable) => (
+                      <li key={variable.id}>
+                        {variable.nombre}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
 
             <hr />
 
-            <h4>Reporte de indicadores</h4>
-
-            <p>
-              El reporte incluirá las zonas, variables y rango de años seleccionados.
-            </p>
-
-            <p>
-            Modo de visualización: {
-                modoVista === "comparativo"
-                    ? "Comparativo (comparar varias zonas)"
-                    : "Lista (mostrar información individual)"
-                }
-            </p>
-
-            <p>
-            Tipo de zona: Municipios y Departamentos
-            </p>
-
-
-            <h4>Variables incluidas</h4>
-            <p>
-            {variablesSeleccionadas.length} variables seleccionadas
-            </p>
-            
-            <ul>
-            {variablesSeleccionadas.map((variable) => (
-            <li key={variable.id}>
-                {variable.nombre}
-            </li>
-            ))}
-            </ul>
-
-            <hr />
-
+            {/* Departamentos incluidos */}
             <h4>Departamentos incluidos</h4>
 
             {departamentosSeleccionados.length === 0 ? (
-            <p>No hay departamentos seleccionados.</p>
+              <p>
+                No hay departamentos seleccionados.
+              </p>
             ) : (
-            <ul>
+              <div className="bloque-vista-previa">
                 {departamentosSeleccionados.map((item) => (
-                <li key={item.codigo}>
-                    {item.nombre}
-                </li>
+                  <div
+                    key={item.codigo}
+                    className="item-vista-previa"
+                  >
+                    <strong>{item.nombre}</strong>
+
+                    <p>
+                      Código: {item.codigo}
+                    </p>
+                  </div>
                 ))}
-            </ul>
+              </div>
             )}
+
+            <hr />
+
+            {/* Municipios incluidos */}
+            <h4>Municipios incluidos</h4>
+
+            {municipiosSeleccionados.length === 0 ? (
+              <p>
+                No hay municipios seleccionados.
+              </p>
+            ) : (
+              <div className="bloque-vista-previa">
+                {municipiosSeleccionados.map((item) => (
+                  <div
+                    key={item.codigo}
+                    className="item-vista-previa"
+                  >
+                    <strong>{item.nombre}</strong>
+
+                    <p>
+                      Código: {item.codigo}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* =========================
+            VISTA DEL DOCUMENTO
+        ========================= */}
+
+        <div className="vista-documento">
+          <div className="pagina-reporte">
+            <h1>{tituloInforme}</h1>
+
+              <p>
+                Fecha:
+                {" "}
+                {new Date().toLocaleDateString()}
+              </p>
+
+              <hr />
+
+              <h2>Introducción</h2>
+              
+                <div className="texto-informe">
+                {introduccion || "Sin introducción."}
+                </div>
 
                 <hr />
 
-                <h4>Municipios incluidos</h4>
+              <h2>Resumen Ejecutivo</h2>
 
-                {municipiosSeleccionados.length === 0 ? (
-                <p>No hay municipios seleccionados.</p>
+              <p>
+                Periodo analizado:
+                {" "}
+                {anioInicio}
+                {" - "}
+                {anioFin}
+              </p>
+
+
+              <p>
+                Incluye gráficas:
+                {" "}
+                {incluirGraficas ? "Sí" : "No"}
+              </p>
+
+              <h2>Resultados</h2>
+
+                <h3>Departamentos</h3>
+
+                {departamentosSeleccionados.length === 0 ? (
+                  <p>No hay departamentos seleccionados.</p>
                 ) : (
-                <ul>
-                    {municipiosSeleccionados.slice(0, 10).map((item) => (
-                    <li key={item.codigo}>
-                        {item.nombre}
-                    </li>
-                    ))}
-                </ul>
+                  departamentosSeleccionados.map((departamento) => (
+                    <div
+                      key={departamento.codigo}
+                      className="bloque-resultado"
+                    >
+                      <h4>{departamento.nombre}</h4>
+
+                      
+
+                      {variablesSeleccionadas.map((variable) => {
+                        let valor = "Sin dato";
+
+                        if (variable.id === "score_privacion") {
+                          valor =
+                            departamento.score_privacion?.toFixed(4) ??
+                            "Sin dato";
+                        } else {
+                          valor =
+                            departamento.indicadores?.[variable.id]?.valor ??
+                            "Sin dato";
+                        }
+                        
+
+                        return (
+                          <div
+                            key={variable.id}
+                            className="fila-indicador"
+                          >
+                            <span>{variable.nombre}</span>
+                            <span>
+                            {valor}
+                            {UNIDADES[variable.id] ?? ""}
+                          </span>
+                          </div>
+                        );
+                      })}
+
+                      <label className="titulo-comentario">
+                      Comentario
+                      </label>
+
+                      <textarea
+                        className="comentario-informe"
+                        placeholder="Escribe una observación sobre este departamento..."
+                        value={comentarios[departamento.codigo] || ""}
+                        onChange={(e) =>
+                          actualizarComentario(
+                            departamento.codigo,
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+                  ))
                 )}
 
-          </div>
+                <hr />
 
-        </div>
+                <h3>Municipios</h3>
 
-      </div>
-    </>
-  );
-}
+                {municipiosSeleccionados.length === 0 ? (
+                  <p>No hay municipios seleccionados.</p>
+                ) : (
+                  municipiosSeleccionados.map((municipio) => (
+                    <div
+                      key={municipio.codigo}
+                      className="bloque-resultado"
+                    >
+                      <h4>{municipio.nombre}</h4>
+
+                      {variablesSeleccionadas.map((variable) => {
+                        let valor = "Sin dato";
+
+                        if (variable.id === "score_privacion") {
+                          valor =
+                            municipio.score_privacion?.toFixed(4) ??
+                            "Sin dato";
+                        } else {
+                          valor =
+                            municipio.indicadores?.[variable.id]?.valor ??
+                            "Sin dato";
+                        }
+
+                        return (
+                          <div
+                            key={variable.id}
+                            className="fila-indicador"
+                          >
+                            <span>{variable.nombre}</span>
+                            <span>
+                            {valor}
+                            {UNIDADES[variable.id] ?? ""}
+                          </span>
+                          </div>
+                        );
+                      })}
+
+                      <label className="titulo-comentario">
+                      Comentario
+                      </label>
+
+                      <textarea
+                        className="comentario-informe"
+                        placeholder="Escribe una observación sobre este municipio..."
+                        value={comentarios[municipio.codigo] || ""}
+                        onChange={(e) =>
+                          actualizarComentario(
+                            municipio.codigo,
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+                  ))
+)}
+                  <hr />
+
+                  <h2>Conclusiones</h2>
+
+                  <div className="texto-informe">
+                  {conclusiones || "Sin conclusiones."}
+                  </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  }
 
 export default Reportes;
