@@ -8,13 +8,18 @@ function PerfilUsuario({ setScreen, onLogout }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    getCurrentUser()
-      .then(setUser)
-      .catch(() => {
+  getCurrentUser(onLogout)
+    .then(setUser)
+    .catch((err) => {
+      if (err.status === 401) {
         alert("Sesión expirada, vuelve a iniciar sesión");
-        onLogout?.();
-      });
-  }, [onLogout]);
+      } else {
+        alert("Error al cargar usuario");
+      }
+      onLogout?.();
+    });
+}, [onLogout]);
+
 
   if (!user) return <p>Cargando...</p>;
 

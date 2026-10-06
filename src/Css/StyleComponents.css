@@ -9,6 +9,7 @@ body,
   width: 100%;
   min-height: 100%;
   margin: 0;
+  font-family: "Poppins", system-ui, -apple-system, sans-serif;
 }
 
 body {
@@ -16,10 +17,11 @@ body {
 }
 
 .app-shell {
-  position: relative;
   width: 100%;
-  min-height: 100vh;
-  overflow-y: auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .map-view {
@@ -30,21 +32,225 @@ body {
   z-index: 0;
 }
 
-.app-shell > .CabezaDeNavegacion,
-.app-shell > .BarraBuscadora,
-.app-shell > .panel-indicadores {
-  position: relative;
-  z-index: 2;
-}
-
-.app-shell > .CabezaDeNavegacion {
-  z-index: 4;
-}
-
-.app-shell > .panel-indicadores {
+.map-loading-container {
   position: fixed;
-  top: 90px;
-  right: 24px;
+  inset: 0;
+}
+
+.dashboard-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  box-sizing: border-box;
+  background-color: #ffffff;
+}
+
+.dashboard-main-column {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-map-container {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  position: relative;
+}
+
+.map-view-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.dashboard-map-container .map-view,
+.map-view-wrapper .map-view {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.map-year-control {
+  position: absolute;
+  bottom: 68px;
+  left: 20px;
+  z-index: 1000;
+}
+
+.map-year-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.map-year-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #1e3a8a;
+}
+
+.map-year-slider-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.map-year-slider-label strong {
+  margin-left: 4px;
+  font-size: 14px;
+}
+
+.map-year-slider {
+  display: block;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  accent-color: #1e3a8a;
+  cursor: pointer;
+}
+
+.map-year-slider:disabled {
+  cursor: not-allowed;
+}
+
+.map-year-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  color: #626262;
+  font-size: 11px;
+}
+
+.map-year-status,
+.map-year-reliability {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #fff1d6;
+  color: #714400;
+  font-weight: 600;
+}
+
+.map-legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+}
+
+.map-legend-toggle,
+.map-legend-close {
+  border: 1px solid #d7d7d7;
+  background-color: #ffffff;
+  color: #333230;
+  cursor: pointer;
+  font: inherit;
+}
+
+.map-legend-toggle {
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.map-legend-toggle:hover,
+.map-legend-close:hover {
+  background-color: #f5f5f5;
+}
+
+.map-legend-panel {
+  width: 240px;
+  padding: 12px;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  border: 1px solid #e1e1e1;
+  border-radius: 8px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22);
+}
+
+.map-legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.map-legend-header h2 {
+  margin: 0;
+  color: #333230;
+  font-size: 14px;
+}
+
+.map-legend-close {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.map-legend-gradient {
+  position: relative; /* ancla map-legend-marker */
+  width: 100%;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(to right, hsl(55, 85%, 80%), hsl(0, 100%, 35%));
+}
+
+/* Marcador de la zona seleccionada -- triangulo apuntando hacia abajo,
+   posicionado via "left" en linea (score_privacion * 100%) desde
+   MapView.jsx. Mismo azul que COLOR_BORDE en MapView.jsx para
+   consistencia visual con el resto del mapa. */
+.map-legend-marker {
+  position: absolute;
+  top: -7px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #1E3A8A;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.map-legend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: #555555;
+  font-size: 11px;
+}
+
+.map-legend-no-data {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: #444444;
+  font-size: 12px;
+}
+
+.map-legend-gray {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background-color: #808080;
 }
 
 /*
@@ -60,8 +266,7 @@ CabezaDeNavegacion Styles
   justify-content: space-between;
   padding: 0 30px;
   box-sizing: border-box;
-  background-color: #333230;
-  border-bottom: 1px solid #ddd;
+  background-color: #262524;
 }
 
 .CabezaDeNavegacion-logo {
@@ -69,23 +274,34 @@ CabezaDeNavegacion Styles
   align-items: center;
   gap: 10px;
   color: #ffffff;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
 }
 
-.logo-img {
-  height: 40px;
-  width: auto;
+.CabezaDeNavegacion-logo h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.CabezaDeNavegacion-logo-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: #f57c00;
+  flex-shrink: 0;
 }
 
 .CabezaDeNavegacion-links {
   display: flex;
   align-items: center;
-  gap: 25px;
-}
-
-.CabezaDeNavegacion-links a {
-  text-decoration: none;
-  color: #ffffff;
-  font-weight: 500;
+  gap: 16px;
 }
 
 .CabezaDeNavegacion-profile {
@@ -93,18 +309,86 @@ CabezaDeNavegacion Styles
   display: inline-block;
 }
 
-
-.CabezaDeNavegacion-profile img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;   
+.CabezaDeNavegacion-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 4px;
   cursor: pointer;
-  border: 2px solid #000000; 
-  transition: transform 0.2s ease;
+  font-family: inherit;
 }
 
-.CabezaDeNavegacion-profile img:hover {
-  transform: scale (1.1);
+.CabezaDeNavegacion-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #f57c00;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.CabezaDeNavegacion-nombre {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.CabezaDeNavegacion-logout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.CabezaDeNavegacion-logout:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.CabezaDeNavegacion-login {
+  background-color: #f57c00;
+  border: none;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.CabezaDeNavegacion-login:hover {
+  background-color: #e65100;
+}
+
+@media (max-width: 700px) {
+  .CabezaDeNavegacion {
+    padding: 0 16px;
+  }
+
+  .CabezaDeNavegacion-nombre {
+    display: none;
+  }
+
+  .CabezaDeNavegacion-logout {
+    padding: 8px 10px;
+  }
 }
 /* 
 ==================================
@@ -113,16 +397,18 @@ BarraBuscadora Styles
 */
 
 .BarraBuscadora {
-  width: 90%;
-  max-width: 320px;              
+  position: relative;
+  width: 100%;
+  max-width: none;
+  flex: 0 0 auto;
+  box-sizing: border-box;
   background-color: #fff;
   padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;    
   gap: 10px;                
 }
+
 .BarraBuscadora h3 {
   font-size: 15px;
   font-weight: 600;
@@ -130,9 +416,14 @@ BarraBuscadora Styles
   text-align: center; 
 }
 
-.BarraInput {
-  width: 100%;               
-  box-sizing: border-box;    
+.BarraSelectores {
+  display: flex;
+  gap: 10px;
+}
+
+.BarraSelect {
+  min-width: 0;
+  flex: 1;
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 6px;
@@ -140,34 +431,10 @@ BarraBuscadora Styles
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.BarraInput:focus {
+.BarraSelect:focus {
   border-color: #0077cc;
   box-shadow: 0 0 5px rgba(0,119,204,0.3);
   outline: none;
-}
-
-.BarraSugerencias {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-height: 160px;   
-  overflow-y: auto;    
-  border: 1px solid #eee;
-  border-radius: 6px;
-  background-color: #fafafa;
-}
-
-.BarraSugerencias li {
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
-  border-bottom: 1px solid #eee;
-}
-
-.BarraSugerencias li:hover {
-  background-color: #0077cc;
-  color: #fff;
 }
 
 
@@ -178,15 +445,13 @@ PanelIndicadores Styles
 ==================================
 */
 .panel-indicadores {
-  position: fixed;
-  top: 90px;
-  right: 24px;
-  max-height: calc(100vh - 120px);
+  flex: 0 0 380px;
+  width: 380px;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 16px;
   overflow-y: auto;
   background-color: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  z-index: 2;
 }
 
 
@@ -219,6 +484,12 @@ PanelIndicadores Styles
   gap: 28px 18px;
 }
 
+.panel-indicadores-grid-proyeccion {
+display: grid;
+grid-template-columns: 1fr;
+gap: 16px;
+}
+
 .indicador-placeholder {
   min-height: 76px;
   display: flex;
@@ -235,20 +506,27 @@ PanelIndicadores Styles
 }
 
 @media (max-width: 700px) {
-  .app-shell > .panel-indicadores {
-    top: auto;
-    right: 12px;
-    bottom: 96px;
-    left: 12px;
+  .dashboard-layout {
+    overflow-y: auto;
+    flex-direction: column;
   }
 
   .panel-indicadores {
     width: auto;
-    min-height: 0;
+    flex-basis: auto;
+    max-height: 40vh;
+  }
+
+  .dashboard-main-column {
+    min-height: 60vh;
   }
 
   .panel-indicadores-grid {
     gap: 12px;
+  }
+
+  .panel-indicadores-grupo {
+    margin-bottom: 16px;
   }
 
   .indicador-placeholder {
@@ -475,19 +753,6 @@ SesionOpciones Styles
 ==================================
 */
 
-.opciones-sesion-container {
-  position: relative;
-  display: inline-block;
-}
-
-.perfil-img {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid #f57c00;
-}
-
 .opciones-sesion {
   position: absolute;
   top: 45px;
@@ -534,14 +799,9 @@ Panel Indicadores
 */
 
 .panel-indicadores {
-  position: relative;   /* ✅ ya no fijo */
-  margin: 24px auto;    /* centrado con margen */
-  padding: 16px;
   background-color: #ffffff;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  max-width: 360px;
-  z-index: 2;           /* ✅ encima del mapa */
 }
 
 
@@ -611,4 +871,122 @@ Panel Indicadores
   font-size: 12px;
   font-weight: 600;
   color: #b45309;
+}
+
+/* Tercer estado explicito para origen=null (ver PanelIndicadores.jsx
+   esSinDato()) -- gris punteado, distinto del ambar de proyeccion y del
+   fondo neutro de "confirmada", para que no se confunda con ninguno de
+   los dos: no hay fuente real ni relleno estimado, es ausencia total de
+   fila para esa variable+año. */
+.indicador-card-sin-dato {
+  border: 1px dashed #9ca3af;
+  background-color: #f3f4f6;
+}
+
+.indicador-sin-dato-badge {
+  font-size: 12px;
+  font-style: italic;
+  color: #6b7280;
+}
+
+/* Separa visualmente las variables con dato real de las proyectadas
+   dentro del panel (ver PanelIndicadores.jsx) -- dos grupos con su
+   propio subtitulo, en vez de una sola grilla mezclada. */
+.panel-indicadores-grupo {
+  margin-bottom: 24px;
+}
+
+.panel-indicadores-grupo:last-child {
+  margin-bottom: 0;
+}
+
+.panel-indicadores-subtitulo {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/*
+==================================
+proyecciones
+==================================
+*/
+.btn-proyeccion {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: #f57c00;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-proyeccion:hover {
+  background-color: #e65100;
+}
+
+.indicador-serie {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #444;
+}
+
+.panel-proyeccion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+}
+
+.panel-proyeccion select {
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.btn-generar-proyeccion {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background-color: #f57c00;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-generar-proyeccion:hover {
+  background-color: #e65100;
+}
+
+.panel-proyeccion-error {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fdecea;
+  color: #611a15;
+  font-weight: 600;
+}
+
+.pantalla-carga-transparente {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(255, 255, 255, 0.25);
+
+  backdrop-filter: blur(2px);
+
+  z-index: 1000;
 }

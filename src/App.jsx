@@ -10,13 +10,42 @@ import PanelIndicadores from "./components/PanelIndicadores";
 import PantallaCarga from "./components/PantallaCarga";
 import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
 import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
-import { API_URL, getToken, limpiarToken, ANIO_INDICADORES } from "./services/api";
+import Home from "./pages/Home/Home.jsx";
+import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
+import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
+import {getToken, limpiarToken, getZonasMunicipios, getZonasDepartamentos, getProyeccionZonas, getRangoProyeccionZonas, } from "./services/api";
+
+const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
 
 function App() {
-  const [screen, setScreen] = useState("login");
+  const [screen, setScreen] = useState("home");
+  const [pantallaDespuesDeLogin, setPantallaDespuesDeLogin] = useState("loading");
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
+  const [departamentosAnio, setDepartamentosAnio] = useState(null);
+  const [anioMapa, setAnioMapa] = useState(2025);
+  const [selectorAnioActivo, setSelectorAnioActivo] = useState(false);
+  const [datosMapaReales, setDatosMapaReales] = useState(null);
+  const [datosMapaProyectados, setDatosMapaProyectados] = useState(null);
+  const [fiabilidadMapa, setFiabilidadMapa] = useState(null);
+  const [cargandoAnioMapa, setCargandoAnioMapa] = useState(false);
+  const [rangoProyeccion, setRangoProyeccion] = useState(null);
+  const [errorRangoProyeccion, setErrorRangoProyeccion] = useState(null);
+  const datosMapaPorAnio = useRef(new Map());
+
+  const [mapReady, setMapReady] = useState(false);
+  const [departamentosReady, setDepartamentosReady] = useState(false);
+  const [municipiosReady, setMunicipiosReady] = useState(false);
+  const [buscadorReady, setBuscadorReady] = useState(false);
+
+  const essentialReady = mapReady && departamentosReady && municipiosReady && buscadorReady;
+
+  useEffect(() => {
+    if (screen === "loading" && essentialReady) {
+      setScreen("app");
+    }
+  }, [essentialReady, screen]);
 
   // "Ya se disparo el fetch de esta sesion" -- ref, no state, porque solo
   // nos importa como guardia sincrona dentro del efecto (si fuera state,
@@ -29,7 +58,9 @@ function App() {
   // identica todavia en curso.
   const departamentosSolicitados = useRef(false);
   const municipiosSolicitados = useRef(false);
+  const rangoProyeccionSolicitado = useRef(false);
 
+  
   const handleMapLoaded = () => {
     setScreen("app");
   };
@@ -46,9 +77,26 @@ function App() {
     limpiarToken();
     setDepartamentos(null);
     setDatosMunicipios(null);
+    setDepartamentosAnio(null);
+    setDatosMapaReales(null);
+    setDatosMapaProyectados(null);
+    setFiabilidadMapa(null);
+    setSelectorAnioActivo(false);
+    setAnioMapa(2025);
+    setRangoProyeccion(null);
+    setErrorRangoProyeccion(null);
+    datosMapaPorAnio.current.clear();
     departamentosSolicitados.current = false;
     municipiosSolicitados.current = false;
-    setScreen("login");
+    rangoProyeccionSolicitado.current = false;
+    setMapReady(false);
+    setDepartamentosReady(false);
+    setMunicipiosReady(false);
+    setBuscadorReady(false);
+    setPantallaDespuesDeLogin("loading");
+    setScreen("home");
+    window.location.reload();
+    
   }, []);
 
   // Datos geograficos de departamentos y municipios (con sus 7 indicadores
@@ -69,18 +117,11 @@ function App() {
     if (!token || departamentosSolicitados.current) return;
     departamentosSolicitados.current = true;
 
-    fetch(`${API_URL}/api/zonas?nivel=departamento`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          logout();
-          throw new Error("Sesion expirada");
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`);
-        return res.json();
+    getZonasDepartamentos(2025, logout)
+      .then((datos) => {
+        datosMapaPorAnio.current.set("departamentos-2025", datos);
+        setDepartamentos(datos);
       })
-      .then(setDepartamentos)
       .catch((err) => console.error("Error cargando limites de departamentos:", err));
   }, [screen, logout]);
 
@@ -89,20 +130,89 @@ function App() {
     if (!token || municipiosSolicitados.current) return;
     municipiosSolicitados.current = true;
 
-    fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (res.status === 401) {
-          logout();
-          throw new Error("Sesion expirada");
-        }
-        if (!res.ok) throw new Error(`No se pudo cargar los indicadores de municipios (${res.status})`);
-        return res.json();
+    getZonasMunicipios(2025, logout)
+      .then((datos) => {
+        datosMapaPorAnio.current.set("municipios-2025", datos);
+        setDatosMunicipios(datos);
       })
-      .then(setDatosMunicipios)
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
   }, [screen, logout]);
+
+  // Rango de años valido para el selector de año (real, no hardcodeado):
+  // se pide una sola vez, igual que departamentos/municipios arriba, y se
+  // comparte por props con Proyectadas y con el MapView del dashboard
+  // principal -- asi ambos quedan sincronizados con
+  // ANIO_MINIMO_ZONAS/ANIO_MAXIMO_ZONAS del backend sin que el frontend
+  // tenga que repetir el numero.
+  useEffect(() => {
+    const token = getToken();
+    if (!token || rangoProyeccionSolicitado.current) return;
+    rangoProyeccionSolicitado.current = true;
+
+    getRangoProyeccionZonas(logout)
+      .then((datos) => {
+        setRangoProyeccion({ anioMinimo: datos.anio_minimo, anioMaximo: datos.anio_maximo });
+      })
+      .catch((err) => {
+        console.error("Error cargando el rango de años de proyeccion:", err);
+        setErrorRangoProyeccion(
+          "No se pudo cargar el rango de años disponible para la proyección."
+        );
+      });
+  }, [screen, logout]);
+
+  useEffect(() => {
+    if (!selectorAnioActivo || screen !== "app") {
+      setCargandoAnioMapa(false);
+      return undefined;
+    }
+
+    let cancelado = false;
+    setCargandoAnioMapa(true);
+    setDatosMapaReales(null);
+    setDepartamentosAnio(null);
+    setDatosMapaProyectados(null);
+    setFiabilidadMapa(null);
+    const temporizador = setTimeout(async () => {
+      try {
+        if (anioMapa < 2025) {
+          const [datos, departamentosDatos] = await Promise.all([
+            datosMapaPorAnio.current.get(`municipios-${anioMapa}`)
+              ?? getZonasMunicipios(anioMapa, logout),
+            datosMapaPorAnio.current.get(`departamentos-${anioMapa}`)
+              ?? getZonasDepartamentos(anioMapa, logout),
+          ]);
+          if (cancelado) return;
+          datosMapaPorAnio.current.set(`municipios-${anioMapa}`, datos);
+          datosMapaPorAnio.current.set(`departamentos-${anioMapa}`, departamentosDatos);
+          setDatosMapaReales(datos);
+          setDepartamentosAnio(departamentosDatos);
+          setDatosMapaProyectados(null);
+          setFiabilidadMapa(null);
+        } else {
+          let respuesta = datosMapaPorAnio.current.get(`proyeccion-${anioMapa}`);
+          if (!respuesta) {
+            respuesta = await getProyeccionZonas(anioMapa, undefined, logout);
+            datosMapaPorAnio.current.set(`proyeccion-${anioMapa}`, respuesta);
+          }
+          if (cancelado) return;
+          setDatosMapaReales(null);
+          setDepartamentosAnio(null);
+          setDatosMapaProyectados(respuesta.zonas ?? []);
+          setFiabilidadMapa(respuesta.intervalo_confianza ?? respuesta.fiabilidad ?? null);
+        }
+      } catch (error) {
+        if (!cancelado) console.error("Error cargando el año del mapa:", error);
+      } finally {
+        if (!cancelado) setCargandoAnioMapa(false);
+      }
+    }, 200);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+    };
+  }, [anioMapa, logout, screen, selectorAnioActivo]);
 
   // Punto unico de seleccion de zona, usado tanto por el clic en el mapa
   // como por el buscador: si la zona clickeada/elegida es la misma que ya
@@ -115,39 +225,101 @@ function App() {
     );
   };
 
+  const datosMunicipiosMapa = selectorAnioActivo && anioMapa < 2025
+    ? datosMapaReales
+    : datosMunicipios;
+  const datosProyectadosMapa = selectorAnioActivo && anioMapa >= 2025
+    ? datosMapaProyectados
+    : null;
+  const departamentosMapa = selectorAnioActivo && anioMapa < 2025
+    ? departamentosAnio
+    : departamentos;
+
   return (
     <>
       {screen === "loading" && (
         <>
           <PantallaCarga />
-          <MapView
-            onMapLoaded={handleMapLoaded}
-            onZonaSeleccionada={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-            codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
-          />
+          <div className="map-loading-container">
+            <MapView
+              onMapLoaded={handleMapLoaded}
+              onZonaSeleccionada={seleccionarZona}
+              departamentos={departamentos}
+              datosMunicipios={datosMunicipios}
+              codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+              scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
+              nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
+              mostrarSelectorAnio={false}
+            />
+          </div>
         </>
       )}
 
+      {screen === "home" && (
+        <Home
+          setScreen={setScreen}
+          onLogout={logout}
+          onLoginFromHome={() => {
+            setPantallaDespuesDeLogin("home");
+            setScreen("login");
+          }}
+          onRequireLogin={(destino) => {
+            setPantallaDespuesDeLogin(destino);
+            setScreen("login");
+          }}
+        />
+      )}
+
+      {screen === "chatbot" && <ChatBotScreen setScreen={setScreen} onLogout={logout} />}
+
       {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
+      
+      {screen === "proyeccion" && (
+        <Proyectadas
+          setScreen={setScreen}
+          onLogout={logout}
+          departamentos={departamentos}
+          datosMunicipios={datosMunicipios}
+          rangoProyeccion={rangoProyeccion}
+          errorRangoProyeccion={errorRangoProyeccion}
+        />
+      )}
 
       {screen === "app" && (
         <main className="app-shell">
-          <MapView
-            onMapLoaded={handleMapLoaded}
-            onZonaSeleccionada={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-            codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
-          />
           <CabezaDeNavegacion setScreen={setScreen} onLogout={logout} />
-          <BarraBuscadora
-            onSeleccionarZona={seleccionarZona}
-            departamentos={departamentos}
-            datosMunicipios={datosMunicipios}
-          />
-          <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
+          <div className="dashboard-layout">
+            <section className="dashboard-main-column" aria-label="Mapa y buscador">
+              <BarraBuscadora
+                onSeleccionarZona={seleccionarZona}
+                departamentos={departamentos}
+                datosMunicipios={datosMunicipios}
+                zonaActiva={zonaSeleccionada}
+              />
+              <div className="dashboard-map-container">
+                <MapView
+                  onMapLoaded={handleMapLoaded}
+                  onZonaSeleccionada={seleccionarZona}
+                  departamentos={departamentosMapa}
+                  codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
+                  scoreSeleccionado={zonaSeleccionada?.score_privacion ?? null}
+                  nivelSeleccionado={zonaSeleccionada?.nivel ?? null}
+                  datosMunicipios={datosMunicipiosMapa}
+                  datosProyectados={datosProyectadosMapa}
+                  claveDatosMapa={selectorAnioActivo ? `anio-${anioMapa}` : "base"}
+                  anioSeleccionado={anioMapa}
+                  selectorAnioActivo={selectorAnioActivo}
+                  cargandoAnio={cargandoAnioMapa}
+                  fiabilidadProyeccion={fiabilidadMapa}
+                  anioMinimoSelector={rangoProyeccion?.anioMinimo}
+                  anioMaximoSelector={rangoProyeccion?.anioMaximo}
+                  onAnioSeleccionado={setAnioMapa}
+                  onSelectorAnioActivo={setSelectorAnioActivo}
+                />
+              </div>
+            </section>
+            <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
+          </div>
           {/* Oculto para la entrega -- el backend del chatbot no tiene
               ninguna ruta de chat real todavia (solo /health), se veria
               roto en vivo. No se elimina para reactivarlo cuando el
@@ -156,8 +328,16 @@ function App() {
         </main>
       )}
 
-      {screen !== "app" && screen !== "loading" && (
-        <AutenticarScreens screen={screen} setScreen={setScreen} />
+      {!PANTALLAS_PROPIAS.includes(screen) && (
+        <AutenticarScreens
+          screen={screen}
+          setScreen={setScreen}
+          onLoginComplete={() => {
+            const destino = pantallaDespuesDeLogin;
+            setPantallaDespuesDeLogin("loading");
+            setScreen(destino);
+          }}
+        />
       )}
     </>
   );
