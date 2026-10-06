@@ -118,8 +118,6 @@ const [conclusiones, setConclusiones] = useState("");
   // =========================
   // Render
   // =========================
-console.log("Departamentos:", departamentosSeleccionados);
-console.log("Municipios:", municipiosSeleccionados);
   return (
     <>
       <CabezaDeNavegacion
@@ -502,7 +500,9 @@ console.log("Municipios:", municipiosSeleccionados);
 
         <div className="vista-documento">
           <div className="pagina-reporte">
-            <h1>{tituloInforme}</h1>
+            <h1 className="titulo-documento">
+              {tituloInforme}
+            </h1>
 
               <p>
                 Fecha:
