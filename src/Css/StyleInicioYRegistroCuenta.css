@@ -99,13 +99,7 @@
   cursor: pointer;
 }
 
-/* Botones principales -- SIN !important a proposito: la pantalla con
-   imagen de fondo (.auth-form-panel .form-container button, mas abajo)
-   necesita poder sobreescribir este color a negro solido via
-   especificidad normal. Un !important aqui le ganaria a esa regla mas
-   especifica y dejaria todos los botones de Login/Registro/OTP en
-   naranja en vez de negro (bug real, encontrado al verificar la nueva
-   pantalla de OTP). */
+/* Botones principales */
 .form-container button {
   width: 100%;
   background-color: #f57c00;
@@ -223,27 +217,15 @@
 /* La tarjeta necesita su propia sombra (mas fuerte que la base de
    .form-container) para separarse visualmente de la foto de fondo, y
    mas radio de borde para leerse como "rectangulo redondeado" y no
-   solo una esquina suavizada. Dentro de la pantalla con imagen de
-   fondo el boton principal es oscuro/solido, no el naranja usado en
-   el resto de la app -- todo esto mas especifico que ".form-container"
-   para no afectar ningun otro uso de la clase base fuera de esta
-   pantalla. Aplica a Login, Registro y Recuperacion de contraseña por
-   igual (las 3 comparten .auth-screen); se excluye .btn-back (el
-   "Regresar" gris de Recuperacion) para mantener la distincion visual
-   entre accion primaria y secundaria. */
+   solo una esquina suavizada. El boton principal usa el mismo naranja
+   de ".form-container button" (sin overrides aqui) -- Aplica a Login,
+   Registro y Recuperacion de contraseña por igual (las 3 comparten
+   .auth-screen). */
 .auth-form-panel .form-container {
   margin: 0;
   border-radius: 20px;
   padding: 20px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.25);
-}
-
-.auth-form-panel .form-container button:not(.google-btn):not(.btn-back) {
-  background-color: #1a1a1a;
-}
-
-.auth-form-panel .form-container button:not(.google-btn):not(.btn-back):hover {
-  background-color: #000;
 }
 
 @media (max-width: 768px) {

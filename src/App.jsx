@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./Css/StyleComponents.css";
 import "./Css/StyleInicioYRegistroCuenta.css";
 import "./Css/StylePerfilUsuario.css";
@@ -18,26 +18,63 @@ function App() {
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);
 
+  // "Ya se disparo el fetch de esta sesion" -- ref, no state, porque solo
+  // nos importa como guardia sincrona dentro del efecto (si fuera state,
+  // el propio cambio del guard forzaria un re-render/re-chequeo extra sin
+  // aportar nada). Se resetea unicamente en logout(). Sin esta guardia,
+  // el efecto se re-evalua en cada cambio de `screen` -- incluyendo la
+  // transicion "loading" -> "app", que ocurre en cuanto el mapa esta
+  // listo (whenReady), casi siempre ANTES de que la descarga de ~5MB de
+  // municipios termine -- y volveria a disparar una segunda peticion
+  // identica todavia en curso.
+  const departamentosSolicitados = useRef(false);
+  const municipiosSolicitados = useRef(false);
+
   const handleMapLoaded = () => {
     setScreen("app");
   };
 
+  // Punto unico de cierre de sesion: limpia el token Y los datos ya
+  // cargados con ese token (y las guardias de fetch de arriba). Sin esto,
+  // si un usuario cierra sesion e inicia con otra cuenta SIN recargar la
+  // pagina, la guardia impediria el refetch y la app seguiria mostrando
+  // los datos de la sesion anterior. Se usa tanto desde el logout manual
+  // (CabezaDeNavegacion) como desde una expiracion de sesion detectada en
+  // los fetches -- ambos son, en la practica, el mismo evento: la sesion
+  // actual dejo de ser valida.
+  const logout = useCallback(() => {
+    limpiarToken();
+    setDepartamentos(null);
+    setDatosMunicipios(null);
+    departamentosSolicitados.current = false;
+    municipiosSolicitados.current = false;
+    setScreen("login");
+  }, []);
+
   // Datos geograficos de departamentos y municipios (con sus 7 indicadores
-  // y el score_privacion) cargados UNA sola vez por sesion, aqui en App --
-  // no en MapView, que se monta y desmonta al pasar de la pantalla de
-  // carga a la de la app. MapView y BarraBuscadora reciben estos datos
-  // por props en vez de pedirlos cada uno por su cuenta, para no repetir
-  // la descarga completa (GET /api/zonas?nivel=municipio pesa ~5MB).
+  // y el score_privacion) cargados UNA vez por sesion, aqui en App -- no
+  // en MapView, que se monta y desmonta al pasar de la pantalla de carga
+  // a la de la app. MapView y BarraBuscadora reciben estos datos por
+  // props en vez de pedirlos cada uno por su cuenta, para no repetir la
+  // descarga completa (GET /api/zonas?nivel=municipio pesa ~5MB).
+  //
+  // Dependen de `screen` (no de `[]`): en el primer render de App, screen
+  // sigue en "login" y todavia no hay token -- si el efecto disparara ahi
+  // mandaria "Authorization: Bearer null" y el backend responde 401. El
+  // guard `!token` evita ese fetch prematuro; `screen` como dependencia
+  // hace que se reintente en cuanto cambia de pantalla tras el login
+  // (cuando el token ya esta guardado).
   useEffect(() => {
     const token = getToken();
+    if (!token || departamentosSolicitados.current) return;
+    departamentosSolicitados.current = true;
 
     fetch(`${API_URL}/api/zonas?nivel=departamento`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
         if (res.status === 401) {
-          limpiarToken();
-          setScreen("login");
+          logout();
           throw new Error("Sesion expirada");
         }
         if (!res.ok) throw new Error(`No se pudo cargar el GeoJSON de departamentos (${res.status})`);
@@ -45,18 +82,19 @@ function App() {
       })
       .then(setDepartamentos)
       .catch((err) => console.error("Error cargando limites de departamentos:", err));
-  }, []);
+  }, [screen, logout]);
 
   useEffect(() => {
     const token = getToken();
+    if (!token || municipiosSolicitados.current) return;
+    municipiosSolicitados.current = true;
 
     fetch(`${API_URL}/api/zonas?nivel=municipio&anio=${ANIO_INDICADORES}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
         if (res.status === 401) {
-          limpiarToken();
-          setScreen("login");
+          logout();
           throw new Error("Sesion expirada");
         }
         if (!res.ok) throw new Error(`No se pudo cargar los indicadores de municipios (${res.status})`);
@@ -64,7 +102,7 @@ function App() {
       })
       .then(setDatosMunicipios)
       .catch((err) => console.error("Error cargando indicadores de municipios:", err));
-  }, []);
+  }, [screen, logout]);
 
   // Punto unico de seleccion de zona, usado tanto por el clic en el mapa
   // como por el buscador: si la zona clickeada/elegida es la misma que ya
@@ -92,7 +130,7 @@ function App() {
         </>
       )}
 
-      {screen === "perfil" && <PerfilUsuario setScreen={setScreen} />}
+      {screen === "perfil" && <PerfilUsuario setScreen={setScreen} onLogout={logout} />}
 
       {screen === "app" && (
         <main className="app-shell">
@@ -103,7 +141,7 @@ function App() {
             datosMunicipios={datosMunicipios}
             codigoSeleccionado={zonaSeleccionada?.codigo ?? null}
           />
-          <CabezaDeNavegacion setScreen={setScreen} />
+          <CabezaDeNavegacion setScreen={setScreen} onLogout={logout} />
           <BarraBuscadora
             onSeleccionarZona={seleccionarZona}
             departamentos={departamentos}

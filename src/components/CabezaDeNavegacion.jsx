@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import IconoPerfil from "../assets/IconoPerfil.png";
 import IconoLogo from "../assets/LogoMapa.png";
 
-function CabezaDeNavegacion({ setScreen }) {
+function CabezaDeNavegacion({ setScreen, onLogout }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -42,7 +42,7 @@ function CabezaDeNavegacion({ setScreen }) {
                   <a href="#" onClick={() => setScreen("perfil")}>Ver Perfil</a>
                 </li>
                 <li>
-                  <a href="#" onClick={() => setScreen("login")}>Cerrar Sesión</a>
+                  <a href="#" onClick={() => onLogout?.()}>Cerrar Sesión</a>
                 </li>
               </ul>
             </nav>
