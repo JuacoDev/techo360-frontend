@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
+import { API_URL, fetchConSesion } from "../../services/api";
 import "../../Css/StyleReportes.css";
 
 const VARIABLES = [
@@ -51,6 +52,7 @@ function Reportes({
   // =========================
 
   const [incluirGraficas, setIncluirGraficas] = useState(true);
+  const [formatoReporte, setFormatoReporte] = useState("pdf");
 
   const [anioInicio, setAnioInicio] = useState(2020);
   const [anioFin, setAnioFin] = useState(2025);
@@ -75,10 +77,53 @@ const [introduccion, setIntroduccion] = useState("");
 
 const [conclusiones, setConclusiones] = useState("");
 
+const [errorSolicitud, setErrorSolicitud] = useState("");
 
 
 
-  function actualizarComentario(clave, texto) {
+
+async function generarReporte() {
+  setErrorSolicitud("");
+
+  try {
+    const response = await fetchConSesion(
+      `${API_URL}/api/reportes/generar`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          titulo: tituloInforme,
+          introduccion,
+          conclusiones,
+          incluir_graficas: incluirGraficas,
+          anio_inicio: anioInicio,
+          anio_fin: anioFin,
+          formato: formatoReporte,
+          variables: variablesSeleccionadas.map((variable) => variable.id),
+          departamentos: departamentosSeleccionados.map((item) => item.codigo),
+          municipios: municipiosSeleccionados.map((item) => item.codigo),
+          comentarios,
+        }),
+      },
+      onLogout
+    );
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(
+        result.detail || result.message || "No se pudo enviar la solicitud del reporte."
+      );
+    }
+  } catch (error) {
+    if (error.status !== 401) {
+      setErrorSolicitud(error.message || "Error al enviar la solicitud del reporte.");
+    }
+  }
+}
+
+function actualizarComentario(clave, texto) {
   setComentarios((prev) => ({
     ...prev,
     [clave]: texto
@@ -368,9 +413,31 @@ const [conclusiones, setConclusiones] = useState("");
 
             <br />
 
+            {/* Formato del reporte */}
+            <h4>Formato del reporte</h4>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={formatoReporte === "pdf"}
+                onChange={() => setFormatoReporte("pdf")}
+              />
+              PDF
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={formatoReporte === "excel"}
+                onChange={() => setFormatoReporte("excel")}
+              />
+              Excel
+            </label>
+
             {/* Botón generar */}
             <button
               className="btn-generar-proyeccion"
+              onClick={generarReporte}
               disabled={
                 departamentosSeleccionados.length +
                   municipiosSeleccionados.length ===
@@ -380,6 +447,10 @@ const [conclusiones, setConclusiones] = useState("");
             >
               Generar reporte
             </button>
+
+            {errorSolicitud && (
+              <p role="alert">{errorSolicitud}</p>
+            )}
 
             <p>
               Debes seleccionar al menos una zona y una variable.
