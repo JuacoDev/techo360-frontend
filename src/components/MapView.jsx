@@ -171,7 +171,6 @@ function MapView({
   onAnioSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
-  const [isLegendOpen, setIsLegendOpen] = useState(false)
 
   const proyeccionesPorCodigo = useMemo(
   () =>
@@ -392,53 +391,58 @@ function MapView({
       )}
 
       <div className="map-legend">
-        {!isLegendOpen ? (
-          <button
-            type="button"
-            className="map-legend-toggle"
-            onClick={() => setIsLegendOpen(true)}
-          >
-            Ver Leyenda
-          </button>
-        ) : (
-          <section className="map-legend-panel" aria-label="Leyenda del score de privación">
-            <div className="map-legend-header">
+        <section className="map-legend-panel" aria-label="Leyenda del score de privación">
+          <div className="map-legend-header">
+            <div className="map-legend-title">
               <h2>Escala de Privación</h2>
-              <button
-                type="button"
-                className="map-legend-close"
-                aria-label="Cerrar leyenda"
-                onClick={() => setIsLegendOpen(false)}
-              >
-                X
-              </button>
-            </div>
-            <div className="map-legend-gradient" aria-hidden="true">
-              {tieneScoreValido && (
+              <span className="map-legend-info">
+                <button
+                  type="button"
+                  className="map-legend-info-button"
+                  aria-label="Más información sobre la escala de privación"
+                  aria-describedby="map-legend-description"
+                >
+                  i
+                </button>
                 <span
-                  className="map-legend-marker"
-                  style={{ left: `${scoreSeleccionado * 100}%` }}
-                />
-              )}
+                  id="map-legend-description"
+                  className="map-legend-description"
+                  role="tooltip"
+                >
+                  Índice de 0.0 a 1.0 que promedia las carencias en acueducto,
+                  alcantarillado y déficit habitacional. Un valor de 1.0 indica
+                  la máxima prioridad o necesidad de intervención.
+                </span>
+              </span>
             </div>
-            <div className="map-legend-labels">
-              <span>0 (Menor)</span>
-              <span>1 (Mayor)</span>
-            </div>
-            {/* Siempre visible (antes solo aparecia al seleccionar una
-                zona gris) -- es una entrada fija de la leyenda, no un
-                mensaje contextual de la seleccion actual. */}
-            <div className="map-legend-no-data">
-              <span className="map-legend-gray" aria-hidden="true" />
-              <span>Sin dato</span>
-            </div>
-            {mostrarSelectorAnio && (
-              <p className="map-legend-nota">
-                El déficit habitacional se mantiene constante (Censo 2018).
-              </p>
+          </div>
+          <div className="map-legend-gradient" aria-hidden="true">
+            {tieneScoreValido && (
+              <span
+                className="map-legend-marker"
+                style={{ left: `${scoreSeleccionado * 100}%` }}
+              />
             )}
-          </section>
-        )}
+          </div>
+          <div className="map-legend-labels">
+            <span>0.0</span>
+            <span>0.25</span>
+            <span>0.5</span>
+            <span>0.75</span>
+            <span>1.0</span>
+          </div>
+          {/* Siempre visible: es una entrada fija de la leyenda, no un
+              mensaje contextual de la seleccion actual. */}
+          <div className="map-legend-no-data">
+            <span className="map-legend-gray" aria-hidden="true" />
+            <span>Sin dato / Área en litigio</span>
+          </div>
+          {mostrarSelectorAnio && (
+            <p className="map-legend-nota">
+              El déficit habitacional se mantiene constante (Censo 2018).
+            </p>
+          )}
+        </section>
       </div>
     </div>
   )
