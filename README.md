@@ -39,7 +39,7 @@ Cifra de D3 (del comentario de `nginx.conf`, medida sobre la respuesta real en s
 | `/api/` | 200 s | 200 s | 200 s |
 | `/chatbot/conversaciones` (envío) | 60 s (defecto) | 210 s | 210 s |
 | `/chatbot/mensajes` (reintentar/cancelar/eliminar) | 60 s (defecto) | 210 s (desde D12) | 210 s (desde D12) |
-| `/auth/`, `/otp/`, `/chatbot/send`, `/chatbot/` | 60 s (defecto) | 60 s (defecto) | 60 s (defecto) |
+| `/auth/`, `/otp/` (`/chatbot/send` y `/chatbot/` se eliminaron por seguridad) | 60 s (defecto) | 60 s (defecto) | 60 s (defecto) |
 
 Globales: `keepalive_timeout 65`; `send_timeout` y `client_*_timeout` sin definir (60 s por defecto). El RPC del backend espera hasta 200 s, por eso los bloques que lo esperan están en 210 s.
 
