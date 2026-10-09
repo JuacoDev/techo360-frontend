@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import BarraBuscadora from "../../components/BarraBuscadora";
+import { useModoCapas } from "../../components/SelectorCapasMapa";
 import MapView from "../../components/MapView";
 import PanelIndicadores from "../../components/PanelIndicadores";
 import { INDICADOR_PROYECCION_MAPA, getProyeccionZonas } from "../../services/api";
@@ -20,6 +21,9 @@ function Proyectadas({
   errorRangoProyeccion,
 }) {
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
+  // Modo de capas de ESTE mapa (independiente del mapa de calor): lo cambian el
+  // selector del mapa y los desplegables del buscador.
+  const modoCapas = useModoCapas();
   const [anioInicio, setAnioInicio] = useState(2027);
   const [anioFin, setAnioFin] = useState(2030);
   const [cargandoProyeccion, setCargandoProyeccion] = useState(false);
@@ -124,6 +128,7 @@ function Proyectadas({
             onSeleccionarZona={seleccionarZona}
             departamentos={departamentos}
             datosMunicipios={datosMunicipios}
+            onEventoCapas={modoCapas[1]}
           />
 
           <div className="panel-proyeccion">
@@ -201,6 +206,7 @@ function Proyectadas({
             cargandoAnio={cargandoProyeccion}
             avisoSelectorAnio="Genera la proyección"
             onAnioSeleccionado={setAnioSeleccionadoMapa}
+            modoCapas={modoCapas}
             />
           </div>
 

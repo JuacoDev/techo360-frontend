@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import SelectorAnioMapa from './SelectorAnioMapa'
+import SelectorCapasMapa, { useModoCapas } from './SelectorCapasMapa'
+import { ZOOM_UMBRAL_MUNICIPIOS, capaVisible } from '../services/modoCapas.js'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -34,8 +36,8 @@ const COLOMBIA_BOUNDS = [
 // en este nivel o mas cerca se ve municipios. Con minZoom=5/maxZoom=12
 // ya establecidos, deja un rango parejo a cada lado (5-8 departamentos,
 // 9-12 municipios) -- verificado en vivo que la transicion se siente
-// natural, sin salto brusco perceptible.
-const ZOOM_UMBRAL_MUNICIPIOS = 9
+// natural, sin salto brusco perceptible. (Vive en services/modoCapas.js: solo
+// decide la capa en el modo Hibrido del selector de capas.)
 
 // Color de borde compartido por ambas capas.
 const COLOR_BORDE = '#1E3A8A'
@@ -228,6 +230,9 @@ function MapView({
   // Se llama una vez cuando las dos capas ya estan construidas y pintadas (senal
   // real de "mapa listo" para la pantalla de carga; ver MapaCalor en App.jsx).
   onCapasListas,
+  // [estado, despachar] de useModoCapas() si la pagina tambien despacha eventos
+  // (los desplegables del buscador); si no se pasa, el mapa usa su propio estado.
+  modoCapas,
   codigoSeleccionado,
   scoreSeleccionado,
   nivelSeleccionado,
@@ -243,6 +248,8 @@ function MapView({
   onAnioSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
+  const modoCapasPropio = useModoCapas()
+  const [estadoCapas, despacharCapas] = modoCapas ?? modoCapasPropio
   const [capasCreadas, setCapasCreadas] = useState({ departamentos: false, municipios: false })
   const marcarDepartamentos = useCallback(() => setCapasCreadas((c) => ({ ...c, departamentos: true })), [])
   const marcarMunicipios = useCallback(() => setCapasCreadas((c) => ({ ...c, municipios: true })), [])
@@ -403,7 +410,7 @@ function MapView({
     [onZonaSeleccionada]
   )
 
-  const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
+  const mostrarMunicipios = capaVisible(estadoCapas.modo, zoom) === 'municipios'
 
   // Estado de la leyenda respecto a la zona seleccionada (municipio o
   // departamento, da igual -- ambos exponen score_privacion con el
@@ -464,6 +471,11 @@ function MapView({
           onCreada={marcarMunicipios}
         />
       </MapContainer>
+
+      <SelectorCapasMapa
+        modo={estadoCapas.modo}
+        onElegir={(modo) => despacharCapas({ tipo: 'ELEGIR_MODO', modo })}
+      />
 
       {mostrarSelectorAnio && (
         <SelectorAnioMapa
