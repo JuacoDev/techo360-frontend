@@ -15,12 +15,14 @@ import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
 import Reportes from "./pages/Reportes/Reportes.jsx";
 import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion, getRangoProyeccionZonas } from "./services/api";
+import { usePantallaEnUrl } from "./routing/usePantallaEnUrl.js";
 
 const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion", "reportes"];
 
 function App() {
-  const [screen, setScreen] = useState("home");
-  const [pantallaDespuesDeLogin, setPantallaDespuesDeLogin] = useState("loading");
+  // La pantalla activa vive en la URL (ver routing/usePantallaEnUrl.js).
+  const [screen, setScreen, destinoLogin] = usePantallaEnUrl(getToken);
+  const [pantallaDespuesDeLogin, setPantallaDespuesDeLogin] = useState(destinoLogin ?? "loading");
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
   const [departamentos, setDepartamentos] = useState(null);
   const [datosMunicipios, setDatosMunicipios] = useState(null);

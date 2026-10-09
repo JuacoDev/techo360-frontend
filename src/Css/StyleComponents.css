@@ -37,6 +37,15 @@ body {
   inset: 0;
 }
 
+/* Con el renderer Canvas (preferCanvas en MapView) un clic sobre un poligono
+   enfoca el contenedor del mapa y el navegador dibuja un marco alrededor de
+   TODO el mapa; con SVG el marco salia alrededor del poligono clicado. El
+   mapa no es un campo de entrada: se oculta el marco. */
+.map-view:focus,
+.map-view:focus-visible {
+  outline: none;
+}
+
 .dashboard-layout {
   flex: 1;
   min-height: 0;

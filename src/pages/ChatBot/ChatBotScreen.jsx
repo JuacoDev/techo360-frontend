@@ -1,16 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../../Css/StyleHome.css";
 import "../../Css/StyleComponents.css";
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import ChatbotLogo from "../../assets/chatbot_grueso.png";
 import {
+  cancelarMensaje,
   crearConversacion,
+  eliminarMensaje,
   enviarFeedbackMensaje,
   enviarMensaje,
   getCurrentUser,
   listarConversaciones,
   listarMensajes,
+  reintentarMensaje,
 } from "../../services/api";
+import {
+  INTERVALO_SONDEO_MS,
+  accionesDe,
+  aplicarIntercambio,
+  aplicarMensaje,
+  conversacionBloqueada,
+  estadoDe,
+  etiquetaEstado,
+  hayEnProceso,
+  quitarMensaje,
+} from "../../services/estadosMensaje.js";
 
 function formatearFecha(fechaIso) {
   return new Date(fechaIso).toLocaleString("es-CO", {
@@ -200,14 +214,71 @@ function ChatConversationView({
   const [sendError, setSendError] = useState(null);
   const [feedbackEnviando, setFeedbackEnviando] = useState(null);
   const [feedbackError, setFeedbackError] = useState(null);
+  const [textoEnviando, setTextoEnviando] = useState(null);
+  const [accionEnCurso, setAccionEnCurso] = useState(null); // { id, accion } mientras se reintenta/cancela/elimina
+  const mensajesRef = useRef(mensajesIniciales);
+  mensajesRef.current = messages;
+  // Cada envio/accion tiene un numero: si el usuario cancela mientras el servidor sigue
+  // esperando al asistente (que no se puede abortar), la respuesta que llegue despues
+  // pertenece a un envio ya abandonado y se IGNORA, sin tocar la pantalla.
+  const contadorEnvios = useRef(0);
+  const contadorAcciones = useRef(0);
+  const conversacionEnVuelo = useRef(null);
+  const [cancelandoEnvio, setCancelandoEnvio] = useState(false);
+
+  const entradaRef = useRef(null);
+
+  // Fase C: una conversacion con un mensaje sin resolver (pendiente, procesando,
+  // error o cancelado) no admite otra pregunta: hay que reintentarlo o eliminarlo.
+  const bloqueada = conversacionBloqueada(messages);
+
+  // Al desbloquearse la conversacion (reintento que responde, mensaje eliminado) el foco vuelve
+  // al cuadro de texto: sin esto, el boton pulsado desaparece y el foco se pierde.
+  const estabaBloqueada = useRef(bloqueada);
+  useEffect(() => {
+    if (estabaBloqueada.current && !bloqueada && !sending) entradaRef.current?.focus();
+    estabaBloqueada.current = bloqueada;
+  }, [bloqueada, sending]);
+
+  const actualizarMensajes = (convId, calcular) => {
+    const actualizados = calcular(mensajesRef.current);
+    mensajesRef.current = actualizados;
+    setMessages(actualizados);
+    onMensajesActualizados(convId, actualizados);
+  };
+
+  // Si se recarga la pagina (o se abre en otra pestana) mientras un mensaje esta
+  // 'procesando', esta pantalla no es quien espera la respuesta: se consulta cada
+  // pocos segundos hasta que cambie de estado (el servidor lo pasa a error a los
+  // 4 min si nadie responde).
+  const hayAlgoEnProceso = hayEnProceso(messages);
+  useEffect(() => {
+    if (conversacionId == null || sending || accionEnCurso || !hayAlgoEnProceso) return undefined;
+    let activo = true;
+    const sondeo = setInterval(async () => {
+      try {
+        const lista = await listarMensajes(conversacionId, onLogout);
+        if (activo) actualizarMensajes(conversacionId, () => lista);
+      } catch {
+        /* se reintenta en el siguiente intervalo */
+      }
+    }, INTERVALO_SONDEO_MS);
+    return () => {
+      activo = false;
+      clearInterval(sondeo);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversacionId, sending, accionEnCurso, hayAlgoEnProceso]);
 
   const handleSend = async () => {
     const contenido = input.trim();
-    if (!contenido || sending) return;
+    if (!contenido || sending || bloqueada) return;
 
+    const miEnvio = ++contadorEnvios.current;
     setSending(true);
     setSendError(null);
     setInput("");
+    setTextoEnviando(contenido);
 
     try {
       let convId = conversacionId;
@@ -217,19 +288,113 @@ function ChatConversationView({
         onConversacionCreada(nueva);
       }
 
+      conversacionEnVuelo.current = convId;
       const resultado = await enviarMensaje(convId, contenido, onLogout);
-      setMessages((actuales) => {
-        const actualizados = [...actuales, resultado.mensaje_usuario, resultado.mensaje_asistente];
-        onMensajesActualizados(convId, actualizados);
-        return actualizados;
-      });
+      if (miEnvio !== contadorEnvios.current) return; // el usuario lo cancelo mientras esperaba
+      actualizarMensajes(convId, (actuales) => aplicarIntercambio(actuales, resultado));
     } catch (err) {
+      if (miEnvio !== contadorEnvios.current) return;
       if (err.status !== 401) {
-        setSendError(err.message || "No se pudo enviar el mensaje");
-        setInput(contenido);
+        if (err.mensajeUsuario) {
+          // El servidor ya guardo el mensaje (con su estado, p. ej. 'error'): vive en
+          // el historial con sus botones; no se restaura el texto en el cuadro.
+          actualizarMensajes(conversacionId ?? err.mensajeUsuario.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajeUsuario));
+          if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(conversacionId ?? err.mensajeUsuario.conversacion_id);
+        } else if (err.mensajePendiente) {
+          // 409: ya habia un mensaje sin resolver (p. ej. enviado desde otra pestana).
+          actualizarMensajes(conversacionId ?? err.mensajePendiente.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajePendiente));
+          setSendError(err.message);
+          setInput(contenido);
+        } else {
+          setSendError(err.message || "No se pudo enviar el mensaje");
+          setInput(contenido);
+        }
       }
     } finally {
+      if (miEnvio === contadorEnvios.current) {
+        setSending(false);
+        setTextoEnviando(null);
+      }
+    }
+  };
+
+  // Cancelar el mensaje que se esta enviando AHORA (el servidor aun no ha devuelto su id):
+  // se busca en el historial el mensaje en proceso y se cancela. Como el servidor no puede
+  // abortar al asistente, la pantalla no espera su respuesta: muestra el mensaje cancelado
+  // al instante y descarta lo que llegue despues.
+  const cancelarEnVuelo = async () => {
+    const convId = conversacionEnVuelo.current;
+    if (cancelandoEnvio) return;
+    if (convId == null) {
+      setSendError("Todavía no se pudo registrar el mensaje; inténtalo de nuevo en un momento.");
+      return;
+    }
+    setCancelandoEnvio(true);
+    try {
+      const lista = await listarMensajes(convId, onLogout);
+      const enProceso = lista.find((m) => m.rol === "usuario" && (m.estado === "procesando" || m.estado === "pendiente"));
+      if (!enProceso) {
+        setSendError("No hay un mensaje en proceso para cancelar (puede que ya haya terminado).");
+        return;
+      }
+      const cancelado = await cancelarMensaje(enProceso.id, onLogout);
+      contadorEnvios.current += 1; // invalida el envio en curso
+      actualizarMensajes(convId, () => aplicarMensaje(lista, cancelado));
       setSending(false);
+      setTextoEnviando(null);
+    } catch (err) {
+      if (err.status !== 401) setSendError(err.message || "No se pudo cancelar el mensaje");
+    } finally {
+      setCancelandoEnvio(false);
+    }
+  };
+
+  // Un 409 que informa que el mensaje YA esta 'respondido' (lo cerro otro intento) no trae la
+  // respuesta del asistente: se vuelve a leer la conversacion para mostrarla.
+  const refrescarConversacion = async (convId) => {
+    try {
+      const lista = await listarMensajes(convId, onLogout);
+      actualizarMensajes(convId, () => lista);
+    } catch {
+      /* el sondeo o la siguiente accion lo corrigen */
+    }
+  };
+
+  // Fase C: botones Reintentar / Cancelar / Eliminar de un mensaje sin resolver.
+  const ejecutarAccion = async (mensaje, accion) => {
+    if (accionEnCurso && accion !== "cancelar") return; // cancelar SI se permite mientras se reintenta
+    const miAccion = ++contadorAcciones.current;
+    setAccionEnCurso({ id: mensaje.id, accion });
+    setSendError(null);
+    const convId = mensaje.conversacion_id;
+    try {
+      if (accion === "reintentar") {
+        actualizarMensajes(convId, (lista) => aplicarMensaje(lista, { ...mensaje, estado: "procesando", error_detalle: null }));
+        const resultado = await reintentarMensaje(mensaje.id, onLogout);
+        if (miAccion !== contadorAcciones.current) return; // cancelado mientras esperaba
+        actualizarMensajes(convId, (lista) => aplicarIntercambio(lista, resultado));
+      } else if (accion === "cancelar") {
+        const cancelado = await cancelarMensaje(mensaje.id, onLogout);
+        contadorAcciones.current += 1; // invalida un reintento en curso: su respuesta se ignora
+        actualizarMensajes(convId, (lista) => aplicarMensaje(lista, cancelado));
+        setAccionEnCurso(null);
+        return;
+      } else {
+        await eliminarMensaje(mensaje.id, onLogout);
+        actualizarMensajes(convId, (lista) => quitarMensaje(lista, mensaje.id));
+      }
+    } catch (err) {
+      if (err.status === 401 || miAccion !== contadorAcciones.current) return;
+      if (err.mensajeUsuario) {
+        actualizarMensajes(convId, (lista) => aplicarMensaje(lista, err.mensajeUsuario));
+        if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(convId);
+      } else if (accion === "reintentar") {
+        actualizarMensajes(convId, (lista) => aplicarMensaje(lista, mensaje)); // deshace el "procesando" optimista
+      }
+      const loCanceloElUsuario = err.mensajeUsuario?.estado === "cancelado"; // el 409 de un reintento que el propio usuario cancelo no es un error
+      if (!err.mensajeUsuario || (err.status === 409 && !loCanceloElUsuario)) setSendError(err.message || "No se pudo completar la acción");
+    } finally {
+      if (miAccion === contadorAcciones.current) setAccionEnCurso(null);
     }
   };
 
@@ -276,6 +441,13 @@ function ChatConversationView({
               {mensaje.contenido}
             </div>
             <span className="chatbot-message-timestamp">{formatearFecha(mensaje.fecha)}</span>
+            {mensaje.rol === "usuario" && estadoDe(mensaje) !== "respondido" && (
+              <MensajeEstado
+                mensaje={mensaje}
+                accionEnCurso={accionEnCurso}
+                onAccion={(accion) => ejecutarAccion(mensaje, accion)}
+              />
+            )}
             {mensaje.rol === "asistente" && (
               <div className="chatbot-message-feedback" aria-label="Valorar respuesta">
                 {mensaje.feedback_util !== null ? (
@@ -306,16 +478,30 @@ function ChatConversationView({
           </div>
         ))}
 
+        {sending && textoEnviando && (
+          <div className="chatbot-user-response">
+            <div className="chatbot-conversation-message chatbot-conversation-message--user">{textoEnviando}</div>
+          </div>
+        )}
+
         {sending && (
           <div className="chatbot-thinking chatbot-thinking--barras">
             <span className="chatbot-thinking-animation" aria-label="TechoBot está generando una respuesta"><i /><i /><i /></span>
             <span className="chatbot-thinking-text">TechoBot está analizando tu consulta...</span>
+            <button type="button" className="chatbot-thinking-cancel" aria-label="Cancelar el mensaje que se está enviando" disabled={cancelandoEnvio} onClick={cancelarEnVuelo}>
+              {cancelandoEnvio ? "Cancelando…" : "Cancelar"}
+            </button>
           </div>
         )}
       </div>
 
       {sendError && <p className="chatbot-history-error">{sendError}</p>}
       {feedbackError && <p className="chatbot-history-error">{feedbackError}</p>}
+      {bloqueada && !sending && (
+        <p id="chatbot-aviso-bloqueo" className="chatbot-composer-bloqueado" role="status">
+          Tienes un mensaje sin respuesta. Reintenta o elimínalo para poder enviar otra pregunta.
+        </p>
+      )}
 
       {messages.length === 0 && (
         <div className="chatbot-conversation-suggestions" aria-label="Sugerencias de consulta">
@@ -337,13 +523,49 @@ function ChatConversationView({
               handleSend();
             }
           }}
-          placeholder="Escribe tu pregunta..."
+          placeholder={bloqueada ? "Resuelve el mensaje pendiente (reintentar o eliminar)..." : "Escribe tu pregunta..."}
           aria-label="Mensaje"
-          disabled={sending}
+          aria-describedby={bloqueada && !sending ? "chatbot-aviso-bloqueo" : undefined}
+          ref={entradaRef}
+          disabled={sending || bloqueada}
         />
-        <button type="button" aria-label="Enviar mensaje" onClick={handleSend} disabled={sending || !input.trim()}>→</button>
+        <button type="button" aria-label="Enviar mensaje" onClick={handleSend} disabled={sending || bloqueada || !input.trim()}>→</button>
       </div>
     </section>
+  );
+}
+
+// Estado de un mensaje de usuario que NO esta respondido, con sus botones.
+function MensajeEstado({ mensaje, accionEnCurso, onAccion }) {
+  const estado = estadoDe(mensaje);
+  const acciones = accionesDe(mensaje);
+  const ocupado = accionEnCurso?.id === mensaje.id;
+  const enProceso = estado === "procesando" || estado === "pendiente";
+  const resumen = mensaje.contenido.length > 40 ? `${mensaje.contenido.slice(0, 40)}…` : mensaje.contenido;
+  return (
+    <div className={`chatbot-message-status chatbot-message-status--${estado}`} role="status" aria-live="polite">
+      <span className="chatbot-message-status-text">
+        {enProceso && <span className="chatbot-thinking-animation chatbot-message-status-animation" aria-hidden="true"><i /><i /><i /></span>}
+        {etiquetaEstado(mensaje)}
+      </span>
+      <span className="chatbot-message-actions">
+        {acciones.reintentar && (
+          <button type="button" aria-label={`Reintentar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("reintentar")}>
+            {ocupado && accionEnCurso.accion === "reintentar" ? "Reintentando…" : "Reintentar"}
+          </button>
+        )}
+        {acciones.cancelar && (
+          <button type="button" aria-label={`Cancelar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso) && !enProceso} onClick={() => onAccion("cancelar")}>
+            Cancelar
+          </button>
+        )}
+        {acciones.eliminar && (
+          <button type="button" aria-label={`Eliminar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("eliminar")}>
+            Eliminar
+          </button>
+        )}
+      </span>
+    </div>
   );
 }
 
