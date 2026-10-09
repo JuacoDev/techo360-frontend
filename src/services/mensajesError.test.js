@@ -59,3 +59,11 @@ test("detail null o undefined devuelve null", () => {
 test("detail numerico devuelve null (no es un formato esperado)", () => {
   assert.equal(extraerMensajeDetalle(42), null);
 });
+
+test("avisoConversacionNoDisponible: 403/404, id invalido y otros errores", async () => {
+  const { avisoConversacionNoDisponible } = await import("./mensajesError.js");
+  assert.match(avisoConversacionNoDisponible(404), /no existe o no es tuya/);
+  assert.match(avisoConversacionNoDisponible(403), /no existe o no es tuya/);
+  assert.match(avisoConversacionNoDisponible(undefined), /no corresponde/);
+  assert.match(avisoConversacionNoDisponible(500), /No se pudo abrir/);
+});

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import "../../Css/StyleHome.css";
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
-import { getCurrentUser } from "../../services/api";
+import { useNavigate } from "react-router";
+import { getCurrentUser, limpiarToken } from "../../services/api";
+import { RUTAS, rutaDeLogin } from "../../routing/rutas.js";
 import FondoHome from "../../assets/pexels-cesar-gaviria-232160-16637471.jpg";
 
 function IconoMapaCalor() {
@@ -51,7 +53,7 @@ const MODULOS = [
     descripcion: "Explora el Score de Privación por municipio en un mapa coroplético interactivo de Colombia.",
     icono: IconoMapaCalor,
     color: "naranja",
-    destino: "loading",
+    destino: RUTAS.mapaCalor,
   },
   {
     id: "mapa-proyeccion",
@@ -59,7 +61,7 @@ const MODULOS = [
     descripcion: "Visualiza cómo evolucionarán los indicadores a futuro con el modelo predictivo.",
     icono: IconoProyeccion,
     color: "sienna",
-    destino: "proyeccion",
+    destino: RUTAS.proyeccion,
   },
   {
     id: "chatbot",
@@ -67,7 +69,7 @@ const MODULOS = [
     descripcion: "Resuelve tus dudas sobre el proyecto y sobre pobreza y déficit de vivienda en Colombia.",
     icono: IconoChatBot,
     color: "marron",
-    destino: "chatbot",
+    destino: RUTAS.techobot,
   },
   {
     id: "reportes",
@@ -75,7 +77,8 @@ const MODULOS = [
     descripcion: "Compara indicadores por municipio y exporta reportes con gráficas en PDF.",
     icono: IconoReportes,
     color: "negro",
-    destino: "reportes",
+    // Se arregló para implementar react-router: destino "reportes" -> RUTAS.reportes (ahora es una ruta, /reportes).
+    destino: RUTAS.reportes,
   },
 ];
 
@@ -84,7 +87,8 @@ const MODULOS = [
 // con getCurrentUser() -- el mismo mecanismo que ya usan PerfilUsuario y
 // CabezaDeNavegacion, en vez de inventar un chequeo nuevo -- y si no hay
 // sesion valida se redirige a Login en vez de navegar al modulo.
-function Home({ setScreen, onLogout, onRequireLogin, onLoginFromHome }) {
+function Home({ onLogout }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [verificando, setVerificando] = useState(false);
 
@@ -99,9 +103,11 @@ function Home({ setScreen, onLogout, onRequireLogin, onLoginFromHome }) {
     setVerificando(true);
     try {
       await getCurrentUser();
-      setScreen(destino);
-    } catch {
-      onRequireLogin?.(destino);
+      navigate(destino);
+    } catch (err) {
+      // Token vencido: se borra, o /login (que redirige si HAY token) devolveria al modulo.
+      if (err?.status === 401) limpiarToken();
+      navigate(rutaDeLogin(destino));
     } finally {
       setVerificando(false);
     }
@@ -109,7 +115,7 @@ function Home({ setScreen, onLogout, onRequireLogin, onLoginFromHome }) {
 
   return (
     <div className="home-screen">
-      <CabezaDeNavegacion setScreen={setScreen} onLogout={onLogout} onLogin={onLoginFromHome} />
+      <CabezaDeNavegacion onLogout={onLogout} onLogin={() => navigate(RUTAS.login, { state: { volver: RUTAS.inicio } })} />
 
       <section className="home-hero">
         <img src={FondoHome} alt="Medellín, Colombia" className="home-hero-img" />

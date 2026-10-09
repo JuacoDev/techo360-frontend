@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 import { getCurrentUser } from "../services/api";
+import { RUTAS } from "../routing/rutas.js";
 
 // "MJ" a partir de "María José Rojas" -- primeras dos palabras del nombre
 // completo que devuelve /auth/me (namevar), no hay campo separado de
@@ -22,7 +24,8 @@ function obtenerIniciales(nombreCompleto) {
 // usuario -- `revisado` distingue "todavia no se sabe" (no renderiza nada
 // a la derecha, evita el parpadeo "Iniciar sesion" -> avatar) de
 // "ya se confirmo que no hay sesion" (muestra "Iniciar sesion").
-function CabezaDeNavegacion({ setScreen, onLogout, onLogin }) {
+function CabezaDeNavegacion({ onLogout, onLogin }) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [revisado, setRevisado] = useState(false);
@@ -50,7 +53,7 @@ function CabezaDeNavegacion({ setScreen, onLogout, onLogin }) {
       <button
         type="button"
         className="CabezaDeNavegacion-logo"
-        onClick={() => setScreen("home")}
+        onClick={() => navigate(RUTAS.inicio)}
       >
         <span className="CabezaDeNavegacion-logo-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
@@ -63,7 +66,7 @@ function CabezaDeNavegacion({ setScreen, onLogout, onLogin }) {
 
       <div className="CabezaDeNavegacion-links">
         {revisado && !user && (
-          <button type="button" className="CabezaDeNavegacion-login" onClick={() => (onLogin ? onLogin() : setScreen("login"))}>
+          <button type="button" className="CabezaDeNavegacion-login" onClick={() => (onLogin ? onLogin() : navigate(RUTAS.login))}>
             Iniciar sesión
           </button>
         )}
@@ -84,7 +87,7 @@ function CabezaDeNavegacion({ setScreen, onLogout, onLogin }) {
                 <nav className="opciones-sesion">
                   <ul>
                     <li>
-                      <a href="#" onClick={() => { setOpen(false); setScreen("perfil"); }}>Ver perfil</a>
+                      <Link to={RUTAS.perfil} onClick={() => setOpen(false)}>Ver perfil</Link>
                     </li>
                   </ul>
                 </nav>

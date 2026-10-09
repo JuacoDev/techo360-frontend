@@ -338,6 +338,7 @@ function MapView({
   return (
     <div className="map-view-wrapper">
       <MapContainer
+        preferCanvas
         center={COLOMBIA_CENTER}
         zoom={6}
         minZoom={5}

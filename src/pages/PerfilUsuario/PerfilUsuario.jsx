@@ -4,7 +4,7 @@ import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import Input from "../../components/Input";
 import IconoPerfil from "../../assets/IconoPerfil.png";
 
-function PerfilUsuario({ setScreen, onLogout }) {
+function PerfilUsuario({ onLogout }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ function PerfilUsuario({ setScreen, onLogout }) {
 
   return (
     <>
-      <CabezaDeNavegacion setScreen={setScreen} onLogout={onLogout} />
+      <CabezaDeNavegacion onLogout={onLogout} />
 
       <div className="perfil-container">
         <div className="perfil-card">
