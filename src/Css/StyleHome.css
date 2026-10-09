@@ -598,3 +598,24 @@ Home (pantalla inicial publica)
   .chat-ir-final { transition: none; }
   .chat-ir-final:active { transform: none; }
 }
+
+/* Respuestas del bot en Markdown (RespuestaBot.jsx). Prefijo chat-. */
+.chat-md { text-align: left; overflow-wrap: anywhere; }
+.chat-md > :first-child { margin-top: 0; }
+.chat-md > :last-child { margin-bottom: 0; }
+.chat-md p { margin: 0 0 0.8em; line-height: 1.65; }
+.chat-md ul, .chat-md ol { margin: 0 0 0.8em; padding-left: 1.3em; }
+.chat-md li { margin: 0.25em 0; line-height: 1.55; }
+.chat-md li::marker { color: #9a4a0b; }
+.chat-md li > p { margin: 0; }
+.chat-md strong { color: #2f2b28; font-weight: 600; }
+.chat-md em { font-style: italic; }
+.chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4 { margin: 0.9em 0 0.4em; color: #2f2b28; font-size: 1.05em; font-weight: 600; line-height: 1.35; }
+.chat-md code { padding: 0.1em 0.35em; border-radius: 4px; background: #f4efe8; color: #5c4033; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
+.chat-md pre { margin: 0 0 0.8em; padding: 10px 12px; overflow-x: auto; border-radius: 8px; background: #f4efe8; }
+.chat-md pre code { padding: 0; background: transparent; }
+.chat-md blockquote { margin: 0 0 0.8em; padding: 4px 0 4px 12px; border-left: 3px solid #e0c9b4; color: #5f5a53; }
+.chat-md a { color: #9a4a0b; text-decoration: underline; text-underline-offset: 2px; }
+.chat-md a:hover { color: #6b3306; }
+.chat-md a:focus-visible { outline: 2px solid #9a4a0b; outline-offset: 2px; border-radius: 2px; }
+.chat-md hr { margin: 0.9em 0; border: 0; border-top: 1px solid #ebe4da; }

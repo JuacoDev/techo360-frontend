@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import "../../Css/StyleHome.css";
 import "../../Css/StyleComponents.css";
@@ -27,6 +27,8 @@ import {
 import { avisoConversacionNoDisponible } from "../../services/mensajesError.js";
 import { AvisoError, IndicadorEspera, MensajeEstado, Presencia } from "./EstadosChat.jsx";
 import { useScrollDelChat } from "./useScrollDelChat.js";
+// react-markdown (~40 KB gzip) solo se descarga al abrir el chat, no en el bundle principal.
+const RespuestaBot = lazy(() => import("./RespuestaBot.jsx"));
 import { ID_CONVERSACION_NUEVA, RUTAS, esIdConversacionValido, rutaDeConversacion } from "../../routing/rutas.js";
 
 function formatearFecha(fechaIso) {
@@ -510,7 +512,13 @@ function ChatConversationView({
             className={mensaje.rol === "usuario" ? "chatbot-user-response" : "chatbot-assistant-response"}
           >
             <div className={`chatbot-conversation-message chatbot-conversation-message--${mensaje.rol === "usuario" ? "user" : "bot"}`}>
-              {mensaje.contenido}
+              {mensaje.rol === "usuario" ? (
+                mensaje.contenido
+              ) : (
+                <Suspense fallback={<div className="chat-md">{mensaje.contenido}</div>}>
+                  <RespuestaBot texto={mensaje.contenido} />
+                </Suspense>
+              )}
             </div>
             <span className="chatbot-message-timestamp">{formatearFecha(mensaje.fecha)}</span>
             <Presencia visible={mensaje.rol === "usuario" && estadoDe(mensaje) !== "respondido"}>

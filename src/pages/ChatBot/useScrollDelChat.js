@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { decidirScroll, estaCercaDelFondo, firmaMensajes } from "../../services/scrollChat.js";
 
 // Scroll de la lista de mensajes: abre en el mensaje mas reciente (sin
@@ -36,6 +36,18 @@ export function useScrollDelChat({ messages, sending, textoEnviando }) {
       setHayNuevo(true);
     }
   }, [messages, sending, textoEnviando]);
+
+  // Contenido que crece despues de pintarse (Markdown cargado en diferido,
+  // tarjetas de estado que entran): si estaba pegado al final, se mantiene ahi.
+  useEffect(() => {
+    const el = listaRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const observador = new ResizeObserver(() => {
+      if (estabaCerca.current) el.scrollTop = el.scrollHeight;
+    });
+    for (const hijo of el.children) observador.observe(hijo);
+    return () => observador.disconnect();
+  });
 
   const irAlFinal = useCallback(() => {
     const el = listaRef.current;
