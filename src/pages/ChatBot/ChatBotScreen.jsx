@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { Navigate, useLocation, useNavigate, useParams } from "react-router";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import "../../Css/StyleHome.css";
 import "../../Css/StyleComponents.css";
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
@@ -29,7 +29,7 @@ import { AvisoError, IndicadorEspera, MensajeEstado, Presencia } from "./Estados
 import { useScrollDelChat } from "./useScrollDelChat.js";
 // react-markdown (~40 KB gzip) solo se descarga al abrir el chat, no en el bundle principal.
 const RespuestaBot = lazy(() => import("./RespuestaBot.jsx"));
-import { ID_CONVERSACION_NUEVA, RUTAS, esIdConversacionValido, rutaDeConversacion } from "../../routing/rutas.js";
+import { RUTAS, estadoDeConversacion, idConversacionDeEstado, normalizarRuta } from "../../routing/rutas.js";
 
 function formatearFecha(fechaIso) {
   return new Date(fechaIso).toLocaleString("es-CO", {
@@ -51,13 +51,20 @@ function previewDe(mensajes) {
 // (getCurrentUser()), ademas del guard de rutas (RequiereSesion): la sesion
 // pudo expirar entre que se entro al modulo y que se monta esta pantalla.
 //
-// Rutas: /techobot es la lista; /techobot/:conversacionId el chat abierto
-// (id numerico, o "nueva" para una conversacion que se crea con el primer
-// mensaje y entonces la URL se reemplaza por /techobot/<id>).
+// Rutas: /techobot es la lista; /techobot/chat el chat abierto, con el id de la
+// conversacion en el estado del historial (NO en la URL: no aparece en la barra
+// de direcciones, en ?volver= ni al copiar el enlace); /techobot/nueva una
+// conversacion que se crea con el primer mensaje y entonces se reemplaza por
+// /techobot/chat con su id en el estado. /techobot/chat sin estado (pestana
+// nueva, enlace pegado) vuelve a la lista con un aviso.
 function ChatBotScreen({ onLogout }) {
-  const { conversacionId: idRuta } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const ruta = normalizarRuta(location.pathname);
+  const esNueva = ruta === RUTAS.chatNuevo;
+  const enConversacion = esNueva || ruta === RUTAS.chat;
+  const idConversacion = ruta === RUTAS.chat ? idConversacionDeEstado(location.state) : null;
+  const idValido = ruta !== RUTAS.chat || idConversacion !== null;
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [messagesCache, setMessagesCache] = useState({});
@@ -66,14 +73,11 @@ function ChatBotScreen({ onLogout }) {
   const [ultimaConversacion, setUltimaConversacion] = useState(null);
   const [avisoRuta, setAvisoRuta] = useState(null); // conversacion de la URL que no se pudo abrir
   // Cada "Nueva conversacion" es una vista distinta (key), y la conversacion que
-  // nace de ella conserva esa key al pasar de /techobot/nueva a /techobot/<id>:
+  // nace de ella conserva esa key al pasar de /techobot/nueva a /techobot/chat:
   // asi no se remonta (ni se pierde el envio en curso) al reemplazar la URL.
   const [secuenciaNueva, setSecuenciaNueva] = useState(0);
   const creadaDesdeNueva = useRef(null); // { id, clave }
 
-  const idValido = idRuta === undefined || esIdConversacionValido(idRuta);
-  const esNueva = idRuta === ID_CONVERSACION_NUEVA;
-  const idConversacion = idRuta !== undefined && idValido && !esNueva ? Number(idRuta) : null;
 
   useEffect(() => {
     getCurrentUser(onLogout)
@@ -124,8 +128,8 @@ function ChatBotScreen({ onLogout }) {
     if (idConversacion !== null) setUltimaConversacion(idConversacion);
   }, [idConversacion]);
 
-  // Un /techobot/<id> que no esta en el historial cargado (recarga directa,
-  // enlace, conversacion ajena) se pide aparte: si falla, se vuelve a la lista
+  // Una conversacion del estado que no esta en el historial cargado (recarga
+  // directa, conversacion ajena en el estado) se pide aparte: si falla, se vuelve a la lista
   // con un aviso. La lista no redirige nunca, asi que no hay bucle posible.
   useEffect(() => {
     if (!user || loadingHistory || idConversacion === null || messagesCache[idConversacion]) return undefined;
@@ -143,19 +147,19 @@ function ChatBotScreen({ onLogout }) {
   }, [user, loadingHistory, idConversacion, messagesCache, onLogout]);
 
   const abrirConversacion = (conversacionId) => {
-    navigate(rutaDeConversacion(conversacionId), { state: { desdeLista: true } });
+    navigate(RUTAS.chat, { state: estadoDeConversacion(conversacionId, { desdeLista: true }) });
   };
 
   const abrirNuevaConversacion = () => {
     setSecuenciaNueva((n) => n + 1);
-    navigate(rutaDeConversacion(ID_CONVERSACION_NUEVA), { state: { desdeLista: true } });
+    navigate(RUTAS.chatNuevo, { state: { desdeLista: true } });
   };
 
   const onConversacionCreada = (nuevaConversacion) => {
     creadaDesdeNueva.current = { id: nuevaConversacion.id, clave: `nueva-${secuenciaNueva}` };
     setConversations((actuales) => [nuevaConversacion, ...actuales]);
     setMessagesCache((actual) => ({ ...actual, [nuevaConversacion.id]: actual[nuevaConversacion.id] ?? [] }));
-    navigate(rutaDeConversacion(nuevaConversacion.id), { replace: true, state: location.state });
+    navigate(RUTAS.chat, { replace: true, state: estadoDeConversacion(nuevaConversacion.id, location.state) });
   };
 
   const onMensajesActualizados = (conversacionId, mensajes) => {
@@ -178,7 +182,6 @@ function ChatBotScreen({ onLogout }) {
 
   if (!user) return <p>Cargando...</p>;
 
-  const enConversacion = idRuta !== undefined;
   const claveVista = esNueva
     ? `nueva-${secuenciaNueva}`
     : creadaDesdeNueva.current?.id === idConversacion

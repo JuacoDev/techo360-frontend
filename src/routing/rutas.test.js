@@ -7,12 +7,11 @@ import {
   destinoDeBusqueda,
   destinoDeVolver,
   destinoTrasLogin,
-  esIdConversacionValido,
+  estadoDeConversacion,
   esRutaDeAcceso,
   esRutaProtegida,
-  idConversacionDeRuta,
+  idConversacionDeEstado,
   normalizarRuta,
-  rutaDeConversacion,
   rutaDeLogin,
 } from "./rutas.js";
 
@@ -20,7 +19,7 @@ test("tabla: rutas de la app; la del bot es /techobot y /chatbot NO existe (coli
   assert.deepEqual(RUTAS, {
     inicio: "/", login: "/login", registro: "/registro", recuperar: "/recuperar",
     mapaCalor: "/mapa-calor", proyeccion: "/proyeccion", perfil: "/perfil",
-    reportes: "/reportes", techobot: "/techobot",
+    reportes: "/reportes", techobot: "/techobot", chat: "/techobot/chat", chatNuevo: "/techobot/nueva",
   });
   for (const ruta of ["/chatbot", "/chatbot/3", "/auth", "/otp", "/api/zonas"]) {
     assert.equal(esRutaProtegida(ruta), false, ruta);
@@ -31,17 +30,18 @@ test("tabla: rutas de la app; la del bot es /techobot y /chatbot NO existe (coli
 test("normalizarRuta: barra final, mayusculas, query y hash", () => {
   assert.equal(normalizarRuta("/Mapa-Calor/"), "/mapa-calor");
   assert.equal(normalizarRuta("/proyeccion?x=1#y"), "/proyeccion");
-  assert.equal(normalizarRuta("/techobot/12/"), "/techobot/12");
+  assert.equal(normalizarRuta("/techobot/chat/"), "/techobot/chat");
   assert.equal(normalizarRuta(""), "/");
   assert.equal(normalizarRuta("///"), "/");
   assert.equal(normalizarRuta(undefined), "/");
 });
 
-test("protegidas: mapa, proyeccion, perfil, reportes, techobot y /techobot/:id valido", () => {
-  for (const r of ["/mapa-calor", "/proyeccion", "/perfil", "/reportes", "/techobot", "/techobot/12", "/techobot/nueva", "/TechoBot/7/"]) {
+test("protegidas: mapa, proyeccion, perfil, reportes, techobot, /techobot/chat y /techobot/nueva", () => {
+  for (const r of ["/mapa-calor", "/proyeccion", "/perfil", "/reportes", "/techobot", "/techobot/chat", "/techobot/nueva", "/TechoBot/Chat/"]) {
     assert.equal(esRutaProtegida(r), true, r);
   }
-  for (const r of ["/", "/login", "/registro", "/recuperar", "/x", "/techobot/abc", "/techobot/1/2", "/techobot/-1", "/mapa-calor/otra"]) {
+  // el id ya no va en la URL: /techobot/12 deja de ser una ruta valida
+  for (const r of ["/", "/login", "/registro", "/recuperar", "/x", "/techobot/12", "/techobot/abc", "/techobot/chat/12", "/techobot/-1", "/mapa-calor/otra"]) {
     assert.equal(esRutaProtegida(r), false, r);
   }
 });
@@ -51,25 +51,27 @@ test("rutas de acceso", () => {
   for (const r of ["/", "/mapa-calor", "/techobot"]) assert.equal(esRutaDeAcceso(r), false, r);
 });
 
-test("/techobot/:id: id numerico o 'nueva'; lo demas no es conversacion", () => {
-  assert.equal(idConversacionDeRuta("/techobot/12"), "12");
-  assert.equal(idConversacionDeRuta("/techobot/nueva"), "nueva");
-  assert.equal(idConversacionDeRuta("/techobot"), null);
-  for (const r of ["/techobot/abc", "/techobot/1.5", "/techobot/", "/techobot/12/x", "/chatbot/12", "/techobot/1234567890123"]) {
-    assert.equal(idConversacionDeRuta(r), null, r);
+test("id de conversacion en el estado del historial (no en la URL)", () => {
+  assert.equal(idConversacionDeEstado({ conversacionId: 12 }), 12);
+  assert.equal(idConversacionDeEstado({ conversacionId: "12" }), 12);
+  assert.equal(idConversacionDeEstado({ conversacionId: 0 }), 0);
+  for (const e of [null, undefined, {}, { conversacionId: "abc" }, { conversacionId: -1 }, { conversacionId: 1.5 }, { conversacionId: "1234567890123" }, { conversacionId: true }, { otro: 3 }]) {
+    assert.equal(idConversacionDeEstado(e), null, JSON.stringify(e));
   }
-  assert.equal(esIdConversacionValido("0"), true);
-  assert.equal(esIdConversacionValido(undefined), false);
-  assert.equal(esIdConversacionValido("12abc"), false);
-  assert.equal(rutaDeConversacion(12), "/techobot/12");
+  assert.deepEqual(estadoDeConversacion(7), { conversacionId: 7 });
+  assert.deepEqual(estadoDeConversacion(7, { desdeLista: true, conversacionId: 1 }), { desdeLista: true, conversacionId: 7 });
+  assert.deepEqual(estadoDeConversacion(7, null), { conversacionId: 7 });
+  // la ruta del chat es fija: el id no aparece en ella
+  assert.equal(RUTAS.chat.includes("7"), false);
 });
 
 test("?volver= valido: rutas protegidas, incluido un chat abierto", () => {
   assert.equal(destinoDeVolver("/mapa-calor"), "/mapa-calor");
-  assert.equal(destinoDeVolver("/techobot/42"), "/techobot/42");
+  assert.equal(destinoDeVolver("/techobot/chat"), "/techobot/chat");
+  assert.equal(destinoDeVolver("/techobot/42"), null, "un id en ?volver= ya no se acepta");
   assert.equal(destinoDeVolver("/Perfil/"), "/perfil");
-  assert.equal(destinoDeBusqueda("?volver=/techobot/42"), "/techobot/42");
-  assert.equal(destinoDeBusqueda("?volver=%2Ftechobot%2F42"), "/techobot/42");
+  assert.equal(destinoDeBusqueda("?volver=/techobot/chat"), "/techobot/chat");
+  assert.equal(destinoDeBusqueda("?volver=%2Ftechobot%2Fchat"), "/techobot/chat");
 });
 
 test("?volver= invalido se ignora (no es redireccion abierta)", () => {
@@ -84,14 +86,15 @@ test("?volver= invalido se ignora (no es redireccion abierta)", () => {
 });
 
 test("rutaDeLogin: guarda el destino solo si es valido", () => {
-  assert.equal(rutaDeLogin("/techobot/9"), "/login?volver=/techobot/9");
+  assert.equal(rutaDeLogin("/techobot/chat"), "/login?volver=/techobot/chat");
+  assert.equal(rutaDeLogin("/techobot/9"), "/login");
   assert.equal(rutaDeLogin("/mapa-calor/"), "/login?volver=/mapa-calor");
   assert.equal(rutaDeLogin("//evil.com"), "/login");
   assert.equal(rutaDeLogin("/"), "/login");
 });
 
 test("tras login: ?volver= > sugerido > mapa de calor", () => {
-  assert.equal(destinoTrasLogin({ busqueda: "?volver=/techobot/9" }), "/techobot/9");
+  assert.equal(destinoTrasLogin({ busqueda: "?volver=/techobot/chat" }), "/techobot/chat");
   assert.equal(destinoTrasLogin({ busqueda: "?volver=/proyeccion", sugerido: "/" }), "/proyeccion");
   assert.equal(destinoTrasLogin({ busqueda: "", sugerido: "/" }), "/");
   assert.equal(destinoTrasLogin({ busqueda: "?volver=//evil.com" }), "/mapa-calor");
@@ -100,7 +103,7 @@ test("tras login: ?volver= > sugerido > mapa de calor", () => {
 });
 
 test("con sesion en /login: al ?volver= valido o al inicio", () => {
-  assert.equal(destinoConSesionEnLogin("?volver=/techobot/3"), "/techobot/3");
+  assert.equal(destinoConSesionEnLogin("?volver=/techobot/chat"), "/techobot/chat");
   assert.equal(destinoConSesionEnLogin("?volver=/login"), "/");
   assert.equal(destinoConSesionEnLogin(""), "/");
 });
@@ -109,10 +112,10 @@ test("historial: salir del acceso reemplaza; entre pantallas de acceso o fuera d
   assert.equal(debeReemplazar("/login", "/mapa-calor"), true);
   assert.equal(debeReemplazar("/login", "/"), true);
   assert.equal(debeReemplazar("/registro", "/mapa-calor"), true);
-  assert.equal(debeReemplazar("/login", "/techobot/4"), true);
+  assert.equal(debeReemplazar("/login", "/techobot/chat"), true);
   assert.equal(debeReemplazar("/login", "/registro"), false);
   assert.equal(debeReemplazar("/recuperar", "/login"), false);
   assert.equal(debeReemplazar("/", "/login"), false);
-  assert.equal(debeReemplazar("/techobot", "/techobot/4"), false);
+  assert.equal(debeReemplazar("/techobot", "/techobot/chat"), false);
   assert.equal(debeReemplazar("/mapa-calor", "/perfil"), false);
 });

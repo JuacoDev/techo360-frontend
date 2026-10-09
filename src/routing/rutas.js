@@ -17,11 +17,14 @@ export const RUTAS = {
   perfil: "/perfil",
   reportes: "/reportes",
   techobot: "/techobot", // lista de conversaciones
+  // Chat abierto. El id de la conversacion NO va en la URL: viaja en el estado
+  // del historial (history.state, via navigate(..., { state })), que sobrevive a
+  // F5 y a Atras/Adelante pero no a un enlace copiado ni a una pestana nueva.
+  chat: "/techobot/chat",
+  // Conversacion que todavia no existe; al crearse con el primer mensaje se
+  // reemplaza por /techobot/chat con el id en el estado.
+  chatNuevo: "/techobot/nueva",
 };
-
-// Valor del parametro :id para una conversacion que todavia no existe; al
-// crearse con el primer mensaje, la URL se reemplaza por /techobot/<id>.
-export const ID_CONVERSACION_NUEVA = "nueva";
 
 const RUTAS_PROTEGIDAS = new Set([
   RUTAS.mapaCalor,
@@ -29,11 +32,12 @@ const RUTAS_PROTEGIDAS = new Set([
   RUTAS.perfil,
   RUTAS.reportes,
   RUTAS.techobot,
+  RUTAS.chat,
+  RUTAS.chatNuevo,
 ]);
 
 const RUTAS_DE_ACCESO = new Set([RUTAS.login, RUTAS.registro, RUTAS.recuperar]);
 
-const PATRON_CHAT = /^\/techobot\/([^/]+)$/;
 const PATRON_ID = /^\d{1,12}$/;
 
 export function normalizarRuta(ruta) {
@@ -42,24 +46,22 @@ export function normalizarRuta(ruta) {
   return sinBarraFinal === "" ? "/" : sinBarraFinal;
 }
 
-// "12" y "nueva" son ids validos; cualquier otro valor (abc, -1, 1.5) no.
-export function esIdConversacionValido(id) {
-  return typeof id === "string" && (id === ID_CONVERSACION_NUEVA || PATRON_ID.test(id));
+// Id de la conversacion guardado en el estado del historial ({ conversacionId }):
+// entero positivo (o su texto, de hasta 12 cifras). Cualquier otra cosa -> null.
+export function idConversacionDeEstado(estado) {
+  const id = estado?.conversacionId;
+  if (typeof id === "number") return Number.isSafeInteger(id) && id >= 0 ? id : null;
+  if (typeof id === "string" && PATRON_ID.test(id)) return Number(id);
+  return null;
 }
 
-// /techobot/12 -> "12"; /techobot/nueva -> "nueva"; cualquier otra ruta -> null.
-export function idConversacionDeRuta(ruta) {
-  const coincidencia = PATRON_CHAT.exec(normalizarRuta(ruta));
-  return coincidencia && esIdConversacionValido(coincidencia[1]) ? coincidencia[1] : null;
-}
-
-export function rutaDeConversacion(id) {
-  return `${RUTAS.techobot}/${id}`;
+// Estado para navegar a RUTAS.chat: conserva `extra` (p. ej. desdeLista) y fija el id.
+export function estadoDeConversacion(id, extra = {}) {
+  return { ...(extra ?? {}), conversacionId: id };
 }
 
 export function esRutaProtegida(ruta) {
-  const r = normalizarRuta(ruta);
-  return RUTAS_PROTEGIDAS.has(r) || idConversacionDeRuta(r) !== null;
+  return RUTAS_PROTEGIDAS.has(normalizarRuta(ruta));
 }
 
 export function esRutaDeAcceso(ruta) {
@@ -67,7 +69,7 @@ export function esRutaDeAcceso(ruta) {
 }
 
 // ?volver=/mapa-calor -> "/mapa-calor". Solo se aceptan rutas conocidas Y
-// protegidas (incluido /techobot/<id> valido): cualquier otro valor
+// protegidas (incluido /techobot/chat, que no lleva id): cualquier otro valor
 // (https://..., //otro.sitio, /login, /api/...) da null, asi el parametro no
 // puede usarse como redireccion abierta.
 export function destinoDeVolver(volver) {
