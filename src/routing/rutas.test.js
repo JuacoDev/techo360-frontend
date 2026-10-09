@@ -7,6 +7,7 @@ import {
   destinoDeBusqueda,
   destinoDeVolver,
   destinoTrasLogin,
+  claveDeConversacion,
   estadoDeConversacion,
   esRutaDeAcceso,
   esRutaProtegida,
@@ -118,4 +119,27 @@ test("historial: salir del acceso reemplaza; entre pantallas de acceso o fuera d
   assert.equal(debeReemplazar("/", "/login"), false);
   assert.equal(debeReemplazar("/techobot", "/techobot/chat"), false);
   assert.equal(debeReemplazar("/mapa-calor", "/perfil"), false);
+});
+
+const UUID = "6f1c2d3e-4b5a-4c6d-8e9f-0a1b2c3d4e5f";
+
+test("public_id (UUID) en el estado del historial", () => {
+  assert.equal(idConversacionDeEstado({ conversacionId: UUID }), UUID);
+  assert.equal(idConversacionDeEstado({ conversacionId: UUID.toUpperCase() }), UUID, "se normaliza a minusculas");
+  for (const malo of ["6f1c2d3e-4b5a", `${UUID}x`, `x${UUID}`, "6f1c2d3e4b5a4c6d8e9f0a1b2c3d4e5f", "../techobot"]) {
+    assert.equal(idConversacionDeEstado({ conversacionId: malo }), null, malo);
+  }
+});
+
+test("claveDeConversacion: public_id si el backend lo da, si no el id entero", () => {
+  assert.equal(claveDeConversacion({ id: 11, public_id: UUID }), UUID);
+  assert.equal(claveDeConversacion({ id: 11, public_id: UUID.toUpperCase() }), UUID);
+  assert.equal(claveDeConversacion({ id: 11 }), 11, "backend sin public_id (antes del despliegue)");
+  assert.equal(claveDeConversacion({ id: 11, public_id: null }), 11);
+  assert.equal(claveDeConversacion({ id: 11, public_id: "no-es-uuid" }), 11);
+  assert.equal(claveDeConversacion(null), null);
+  // ida y vuelta: lo que se guarda en el estado se vuelve a leer igual
+  for (const c of [{ id: 11, public_id: UUID }, { id: 11 }]) {
+    assert.equal(idConversacionDeEstado(estadoDeConversacion(claveDeConversacion(c))), claveDeConversacion(c));
+  }
 });
