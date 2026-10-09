@@ -28,3 +28,11 @@ export function extraerMensajeDetalle(detail) {
 
   return null;
 }
+
+// Aviso cuando /techobot/:id apunta a una conversacion que no se pudo abrir
+// (id inexistente, de otro usuario o error de red al leer sus mensajes).
+export function avisoConversacionNoDisponible(status) {
+  if (status === 403 || status === 404) return "Esa conversación no existe o no es tuya. Te mostramos tu historial.";
+  if (status === undefined || status === null) return "Esa dirección no corresponde a una conversación. Te mostramos tu historial.";
+  return "No se pudo abrir esa conversación. Te mostramos tu historial.";
+}
