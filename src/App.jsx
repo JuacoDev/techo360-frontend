@@ -9,6 +9,7 @@ import ChatBot from "./components/Chatbot";
 import MapView from "./components/MapView";
 import PanelIndicadores from "./components/PanelIndicadores";
 import PantallaCarga from "./components/PantallaCarga";
+import { useModoCapas } from "./components/SelectorCapasMapa";
 import AutenticarScreens from "./pages/InicioYRegistroCuenta/AutenticarScreens";
 import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
@@ -200,6 +201,8 @@ function MapaCalor({ onLogout, departamentos, datosMunicipios, zonaSeleccionada,
   const [capasListas, setCapasListas] = useState(false);
   const [limiteVencido, setLimiteVencido] = useState(false);
   const alCapasListas = useCallback(() => setCapasListas(true), []);
+  // Modo de capas de ESTE mapa: lo cambian el selector del mapa y los desplegables del buscador.
+  const modoCapas = useModoCapas();
   const listo = capasListas || limiteVencido;
 
   useEffect(() => {
@@ -215,6 +218,7 @@ function MapaCalor({ onLogout, departamentos, datosMunicipios, zonaSeleccionada,
     codigoSeleccionado: zonaSeleccionada?.codigo ?? null,
     scoreSeleccionado: zonaSeleccionada?.score_privacion ?? null,
     nivelSeleccionado: zonaSeleccionada?.nivel ?? null,
+    modoCapas,
   };
 
   return (
@@ -228,6 +232,7 @@ function MapaCalor({ onLogout, departamentos, datosMunicipios, zonaSeleccionada,
             departamentos={departamentos}
             datosMunicipios={datosMunicipios}
             zonaActiva={zonaSeleccionada}
+            onEventoCapas={modoCapas[1]}
           />
           <div className="dashboard-map-container">
             <MapView {...propsMapa} />

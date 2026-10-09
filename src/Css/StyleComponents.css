@@ -1100,3 +1100,42 @@ proyecciones
   cursor: pointer;
   color: #dc2626;
 }
+
+/* Selector de modo de capas (SelectorCapasMapa.jsx): a la derecha de los
+   botones de zoom de Leaflet (mismo hueco que usa la barra de año, que baja
+   una fila cuando conviven). */
+.selector-capas {
+  position: absolute;
+  top: 10px;
+  left: 56px;
+  z-index: 1000;
+  display: inline-flex;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+}
+.selector-capas-leyenda { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.selector-capas-opcion { position: relative; display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px; color: #3d3935; font-weight: 600; cursor: pointer; user-select: none; transition: background-color 150ms ease, color 150ms ease; }
+.selector-capas-opcion input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.selector-capas-opcion:hover { background: #f4efe8; }
+.selector-capas-opcion.is-activa { background: #6b4a3d; color: #fff; }
+.selector-capas-opcion:has(input:focus-visible) { outline: 2px solid #9a4a0b; outline-offset: 1px; }
+.map-view-wrapper:has(.selector-capas) .map-year-bar { top: 52px; }
+@media (max-width: 700px) {
+  .selector-capas { font-size: 11px; }
+  .selector-capas-opcion { padding: 5px 8px; }
+  /* a la derecha del zoom y bajo el selector: mas abajo la tapa la leyenda */
+  .map-view-wrapper:has(.selector-capas) .map-year-bar { top: 50px; left: 56px; max-width: calc(100% - 66px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selector-capas-opcion { transition: none; }
+}
+
+.barra-limpiar { flex: none; padding: 0 14px; border: 1px solid #d8d2c8; border-radius: 8px; background: #fff; color: #5c4033; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.barra-limpiar:hover { border-color: #9a4a0b; background: #fff6ee; }
+.barra-limpiar:focus-visible { outline: 2px solid #9a4a0b; outline-offset: 2px; }
