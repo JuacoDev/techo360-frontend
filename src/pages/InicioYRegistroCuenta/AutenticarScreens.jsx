@@ -71,7 +71,7 @@ function AuthScreens({ flujo }) {
 
   return (
     <Login
-      onContinue={() => irA(destinoTrasLogin({ busqueda: search, sugerido: state?.volver }))}
+      onContinue={() => irA(destinoTrasLogin({ busqueda: search, sugerido: state?.volver }), { state: state?.estadoDestino })}
       goToRegister={() => irA(RUTAS.registro)}
       goToRecovery={() => irA(RUTAS.recuperar)}
     />

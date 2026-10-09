@@ -19,6 +19,7 @@ import Reportes from "./pages/Reportes/Reportes.jsx";
 import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion, getRangoProyeccionZonas } from "./services/api";
 import { RequiereSesion, SoloSinSesion } from "./routing/Guardias.jsx";
 import { RUTAS } from "./routing/rutas.js";
+import { avisoConversacionNoDisponible } from "./services/mensajesError.js";
 
 // Las rutas viven en la URL con react-router (modo declarativo, BrowserRouter
 // en Main.jsx). App queda POR ENCIMA de <Routes>: los datos del mapa se
@@ -181,7 +182,13 @@ function App() {
         />
         <Route path={RUTAS.perfil} element={<PerfilUsuario onLogout={logout} />} />
         <Route path={RUTAS.techobot} element={<ChatBotScreen onLogout={logout} />} />
-        <Route path={`${RUTAS.techobot}/:conversacionId`} element={<ChatBotScreen onLogout={logout} />} />
+        <Route path={RUTAS.chat} element={<ChatBotScreen onLogout={logout} />} />
+        <Route path={RUTAS.chatNuevo} element={<ChatBotScreen onLogout={logout} />} />
+        {/* Enlaces viejos con el id en la URL (/techobot/12): el id ya no va en la ruta. */}
+        <Route
+          path={`${RUTAS.techobot}/*`}
+          element={<Navigate to={RUTAS.techobot} replace state={{ aviso: avisoConversacionNoDisponible() }} />}
+        />
       </Route>
 
       <Route path="*" element={<Navigate to={RUTAS.inicio} replace />} />
