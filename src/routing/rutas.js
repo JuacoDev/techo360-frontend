@@ -39,6 +39,7 @@ const RUTAS_PROTEGIDAS = new Set([
 const RUTAS_DE_ACCESO = new Set([RUTAS.login, RUTAS.registro, RUTAS.recuperar]);
 
 const PATRON_ID = /^\d{1,12}$/;
+const PATRON_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function normalizarRuta(ruta) {
   const sinExtras = String(ruta ?? "/").toLowerCase().split("?")[0].split("#")[0];
@@ -46,13 +47,25 @@ export function normalizarRuta(ruta) {
   return sinBarraFinal === "" ? "/" : sinBarraFinal;
 }
 
-// Id de la conversacion guardado en el estado del historial ({ conversacionId }):
-// entero positivo (o su texto, de hasta 12 cifras). Cualquier otra cosa -> null.
+// Identificador de la conversacion guardado en el estado del historial
+// ({ conversacionId }): el public_id (UUID, en minusculas) que da el backend, o el id
+// entero (o su texto, de hasta 12 cifras) mientras el backend no lo exponga.
+// Cualquier otra cosa -> null.
 export function idConversacionDeEstado(estado) {
   const id = estado?.conversacionId;
   if (typeof id === "number") return Number.isSafeInteger(id) && id >= 0 ? id : null;
   if (typeof id === "string" && PATRON_ID.test(id)) return Number(id);
+  if (typeof id === "string" && PATRON_UUID.test(id)) return id.toLowerCase();
   return null;
+}
+
+// Identificador que el frontend usa para una conversacion de la API: public_id si el
+// backend ya lo devuelve (opaco, no enumerable), si no el id entero. Funciona antes y
+// despues de desplegar el backend con public_id.
+export function claveDeConversacion(conversacion) {
+  const publico = conversacion?.public_id;
+  if (typeof publico === "string" && PATRON_UUID.test(publico)) return publico.toLowerCase();
+  return conversacion?.id ?? null;
 }
 
 // Estado para navegar a RUTAS.chat: conserva `extra` (p. ej. desdeLista) y fija el id.
