@@ -37,7 +37,7 @@ function App() {
 
   // Se arregló para implementar react-router: se quitaron los flags mapReady/
   // departamentosReady/municipiosReady/buscadorReady (nadie los ponia en true;
-  // el paso carga -> mapa lo da onMapLoaded, ahora dentro de MapaCalor).
+  // el paso carga -> mapa lo decide MapaCalor, mas abajo).
 
   // "Ya se disparo el fetch de esta sesion" -- ref, no state, porque solo
   // nos importa como guardia sincrona dentro del efecto (si fuera state,
@@ -188,16 +188,27 @@ function App() {
   );
 }
 
-// /mapa-calor: primero la pantalla de carga con el mapa montado detras (para
-// que Leaflet arranque) y, en cuanto el mapa avisa que esta listo, el dashboard.
-// Ambas fases comparten la ruta; el estado es local, asi que cada visita vuelve
-// a pasar por la carga (como antes), pero sin volver a descargar los datos.
+// /mapa-calor: UN solo mapa. La pantalla de carga se superpone al dashboard y se
+// quita con una senal real -- las dos capas (departamentos y municipios) ya
+// construidas y pintadas (onCapasListas de MapView) --, no con whenReady de
+// Leaflet, que llega antes que los datos y dejaba ver un mapa vacio y luego el
+// "pop-in" de los poligonos. Si los datos no llegan (error de red), a los
+// LIMITE_CARGA_MS se muestra el mapa igual para no dejar al usuario bloqueado.
+const LIMITE_CARGA_MS = 20000;
+
 function MapaCalor({ onLogout, departamentos, datosMunicipios, zonaSeleccionada, seleccionarZona }) {
-  const [mapaListo, setMapaListo] = useState(false);
-  const alCargarMapa = useCallback(() => setMapaListo(true), []);
+  const [capasListas, setCapasListas] = useState(false);
+  const [limiteVencido, setLimiteVencido] = useState(false);
+  const alCapasListas = useCallback(() => setCapasListas(true), []);
+  const listo = capasListas || limiteVencido;
+
+  useEffect(() => {
+    const t = setTimeout(() => setLimiteVencido(true), LIMITE_CARGA_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   const propsMapa = {
-    onMapLoaded: alCargarMapa,
+    onCapasListas: alCapasListas,
     onZonaSeleccionada: seleccionarZona,
     departamentos,
     datosMunicipios,
@@ -206,19 +217,9 @@ function MapaCalor({ onLogout, departamentos, datosMunicipios, zonaSeleccionada,
     nivelSeleccionado: zonaSeleccionada?.nivel ?? null,
   };
 
-  if (!mapaListo) {
-    return (
-      <>
-        <PantallaCarga />
-        <div className="map-loading-container">
-          <MapView {...propsMapa} />
-        </div>
-      </>
-    );
-  }
-
   return (
-    <main className="app-shell">
+    <main className="app-shell" aria-busy={!listo}>
+      {!listo && <PantallaCarga />}
       <CabezaDeNavegacion onLogout={onLogout} />
       <div className="dashboard-layout">
         <section className="dashboard-main-column" aria-label="Mapa y buscador">
