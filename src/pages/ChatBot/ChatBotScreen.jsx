@@ -29,7 +29,7 @@ import { AvisoError, IndicadorEspera, MensajeEstado, Presencia } from "./Estados
 import { useScrollDelChat } from "./useScrollDelChat.js";
 // react-markdown (~40 KB gzip) solo se descarga al abrir el chat, no en el bundle principal.
 const RespuestaBot = lazy(() => import("./RespuestaBot.jsx"));
-import { RUTAS, estadoDeConversacion, idConversacionDeEstado, normalizarRuta } from "../../routing/rutas.js";
+import { RUTAS, claveDeConversacion, estadoDeConversacion, idConversacionDeEstado, normalizarRuta } from "../../routing/rutas.js";
 
 function formatearFecha(fechaIso) {
   return new Date(fechaIso).toLocaleString("es-CO", {
@@ -101,9 +101,9 @@ function ChatBotScreen({ onLogout }) {
         const conMensajes = await Promise.all(
           lista.map(async (conversacion) => {
             try {
-              return [conversacion.id, await listarMensajes(conversacion.id, onLogout)];
+              return [claveDeConversacion(conversacion), await listarMensajes(claveDeConversacion(conversacion), onLogout)];
             } catch {
-              return [conversacion.id, []];
+              return [claveDeConversacion(conversacion), []];
             }
           })
         );
@@ -156,10 +156,11 @@ function ChatBotScreen({ onLogout }) {
   };
 
   const onConversacionCreada = (nuevaConversacion) => {
-    creadaDesdeNueva.current = { id: nuevaConversacion.id, clave: `nueva-${secuenciaNueva}` };
+    const clave = claveDeConversacion(nuevaConversacion);
+    creadaDesdeNueva.current = { id: clave, clave: `nueva-${secuenciaNueva}` };
     setConversations((actuales) => [nuevaConversacion, ...actuales]);
-    setMessagesCache((actual) => ({ ...actual, [nuevaConversacion.id]: actual[nuevaConversacion.id] ?? [] }));
-    navigate(RUTAS.chat, { replace: true, state: estadoDeConversacion(nuevaConversacion.id, location.state) });
+    setMessagesCache((actual) => ({ ...actual, [clave]: actual[clave] ?? [] }));
+    navigate(RUTAS.chat, { replace: true, state: estadoDeConversacion(clave, location.state) });
   };
 
   const onMensajesActualizados = (conversacionId, mensajes) => {
@@ -239,13 +240,13 @@ function ChatBotScreen({ onLogout }) {
                   {conversations.map((conversacion) => (
                     <button
                       type="button"
-                      className={`chatbot-history-item${ultimaConversacion === conversacion.id ? " is-active" : ""}`}
-                      key={conversacion.id}
-                      onClick={() => abrirConversacion(conversacion.id)}
+                      className={`chatbot-history-item${ultimaConversacion === claveDeConversacion(conversacion) ? " is-active" : ""}`}
+                      key={claveDeConversacion(conversacion)}
+                      onClick={() => abrirConversacion(claveDeConversacion(conversacion))}
                     >
                       <span className="chatbot-history-item-mark" aria-hidden="true" />
                       <span className="chatbot-history-item-content">
-                        <strong>{previewDe(messagesCache[conversacion.id])}</strong>
+                        <strong>{previewDe(messagesCache[claveDeConversacion(conversacion)])}</strong>
                       </span>
                       <span className="chatbot-history-item-date">{formatearFecha(conversacion.fecha)}</span>
                       <span className="chatbot-history-item-arrow" aria-hidden="true">→</span>
@@ -356,11 +357,11 @@ function ChatConversationView({
     setTextoEnviando(contenido);
     setInicioEnvio(Date.now());
 
+    let convId = conversacionId;
     try {
-      let convId = conversacionId;
       if (convId == null) {
         const nueva = await crearConversacion(onLogout);
-        convId = nueva.id;
+        convId = claveDeConversacion(nueva);
         onConversacionCreada(nueva);
       }
 
@@ -374,11 +375,11 @@ function ChatConversationView({
         if (err.mensajeUsuario) {
           // El servidor ya guardo el mensaje (con su estado, p. ej. 'error'): vive en
           // el historial con sus botones; no se restaura el texto en el cuadro.
-          actualizarMensajes(conversacionId ?? err.mensajeUsuario.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajeUsuario));
-          if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(conversacionId ?? err.mensajeUsuario.conversacion_id);
+          actualizarMensajes(convId ?? err.mensajeUsuario.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajeUsuario));
+          if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(convId ?? err.mensajeUsuario.conversacion_id);
         } else if (err.mensajePendiente) {
           // 409: ya habia un mensaje sin resolver (p. ej. enviado desde otra pestana).
-          actualizarMensajes(conversacionId ?? err.mensajePendiente.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajePendiente));
+          actualizarMensajes(convId ?? err.mensajePendiente.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajePendiente));
           setSendError(err.message);
           setInput(contenido);
         } else {
@@ -442,7 +443,8 @@ function ChatConversationView({
     const miAccion = ++contadorAcciones.current;
     setAccionEnCurso({ id: mensaje.id, accion, desde: Date.now() });
     setSendError(null);
-    const convId = mensaje.conversacion_id;
+    // La clave de esta vista (public_id) manda sobre el conversacion_id entero del mensaje.
+    const convId = conversacionId ?? mensaje.conversacion_id;
     try {
       if (accion === "reintentar") {
         actualizarMensajes(convId, (lista) => aplicarMensaje(lista, { ...mensaje, estado: "procesando", error_detalle: null }));
