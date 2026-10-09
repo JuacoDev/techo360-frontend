@@ -67,3 +67,17 @@ test("avisoConversacionNoDisponible: 403/404, id invalido y otros errores", asyn
   assert.match(avisoConversacionNoDisponible(undefined), /no corresponde/);
   assert.match(avisoConversacionNoDisponible(500), /No se pudo abrir/);
 });
+
+test("mensajeAmigableErrorChat: timeout/504, no disponible, red y textos tecnicos", async () => {
+  const { mensajeAmigableErrorChat } = await import("./mensajesError.js");
+  const tardo = /tardó demasiado/;
+  assert.match(mensajeAmigableErrorChat({ status: 504 }), tardo);
+  assert.match(mensajeAmigableErrorChat({ detalle: "Timeout esperando al asistente" }), tardo);
+  assert.match(mensajeAmigableErrorChat({ detalle: "El asistente tardó demasiado en responder, intenta de nuevo" }), tardo);
+  assert.match(mensajeAmigableErrorChat({ status: 503 }), /no está disponible/);
+  assert.match(mensajeAmigableErrorChat({ detalle: "Failed to fetch" }), /conexión/);
+  assert.equal(mensajeAmigableErrorChat({ detalle: "Traceback (most recent call last): ..." }), "No se pudo obtener una respuesta. Puedes reintentar.");
+  assert.equal(mensajeAmigableErrorChat({ detalle: "{'x': 1}" }), "No se pudo obtener una respuesta. Puedes reintentar.");
+  assert.equal(mensajeAmigableErrorChat({ detalle: "Ya hay un mensaje sin resolver en esta conversación." }), "Ya hay un mensaje sin resolver en esta conversación.");
+  assert.equal(mensajeAmigableErrorChat(), "No se pudo obtener una respuesta. Puedes reintentar.");
+});
