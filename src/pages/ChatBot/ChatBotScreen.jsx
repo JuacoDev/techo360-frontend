@@ -17,16 +17,15 @@ import {
 } from "../../services/api";
 import {
   INTERVALO_SONDEO_MS,
-  accionesDe,
   aplicarIntercambio,
   aplicarMensaje,
   conversacionBloqueada,
   estadoDe,
-  etiquetaEstado,
   hayEnProceso,
   quitarMensaje,
 } from "../../services/estadosMensaje.js";
 import { avisoConversacionNoDisponible } from "../../services/mensajesError.js";
+import { AvisoError, IndicadorEspera, MensajeEstado, Presencia } from "./EstadosChat.jsx";
 import { ID_CONVERSACION_NUEVA, RUTAS, esIdConversacionValido, rutaDeConversacion } from "../../routing/rutas.js";
 
 function formatearFecha(fechaIso) {
@@ -283,6 +282,7 @@ function ChatConversationView({
   const [feedbackEnviando, setFeedbackEnviando] = useState(null);
   const [feedbackError, setFeedbackError] = useState(null);
   const [textoEnviando, setTextoEnviando] = useState(null);
+  const [inicioEnvio, setInicioEnvio] = useState(null); // Date.now() del envio en curso (contador de espera)
   const [accionEnCurso, setAccionEnCurso] = useState(null); // { id, accion } mientras se reintenta/cancela/elimina
   const mensajesRef = useRef(mensajesIniciales);
   mensajesRef.current = messages;
@@ -347,6 +347,7 @@ function ChatConversationView({
     setSendError(null);
     setInput("");
     setTextoEnviando(contenido);
+    setInicioEnvio(Date.now());
 
     try {
       let convId = conversacionId;
@@ -432,7 +433,7 @@ function ChatConversationView({
   const ejecutarAccion = async (mensaje, accion) => {
     if (accionEnCurso && accion !== "cancelar") return; // cancelar SI se permite mientras se reintenta
     const miAccion = ++contadorAcciones.current;
-    setAccionEnCurso({ id: mensaje.id, accion });
+    setAccionEnCurso({ id: mensaje.id, accion, desde: Date.now() });
     setSendError(null);
     const convId = mensaje.conversacion_id;
     try {
@@ -509,13 +510,13 @@ function ChatConversationView({
               {mensaje.contenido}
             </div>
             <span className="chatbot-message-timestamp">{formatearFecha(mensaje.fecha)}</span>
-            {mensaje.rol === "usuario" && estadoDe(mensaje) !== "respondido" && (
+            <Presencia visible={mensaje.rol === "usuario" && estadoDe(mensaje) !== "respondido"}>
               <MensajeEstado
                 mensaje={mensaje}
                 accionEnCurso={accionEnCurso}
                 onAccion={(accion) => ejecutarAccion(mensaje, accion)}
               />
-            )}
+            </Presencia>
             {mensaje.rol === "asistente" && (
               <div className="chatbot-message-feedback" aria-label="Valorar respuesta">
                 {mensaje.feedback_util !== null ? (
@@ -552,19 +553,18 @@ function ChatConversationView({
           </div>
         )}
 
-        {sending && (
-          <div className="chatbot-thinking chatbot-thinking--barras">
-            <span className="chatbot-thinking-animation" aria-label="TechoBot está generando una respuesta"><i /><i /><i /></span>
-            <span className="chatbot-thinking-text">TechoBot está analizando tu consulta...</span>
-            <button type="button" className="chatbot-thinking-cancel" aria-label="Cancelar el mensaje que se está enviando" disabled={cancelandoEnvio} onClick={cancelarEnVuelo}>
-              {cancelandoEnvio ? "Cancelando…" : "Cancelar"}
-            </button>
-          </div>
-        )}
+        <Presencia visible={sending} className="chat-presencia--espera">
+          <IndicadorEspera
+            desde={inicioEnvio}
+            onCancelar={cancelarEnVuelo}
+            cancelando={cancelandoEnvio}
+            etiquetaCancelar="Cancelar el mensaje que se está enviando"
+          />
+        </Presencia>
       </div>
 
-      {sendError && <p className="chatbot-history-error">{sendError}</p>}
-      {feedbackError && <p className="chatbot-history-error">{feedbackError}</p>}
+      {sendError && <AvisoError key={sendError} texto={sendError} onCerrar={() => setSendError(null)} />}
+      {feedbackError && <AvisoError key={feedbackError} texto={feedbackError} onCerrar={() => setFeedbackError(null)} />}
       {bloqueada && !sending && (
         <p id="chatbot-aviso-bloqueo" className="chatbot-composer-bloqueado" role="status">
           Tienes un mensaje sin respuesta. Reintenta o elimínalo para poder enviar otra pregunta.
@@ -600,40 +600,6 @@ function ChatConversationView({
         <button type="button" aria-label="Enviar mensaje" onClick={handleSend} disabled={sending || bloqueada || !input.trim()}>→</button>
       </div>
     </section>
-  );
-}
-
-// Estado de un mensaje de usuario que NO esta respondido, con sus botones.
-function MensajeEstado({ mensaje, accionEnCurso, onAccion }) {
-  const estado = estadoDe(mensaje);
-  const acciones = accionesDe(mensaje);
-  const ocupado = accionEnCurso?.id === mensaje.id;
-  const enProceso = estado === "procesando" || estado === "pendiente";
-  const resumen = mensaje.contenido.length > 40 ? `${mensaje.contenido.slice(0, 40)}…` : mensaje.contenido;
-  return (
-    <div className={`chatbot-message-status chatbot-message-status--${estado}`} role="status" aria-live="polite">
-      <span className="chatbot-message-status-text">
-        {enProceso && <span className="chatbot-thinking-animation chatbot-message-status-animation" aria-hidden="true"><i /><i /><i /></span>}
-        {etiquetaEstado(mensaje)}
-      </span>
-      <span className="chatbot-message-actions">
-        {acciones.reintentar && (
-          <button type="button" aria-label={`Reintentar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("reintentar")}>
-            {ocupado && accionEnCurso.accion === "reintentar" ? "Reintentando…" : "Reintentar"}
-          </button>
-        )}
-        {acciones.cancelar && (
-          <button type="button" aria-label={`Cancelar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso) && !enProceso} onClick={() => onAccion("cancelar")}>
-            Cancelar
-          </button>
-        )}
-        {acciones.eliminar && (
-          <button type="button" aria-label={`Eliminar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("eliminar")}>
-            Eliminar
-          </button>
-        )}
-      </span>
-    </div>
   );
 }
 
