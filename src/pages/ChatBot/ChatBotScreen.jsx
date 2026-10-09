@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import "../../Css/StyleHome.css";
 import "../../Css/StyleComponents.css";
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
@@ -25,6 +26,8 @@ import {
   hayEnProceso,
   quitarMensaje,
 } from "../../services/estadosMensaje.js";
+import { avisoConversacionNoDisponible } from "../../services/mensajesError.js";
+import { ID_CONVERSACION_NUEVA, RUTAS, esIdConversacionValido, rutaDeConversacion } from "../../routing/rutas.js";
 
 function formatearFecha(fechaIso) {
   return new Date(fechaIso).toLocaleString("es-CO", {
@@ -43,17 +46,32 @@ function previewDe(mensajes) {
 }
 
 // Requiere sesion iniciada -- mismo mecanismo que PerfilUsuario.jsx
-// (getCurrentUser()), en vez de confiar solo en el gate previo de
-// Home.jsx (entrarAModulo): la sesion pudo expirar entre que se entro
-// al modulo y que se monta esta pantalla.
-function ChatBotScreen({ setScreen, onLogout }) {
+// (getCurrentUser()), ademas del guard de rutas (RequiereSesion): la sesion
+// pudo expirar entre que se entro al modulo y que se monta esta pantalla.
+//
+// Rutas: /techobot es la lista; /techobot/:conversacionId el chat abierto
+// (id numerico, o "nueva" para una conversacion que se crea con el primer
+// mensaje y entonces la URL se reemplaza por /techobot/<id>).
+function ChatBotScreen({ onLogout }) {
+  const { conversacionId: idRuta } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [messagesCache, setMessagesCache] = useState({});
   const [historyError, setHistoryError] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [activeConversation, setActiveConversation] = useState(null);
-  const [view, setView] = useState("history");
+  const [ultimaConversacion, setUltimaConversacion] = useState(null);
+  const [avisoRuta, setAvisoRuta] = useState(null); // conversacion de la URL que no se pudo abrir
+  // Cada "Nueva conversacion" es una vista distinta (key), y la conversacion que
+  // nace de ella conserva esa key al pasar de /techobot/nueva a /techobot/<id>:
+  // asi no se remonta (ni se pierde el envio en curso) al reemplazar la URL.
+  const [secuenciaNueva, setSecuenciaNueva] = useState(0);
+  const creadaDesdeNueva = useRef(null); // { id, clave }
+
+  const idValido = idRuta === undefined || esIdConversacionValido(idRuta);
+  const esNueva = idRuta === ID_CONVERSACION_NUEVA;
+  const idConversacion = idRuta !== undefined && idValido && !esNueva ? Number(idRuta) : null;
 
   useEffect(() => {
     getCurrentUser(onLogout)
@@ -85,7 +103,7 @@ function ChatBotScreen({ setScreen, onLogout }) {
         );
         if (cancelado) return;
         setConversations(lista);
-        setMessagesCache(Object.fromEntries(conMensajes));
+        setMessagesCache((actual) => ({ ...Object.fromEntries(conMensajes), ...actual }));
         setHistoryError(null);
       })
       .catch((err) => {
@@ -100,33 +118,79 @@ function ChatBotScreen({ setScreen, onLogout }) {
     };
   }, [user, onLogout]);
 
+  useEffect(() => {
+    if (idConversacion !== null) setUltimaConversacion(idConversacion);
+  }, [idConversacion]);
+
+  // Un /techobot/<id> que no esta en el historial cargado (recarga directa,
+  // enlace, conversacion ajena) se pide aparte: si falla, se vuelve a la lista
+  // con un aviso. La lista no redirige nunca, asi que no hay bucle posible.
+  useEffect(() => {
+    if (!user || loadingHistory || idConversacion === null || messagesCache[idConversacion]) return undefined;
+    let cancelado = false;
+    listarMensajes(idConversacion, onLogout)
+      .then((lista) => {
+        if (!cancelado) setMessagesCache((actual) => ({ ...actual, [idConversacion]: lista }));
+      })
+      .catch((err) => {
+        if (!cancelado && err.status !== 401) setAvisoRuta({ id: idConversacion, texto: avisoConversacionNoDisponible(err.status) });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [user, loadingHistory, idConversacion, messagesCache, onLogout]);
+
   const abrirConversacion = (conversacionId) => {
-    setActiveConversation(conversacionId);
-    setView("conversation");
+    navigate(rutaDeConversacion(conversacionId), { state: { desdeLista: true } });
   };
 
   const abrirNuevaConversacion = () => {
-    setActiveConversation(null);
-    setView("conversation");
+    setSecuenciaNueva((n) => n + 1);
+    navigate(rutaDeConversacion(ID_CONVERSACION_NUEVA), { state: { desdeLista: true } });
   };
 
   const onConversacionCreada = (nuevaConversacion) => {
+    creadaDesdeNueva.current = { id: nuevaConversacion.id, clave: `nueva-${secuenciaNueva}` };
     setConversations((actuales) => [nuevaConversacion, ...actuales]);
-    setActiveConversation(nuevaConversacion.id);
+    setMessagesCache((actual) => ({ ...actual, [nuevaConversacion.id]: actual[nuevaConversacion.id] ?? [] }));
+    navigate(rutaDeConversacion(nuevaConversacion.id), { replace: true, state: location.state });
   };
 
   const onMensajesActualizados = (conversacionId, mensajes) => {
     setMessagesCache((actual) => ({ ...actual, [conversacionId]: mensajes }));
   };
 
+  // Volver a la lista: si se llego desde ella, Atras (asi el historial no crece);
+  // si se entro directo por la URL, se empuja /techobot.
+  const volverALista = () => {
+    if (location.state?.desdeLista) navigate(-1);
+    else navigate(RUTAS.techobot);
+  };
+
+  if (!idValido) {
+    return <Navigate to={RUTAS.techobot} replace state={{ aviso: avisoConversacionNoDisponible() }} />;
+  }
+  if (avisoRuta && avisoRuta.id === idConversacion) {
+    return <Navigate to={RUTAS.techobot} replace state={{ aviso: avisoRuta.texto }} />;
+  }
+
   if (!user) return <p>Cargando...</p>;
+
+  const enConversacion = idRuta !== undefined;
+  const claveVista = esNueva
+    ? `nueva-${secuenciaNueva}`
+    : creadaDesdeNueva.current?.id === idConversacion
+      ? creadaDesdeNueva.current.clave
+      : `conversacion-${idConversacion}`;
+  const mensajesListos = esNueva || Boolean(messagesCache[idConversacion]);
+  const aviso = !enConversacion ? location.state?.aviso : null;
 
   return (
     <div className="home-screen">
-      <CabezaDeNavegacion setScreen={setScreen} onLogout={onLogout} />
+      <CabezaDeNavegacion onLogout={onLogout} />
 
-      <main className={`chatbot-history-screen${view === "conversation" ? " chatbot-history-screen--conversation" : ""}`}>
-        {view === "history" ? (
+      <main className={`chatbot-history-screen${enConversacion ? " chatbot-history-screen--conversation" : ""}`}>
+        {!enConversacion ? (
           <section className="chatbot-history-panel chatbot-history-panel--centrada">
             <div className="chatbot-history-intro">
               <div className="chatbot-history-intro-top">
@@ -158,6 +222,7 @@ function ChatBotScreen({ setScreen, onLogout }) {
                 </div>
               </div>
 
+              {aviso && <p className="chatbot-history-aviso" role="status">{aviso}</p>}
               {loadingHistory && <p>Cargando conversaciones...</p>}
               {!loadingHistory && historyError && <p className="chatbot-history-error">{historyError}</p>}
               {!loadingHistory && !historyError && conversations.length === 0 && (
@@ -169,7 +234,7 @@ function ChatBotScreen({ setScreen, onLogout }) {
                   {conversations.map((conversacion) => (
                     <button
                       type="button"
-                      className={`chatbot-history-item${activeConversation === conversacion.id ? " is-active" : ""}`}
+                      className={`chatbot-history-item${ultimaConversacion === conversacion.id ? " is-active" : ""}`}
                       key={conversacion.id}
                       onClick={() => abrirConversacion(conversacion.id)}
                     >
@@ -185,11 +250,14 @@ function ChatBotScreen({ setScreen, onLogout }) {
               )}
             </div>
           </section>
+        ) : !mensajesListos ? (
+          <p>Cargando conversación...</p>
         ) : (
           <ChatConversationView
-            conversacionId={activeConversation}
-            mensajesIniciales={activeConversation ? messagesCache[activeConversation] || [] : []}
-            onBack={() => setView("history")}
+            key={claveVista}
+            conversacionId={esNueva ? null : idConversacion}
+            mensajesIniciales={esNueva ? [] : messagesCache[idConversacion]}
+            onBack={volverALista}
             onConversacionCreada={onConversacionCreada}
             onMensajesActualizados={onMensajesActualizados}
             onLogout={onLogout}

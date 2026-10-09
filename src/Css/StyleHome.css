@@ -525,3 +525,4 @@ Home (pantalla inicial publica)
 .chatbot-thinking-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
 .chatbot-user-response:has(.chatbot-message-status) .chatbot-conversation-message--user { width: fit-content; margin-left: auto; }
 .chatbot-composer-bloqueado { margin: 6px 16px 0; padding: 7px 10px; border: 1px solid #f0c9a8; border-radius: 6px; background: #fff9f3; color: #6b4a3d; font-size: 11px; }
+.chatbot-history-aviso { margin: 0 0 12px; padding: 9px 12px; border: 1px solid #f0c9a8; border-radius: 10px; background: #fff9f3; color: #6b4a3d; font-size: 13px; }

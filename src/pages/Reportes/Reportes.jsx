@@ -41,8 +41,8 @@ const UNIDADES = {
 };
 
 
+// Se arregló para implementar react-router: se quitó la prop setScreen (CabezaDeNavegacion navega con useNavigate).
 function Reportes({
-  setScreen,
   onLogout,
   departamentos,
   datosMunicipios,
@@ -165,8 +165,8 @@ function actualizarComentario(clave, texto) {
   // =========================
   return (
     <>
+      {/* Se arregló para implementar react-router: sin setScreen={setScreen} (la cabecera navega con useNavigate). */}
       <CabezaDeNavegacion
-        setScreen={setScreen}
         onLogout={onLogout}
       />
 
