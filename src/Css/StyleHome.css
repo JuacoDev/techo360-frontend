@@ -572,3 +572,29 @@ Home (pantalla inicial publica)
   .chat-espera-puntos i:nth-child(2) { opacity: 0.6; }
   .chat-espera-puntos i:nth-child(3) { opacity: 0.35; }
 }
+
+/* Caja del chat fija: la pagina no hace scroll, solo la lista de mensajes. Prefijo chat-.
+   Altura = viewport dinamico - cabecera (70px) - margenes, acotada con min/max. */
+.chatbot-history-screen.chat-pantalla-caja { min-height: 0; padding: 20px clamp(12px, 4vw, 48px); box-sizing: border-box; }
+.chat-pantalla-caja .chat-caja { flex: none; box-sizing: border-box; height: clamp(380px, calc(100vh - 110px), 1100px); height: clamp(380px, calc(100dvh - 110px), 1100px); min-height: 0; margin: 0 auto; max-width: 1100px; }
+.chat-caja > * { flex-shrink: 0; }
+.chat-caja > .chat-caja-cuerpo { position: relative; display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+.chat-caja-mensajes { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; justify-content: flex-start; }
+.chat-caja-mensajes > :first-child { margin-top: auto; }
+.chat-ir-final-presencia { position: absolute; right: 18px; bottom: 14px; z-index: 2; }
+.chat-ir-final { display: inline-flex; align-items: center; gap: 6px; min-width: 40px; height: 40px; padding: 0 11px; border: 1px solid #d8d2c8; border-radius: 999px; background: #fff; color: #5c4033; font: inherit; font-size: 12px; font-weight: 600; box-shadow: 0 6px 18px rgba(38, 37, 36, 0.16); cursor: pointer; transition: transform 120ms ease, box-shadow 150ms ease, border-color 150ms ease; }
+.chat-ir-final:hover { border-color: #9a4a0b; box-shadow: 0 8px 22px rgba(38, 37, 36, 0.2); }
+.chat-ir-final:active { transform: scale(0.95); }
+.chat-ir-final:focus-visible { outline: 2px solid #9a4a0b; outline-offset: 2px; }
+.chat-ir-final-nuevo { padding: 3px 7px; border-radius: 999px; background: #6b4a3d; color: #fff; font-size: 11px; }
+@media (max-width: 700px) {
+  .chatbot-history-screen.chat-pantalla-caja { padding: 10px 8px; }
+  .chat-pantalla-caja .chat-caja { height: clamp(360px, calc(100vh - 90px), 1100px); height: clamp(360px, calc(100dvh - 90px), 1100px); border-radius: 12px; }
+  .chat-caja .chatbot-conversation-header { padding: 10px 12px; }
+  .chat-caja .chatbot-conversation-logo { width: 40px; height: 40px; }
+  .chat-caja .chatbot-conversation-composer--elevada { margin: 0 10px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-ir-final { transition: none; }
+  .chat-ir-final:active { transform: none; }
+}
