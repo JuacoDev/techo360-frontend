@@ -13,10 +13,11 @@ import PerfilUsuario from "./pages/PerfilUsuario/PerfilUsuario.jsx";
 import Home from "./pages/Home/Home.jsx";
 import ChatBotScreen from "./pages/ChatBot/ChatBotScreen.jsx";
 import Proyectadas from "./pages/Proyeccion/Proyectadas.jsx";
+import Reportes from "./pages/Reportes/Reportes.jsx";
 import { API_URL, getToken, limpiarToken, ANIO_INDICADORES, fetchConSesion, getRangoProyeccionZonas } from "./services/api";
 import { usePantallaEnUrl } from "./routing/usePantallaEnUrl.js";
 
-const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion"];
+const PANTALLAS_PROPIAS = ["app", "loading", "perfil", "home", "chatbot", "proyeccion", "reportes"];
 
 function App() {
   // La pantalla activa vive en la URL (ver routing/usePantallaEnUrl.js).
@@ -199,6 +200,15 @@ function App() {
           datosMunicipios={datosMunicipios}
           rangoProyeccion={rangoProyeccion}
           errorRangoProyeccion={errorRangoProyeccion}
+        />
+      )}
+
+      {screen === "reportes" && (
+        <Reportes
+          setScreen={setScreen}
+          onLogout={logout}
+          departamentos={departamentos}
+          datosMunicipios={datosMunicipios}
         />
       )}
 

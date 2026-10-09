@@ -1036,3 +1036,44 @@ proyecciones
 
   z-index: 1000;
 }
+
+.informe-seccion {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.informe-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.informe-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.informe-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 6px 10px;
+
+  border-radius: 16px;
+
+  background: #eef4ff;
+
+  border: 1px solid #cbd5e1;
+}
+
+.informe-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #dc2626;
+}

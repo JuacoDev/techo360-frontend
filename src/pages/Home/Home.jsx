@@ -75,7 +75,7 @@ const MODULOS = [
     descripcion: "Compara indicadores por municipio y exporta reportes con gráficas en PDF.",
     icono: IconoReportes,
     color: "negro",
-    destino: null,
+    destino: "reportes",
   },
 ];
 
