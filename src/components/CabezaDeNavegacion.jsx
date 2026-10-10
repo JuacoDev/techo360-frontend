@@ -25,6 +25,7 @@ function obtenerIniciales(nombreCompleto) {
 // a la derecha, evita el parpadeo "Iniciar sesion" -> avatar) de
 // "ya se confirmo que no hay sesion" (muestra "Iniciar sesion").
 function CabezaDeNavegacion({ onLogout, onLogin }) {
+  // Se arregló para implementar react-router: se quitó la prop setScreen; la cabecera navega con useNavigate/Link y RUTAS.
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);

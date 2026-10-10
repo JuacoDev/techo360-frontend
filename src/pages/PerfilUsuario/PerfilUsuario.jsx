@@ -4,6 +4,7 @@ import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import Input from "../../components/Input";
 import IconoPerfil from "../../assets/IconoPerfil.png";
 
+// Se arregló para implementar react-router: se quitó la prop setScreen (CabezaDeNavegacion navega con useNavigate).
 function PerfilUsuario({ onLogout }) {
   const [user, setUser] = useState(null);
 
@@ -25,6 +26,7 @@ function PerfilUsuario({ onLogout }) {
 
   return (
     <>
+      {/* Se arregló para implementar react-router: sin setScreen={setScreen} (la cabecera navega con useNavigate). */}
       <CabezaDeNavegacion onLogout={onLogout} />
 
       <div className="perfil-container">
