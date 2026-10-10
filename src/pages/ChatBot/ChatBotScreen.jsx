@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import "../../Css/StyleHome.css";
 import "../../Css/StyleComponents.css";
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
@@ -16,15 +17,19 @@ import {
 } from "../../services/api";
 import {
   INTERVALO_SONDEO_MS,
-  accionesDe,
   aplicarIntercambio,
   aplicarMensaje,
   conversacionBloqueada,
   estadoDe,
-  etiquetaEstado,
   hayEnProceso,
   quitarMensaje,
 } from "../../services/estadosMensaje.js";
+import { avisoConversacionNoDisponible } from "../../services/mensajesError.js";
+import { AvisoError, IndicadorEspera, MensajeEstado, Presencia } from "./EstadosChat.jsx";
+import { useScrollDelChat } from "./useScrollDelChat.js";
+// react-markdown (~40 KB gzip) solo se descarga al abrir el chat, no en el bundle principal.
+const RespuestaBot = lazy(() => import("./RespuestaBot.jsx"));
+import { RUTAS, claveDeConversacion, estadoDeConversacion, idConversacionDeEstado, normalizarRuta } from "../../routing/rutas.js";
 
 function formatearFecha(fechaIso) {
   return new Date(fechaIso).toLocaleString("es-CO", {
@@ -43,17 +48,36 @@ function previewDe(mensajes) {
 }
 
 // Requiere sesion iniciada -- mismo mecanismo que PerfilUsuario.jsx
-// (getCurrentUser()), en vez de confiar solo en el gate previo de
-// Home.jsx (entrarAModulo): la sesion pudo expirar entre que se entro
-// al modulo y que se monta esta pantalla.
-function ChatBotScreen({ setScreen, onLogout }) {
+// (getCurrentUser()), ademas del guard de rutas (RequiereSesion): la sesion
+// pudo expirar entre que se entro al modulo y que se monta esta pantalla.
+//
+// Rutas: /techobot es la lista; /techobot/chat el chat abierto, con el id de la
+// conversacion en el estado del historial (NO en la URL: no aparece en la barra
+// de direcciones, en ?volver= ni al copiar el enlace); /techobot/nueva una
+// conversacion que se crea con el primer mensaje y entonces se reemplaza por
+// /techobot/chat con su id en el estado. /techobot/chat sin estado (pestana
+// nueva, enlace pegado) vuelve a la lista con un aviso.
+function ChatBotScreen({ onLogout }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const ruta = normalizarRuta(location.pathname);
+  const esNueva = ruta === RUTAS.chatNuevo;
+  const enConversacion = esNueva || ruta === RUTAS.chat;
+  const idConversacion = ruta === RUTAS.chat ? idConversacionDeEstado(location.state) : null;
+  const idValido = ruta !== RUTAS.chat || idConversacion !== null;
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [messagesCache, setMessagesCache] = useState({});
   const [historyError, setHistoryError] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [activeConversation, setActiveConversation] = useState(null);
-  const [view, setView] = useState("history");
+  const [ultimaConversacion, setUltimaConversacion] = useState(null);
+  const [avisoRuta, setAvisoRuta] = useState(null); // conversacion de la URL que no se pudo abrir
+  // Cada "Nueva conversacion" es una vista distinta (key), y la conversacion que
+  // nace de ella conserva esa key al pasar de /techobot/nueva a /techobot/chat:
+  // asi no se remonta (ni se pierde el envio en curso) al reemplazar la URL.
+  const [secuenciaNueva, setSecuenciaNueva] = useState(0);
+  const creadaDesdeNueva = useRef(null); // { id, clave }
+
 
   useEffect(() => {
     getCurrentUser(onLogout)
@@ -77,15 +101,15 @@ function ChatBotScreen({ setScreen, onLogout }) {
         const conMensajes = await Promise.all(
           lista.map(async (conversacion) => {
             try {
-              return [conversacion.id, await listarMensajes(conversacion.id, onLogout)];
+              return [claveDeConversacion(conversacion), await listarMensajes(claveDeConversacion(conversacion), onLogout)];
             } catch {
-              return [conversacion.id, []];
+              return [claveDeConversacion(conversacion), []];
             }
           })
         );
         if (cancelado) return;
         setConversations(lista);
-        setMessagesCache(Object.fromEntries(conMensajes));
+        setMessagesCache((actual) => ({ ...Object.fromEntries(conMensajes), ...actual }));
         setHistoryError(null);
       })
       .catch((err) => {
@@ -100,33 +124,79 @@ function ChatBotScreen({ setScreen, onLogout }) {
     };
   }, [user, onLogout]);
 
+  useEffect(() => {
+    if (idConversacion !== null) setUltimaConversacion(idConversacion);
+  }, [idConversacion]);
+
+  // Una conversacion del estado que no esta en el historial cargado (recarga
+  // directa, conversacion ajena en el estado) se pide aparte: si falla, se vuelve a la lista
+  // con un aviso. La lista no redirige nunca, asi que no hay bucle posible.
+  useEffect(() => {
+    if (!user || loadingHistory || idConversacion === null || messagesCache[idConversacion]) return undefined;
+    let cancelado = false;
+    listarMensajes(idConversacion, onLogout)
+      .then((lista) => {
+        if (!cancelado) setMessagesCache((actual) => ({ ...actual, [idConversacion]: lista }));
+      })
+      .catch((err) => {
+        if (!cancelado && err.status !== 401) setAvisoRuta({ id: idConversacion, texto: avisoConversacionNoDisponible(err.status) });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [user, loadingHistory, idConversacion, messagesCache, onLogout]);
+
   const abrirConversacion = (conversacionId) => {
-    setActiveConversation(conversacionId);
-    setView("conversation");
+    navigate(RUTAS.chat, { state: estadoDeConversacion(conversacionId, { desdeLista: true }) });
   };
 
   const abrirNuevaConversacion = () => {
-    setActiveConversation(null);
-    setView("conversation");
+    setSecuenciaNueva((n) => n + 1);
+    navigate(RUTAS.chatNuevo, { state: { desdeLista: true } });
   };
 
   const onConversacionCreada = (nuevaConversacion) => {
+    const clave = claveDeConversacion(nuevaConversacion);
+    creadaDesdeNueva.current = { id: clave, clave: `nueva-${secuenciaNueva}` };
     setConversations((actuales) => [nuevaConversacion, ...actuales]);
-    setActiveConversation(nuevaConversacion.id);
+    setMessagesCache((actual) => ({ ...actual, [clave]: actual[clave] ?? [] }));
+    navigate(RUTAS.chat, { replace: true, state: estadoDeConversacion(clave, location.state) });
   };
 
   const onMensajesActualizados = (conversacionId, mensajes) => {
     setMessagesCache((actual) => ({ ...actual, [conversacionId]: mensajes }));
   };
 
+  // Volver a la lista: si se llego desde ella, Atras (asi el historial no crece);
+  // si se entro directo por la URL, se empuja /techobot.
+  const volverALista = () => {
+    if (location.state?.desdeLista) navigate(-1);
+    else navigate(RUTAS.techobot);
+  };
+
+  if (!idValido) {
+    return <Navigate to={RUTAS.techobot} replace state={{ aviso: avisoConversacionNoDisponible() }} />;
+  }
+  if (avisoRuta && avisoRuta.id === idConversacion) {
+    return <Navigate to={RUTAS.techobot} replace state={{ aviso: avisoRuta.texto }} />;
+  }
+
   if (!user) return <p>Cargando...</p>;
+
+  const claveVista = esNueva
+    ? `nueva-${secuenciaNueva}`
+    : creadaDesdeNueva.current?.id === idConversacion
+      ? creadaDesdeNueva.current.clave
+      : `conversacion-${idConversacion}`;
+  const mensajesListos = esNueva || Boolean(messagesCache[idConversacion]);
+  const aviso = !enConversacion ? location.state?.aviso : null;
 
   return (
     <div className="home-screen">
-      <CabezaDeNavegacion setScreen={setScreen} onLogout={onLogout} />
+      <CabezaDeNavegacion onLogout={onLogout} />
 
-      <main className={`chatbot-history-screen${view === "conversation" ? " chatbot-history-screen--conversation" : ""}`}>
-        {view === "history" ? (
+      <main className={`chatbot-history-screen${enConversacion ? " chatbot-history-screen--conversation chat-pantalla-caja" : ""}`}>
+        {!enConversacion ? (
           <section className="chatbot-history-panel chatbot-history-panel--centrada">
             <div className="chatbot-history-intro">
               <div className="chatbot-history-intro-top">
@@ -158,6 +228,7 @@ function ChatBotScreen({ setScreen, onLogout }) {
                 </div>
               </div>
 
+              {aviso && <p className="chatbot-history-aviso" role="status">{aviso}</p>}
               {loadingHistory && <p>Cargando conversaciones...</p>}
               {!loadingHistory && historyError && <p className="chatbot-history-error">{historyError}</p>}
               {!loadingHistory && !historyError && conversations.length === 0 && (
@@ -169,13 +240,13 @@ function ChatBotScreen({ setScreen, onLogout }) {
                   {conversations.map((conversacion) => (
                     <button
                       type="button"
-                      className={`chatbot-history-item${activeConversation === conversacion.id ? " is-active" : ""}`}
-                      key={conversacion.id}
-                      onClick={() => abrirConversacion(conversacion.id)}
+                      className={`chatbot-history-item${ultimaConversacion === claveDeConversacion(conversacion) ? " is-active" : ""}`}
+                      key={claveDeConversacion(conversacion)}
+                      onClick={() => abrirConversacion(claveDeConversacion(conversacion))}
                     >
                       <span className="chatbot-history-item-mark" aria-hidden="true" />
                       <span className="chatbot-history-item-content">
-                        <strong>{previewDe(messagesCache[conversacion.id])}</strong>
+                        <strong>{previewDe(messagesCache[claveDeConversacion(conversacion)])}</strong>
                       </span>
                       <span className="chatbot-history-item-date">{formatearFecha(conversacion.fecha)}</span>
                       <span className="chatbot-history-item-arrow" aria-hidden="true">→</span>
@@ -185,11 +256,14 @@ function ChatBotScreen({ setScreen, onLogout }) {
               )}
             </div>
           </section>
+        ) : !mensajesListos ? (
+          <p>Cargando conversación...</p>
         ) : (
           <ChatConversationView
-            conversacionId={activeConversation}
-            mensajesIniciales={activeConversation ? messagesCache[activeConversation] || [] : []}
-            onBack={() => setView("history")}
+            key={claveVista}
+            conversacionId={esNueva ? null : idConversacion}
+            mensajesIniciales={esNueva ? [] : messagesCache[idConversacion]}
+            onBack={volverALista}
             onConversacionCreada={onConversacionCreada}
             onMensajesActualizados={onMensajesActualizados}
             onLogout={onLogout}
@@ -215,6 +289,7 @@ function ChatConversationView({
   const [feedbackEnviando, setFeedbackEnviando] = useState(null);
   const [feedbackError, setFeedbackError] = useState(null);
   const [textoEnviando, setTextoEnviando] = useState(null);
+  const [inicioEnvio, setInicioEnvio] = useState(null); // Date.now() del envio en curso (contador de espera)
   const [accionEnCurso, setAccionEnCurso] = useState(null); // { id, accion } mientras se reintenta/cancela/elimina
   const mensajesRef = useRef(mensajesIniciales);
   mensajesRef.current = messages;
@@ -227,6 +302,7 @@ function ChatConversationView({
   const [cancelandoEnvio, setCancelandoEnvio] = useState(false);
 
   const entradaRef = useRef(null);
+  const { listaRef, alHacerScroll, lejosDelFondo, hayNuevo, irAlFinal } = useScrollDelChat({ messages, sending, textoEnviando });
 
   // Fase C: una conversacion con un mensaje sin resolver (pendiente, procesando,
   // error o cancelado) no admite otra pregunta: hay que reintentarlo o eliminarlo.
@@ -279,12 +355,13 @@ function ChatConversationView({
     setSendError(null);
     setInput("");
     setTextoEnviando(contenido);
+    setInicioEnvio(Date.now());
 
+    let convId = conversacionId;
     try {
-      let convId = conversacionId;
       if (convId == null) {
         const nueva = await crearConversacion(onLogout);
-        convId = nueva.id;
+        convId = claveDeConversacion(nueva);
         onConversacionCreada(nueva);
       }
 
@@ -298,11 +375,11 @@ function ChatConversationView({
         if (err.mensajeUsuario) {
           // El servidor ya guardo el mensaje (con su estado, p. ej. 'error'): vive en
           // el historial con sus botones; no se restaura el texto en el cuadro.
-          actualizarMensajes(conversacionId ?? err.mensajeUsuario.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajeUsuario));
-          if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(conversacionId ?? err.mensajeUsuario.conversacion_id);
+          actualizarMensajes(convId ?? err.mensajeUsuario.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajeUsuario));
+          if (err.mensajeUsuario.estado === "respondido") refrescarConversacion(convId ?? err.mensajeUsuario.conversacion_id);
         } else if (err.mensajePendiente) {
           // 409: ya habia un mensaje sin resolver (p. ej. enviado desde otra pestana).
-          actualizarMensajes(conversacionId ?? err.mensajePendiente.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajePendiente));
+          actualizarMensajes(convId ?? err.mensajePendiente.conversacion_id, (actuales) => aplicarMensaje(actuales, err.mensajePendiente));
           setSendError(err.message);
           setInput(contenido);
         } else {
@@ -364,9 +441,10 @@ function ChatConversationView({
   const ejecutarAccion = async (mensaje, accion) => {
     if (accionEnCurso && accion !== "cancelar") return; // cancelar SI se permite mientras se reintenta
     const miAccion = ++contadorAcciones.current;
-    setAccionEnCurso({ id: mensaje.id, accion });
+    setAccionEnCurso({ id: mensaje.id, accion, desde: Date.now() });
     setSendError(null);
-    const convId = mensaje.conversacion_id;
+    // La clave de esta vista (public_id) manda sobre el conversacion_id entero del mensaje.
+    const convId = conversacionId ?? mensaje.conversacion_id;
     try {
       if (accion === "reintentar") {
         actualizarMensajes(convId, (lista) => aplicarMensaje(lista, { ...mensaje, estado: "procesando", error_detalle: null }));
@@ -416,7 +494,7 @@ function ChatConversationView({
   };
 
   return (
-    <section className="chatbot-conversation-panel chatbot-conversation-panel--amplia">
+    <section className="chatbot-conversation-panel chatbot-conversation-panel--amplia chat-caja">
       <header className="chatbot-conversation-header chatbot-conversation-header--barra">
         <button type="button" className="chatbot-conversation-back" onClick={onBack} aria-label="Volver al historial">←</button>
         <img src={ChatbotLogo} alt="" className="chatbot-conversation-logo" />
@@ -425,7 +503,8 @@ function ChatConversationView({
           <span>Asistente de vivienda y territorio</span>
         </div>
       </header>
-      <div className="chatbot-conversation-messages chatbot-conversation-messages--editoriales">
+      <div className="chat-caja-cuerpo">
+      <div className="chatbot-conversation-messages chatbot-conversation-messages--editoriales chat-caja-mensajes" ref={listaRef} onScroll={alHacerScroll}>
         {messages.length === 0 && !sending && (
           <div className="chatbot-assistant-response">
             <div className="chatbot-conversation-message chatbot-conversation-message--bot">Hola, soy TechoBot. Puedo ayudarte a interpretar indicadores de vivienda y territorio en Colombia.</div>
@@ -438,16 +517,22 @@ function ChatConversationView({
             className={mensaje.rol === "usuario" ? "chatbot-user-response" : "chatbot-assistant-response"}
           >
             <div className={`chatbot-conversation-message chatbot-conversation-message--${mensaje.rol === "usuario" ? "user" : "bot"}`}>
-              {mensaje.contenido}
+              {mensaje.rol === "usuario" ? (
+                mensaje.contenido
+              ) : (
+                <Suspense fallback={<div className="chat-md">{mensaje.contenido}</div>}>
+                  <RespuestaBot texto={mensaje.contenido} />
+                </Suspense>
+              )}
             </div>
             <span className="chatbot-message-timestamp">{formatearFecha(mensaje.fecha)}</span>
-            {mensaje.rol === "usuario" && estadoDe(mensaje) !== "respondido" && (
+            <Presencia visible={mensaje.rol === "usuario" && estadoDe(mensaje) !== "respondido"}>
               <MensajeEstado
                 mensaje={mensaje}
                 accionEnCurso={accionEnCurso}
                 onAccion={(accion) => ejecutarAccion(mensaje, accion)}
               />
-            )}
+            </Presencia>
             {mensaje.rol === "asistente" && (
               <div className="chatbot-message-feedback" aria-label="Valorar respuesta">
                 {mensaje.feedback_util !== null ? (
@@ -484,19 +569,27 @@ function ChatConversationView({
           </div>
         )}
 
-        {sending && (
-          <div className="chatbot-thinking chatbot-thinking--barras">
-            <span className="chatbot-thinking-animation" aria-label="TechoBot está generando una respuesta"><i /><i /><i /></span>
-            <span className="chatbot-thinking-text">TechoBot está analizando tu consulta...</span>
-            <button type="button" className="chatbot-thinking-cancel" aria-label="Cancelar el mensaje que se está enviando" disabled={cancelandoEnvio} onClick={cancelarEnVuelo}>
-              {cancelandoEnvio ? "Cancelando…" : "Cancelar"}
-            </button>
-          </div>
-        )}
+        <Presencia visible={sending} className="chat-presencia--espera">
+          <IndicadorEspera
+            desde={inicioEnvio}
+            onCancelar={cancelarEnVuelo}
+            cancelando={cancelandoEnvio}
+            etiquetaCancelar="Cancelar el mensaje que se está enviando"
+          />
+        </Presencia>
+      </div>
+      <Presencia visible={lejosDelFondo} className="chat-ir-final-presencia">
+        <button type="button" className="chat-ir-final" onClick={irAlFinal} aria-label={hayNuevo ? "Ir al final: hay un mensaje nuevo" : "Ir al final de la conversación"}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 5v14M6 13l6 6 6-6" />
+          </svg>
+          {hayNuevo && <span className="chat-ir-final-nuevo">Nuevo</span>}
+        </button>
+      </Presencia>
       </div>
 
-      {sendError && <p className="chatbot-history-error">{sendError}</p>}
-      {feedbackError && <p className="chatbot-history-error">{feedbackError}</p>}
+      {sendError && <AvisoError key={sendError} texto={sendError} onCerrar={() => setSendError(null)} />}
+      {feedbackError && <AvisoError key={feedbackError} texto={feedbackError} onCerrar={() => setFeedbackError(null)} />}
       {bloqueada && !sending && (
         <p id="chatbot-aviso-bloqueo" className="chatbot-composer-bloqueado" role="status">
           Tienes un mensaje sin respuesta. Reintenta o elimínalo para poder enviar otra pregunta.
@@ -532,40 +625,6 @@ function ChatConversationView({
         <button type="button" aria-label="Enviar mensaje" onClick={handleSend} disabled={sending || bloqueada || !input.trim()}>→</button>
       </div>
     </section>
-  );
-}
-
-// Estado de un mensaje de usuario que NO esta respondido, con sus botones.
-function MensajeEstado({ mensaje, accionEnCurso, onAccion }) {
-  const estado = estadoDe(mensaje);
-  const acciones = accionesDe(mensaje);
-  const ocupado = accionEnCurso?.id === mensaje.id;
-  const enProceso = estado === "procesando" || estado === "pendiente";
-  const resumen = mensaje.contenido.length > 40 ? `${mensaje.contenido.slice(0, 40)}…` : mensaje.contenido;
-  return (
-    <div className={`chatbot-message-status chatbot-message-status--${estado}`} role="status" aria-live="polite">
-      <span className="chatbot-message-status-text">
-        {enProceso && <span className="chatbot-thinking-animation chatbot-message-status-animation" aria-hidden="true"><i /><i /><i /></span>}
-        {etiquetaEstado(mensaje)}
-      </span>
-      <span className="chatbot-message-actions">
-        {acciones.reintentar && (
-          <button type="button" aria-label={`Reintentar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("reintentar")}>
-            {ocupado && accionEnCurso.accion === "reintentar" ? "Reintentando…" : "Reintentar"}
-          </button>
-        )}
-        {acciones.cancelar && (
-          <button type="button" aria-label={`Cancelar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso) && !enProceso} onClick={() => onAccion("cancelar")}>
-            Cancelar
-          </button>
-        )}
-        {acciones.eliminar && (
-          <button type="button" aria-label={`Eliminar el mensaje: ${resumen}`} disabled={Boolean(accionEnCurso)} onClick={() => onAccion("eliminar")}>
-            Eliminar
-          </button>
-        )}
-      </span>
-    </div>
   );
 }
 

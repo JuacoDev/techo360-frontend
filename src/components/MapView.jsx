@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState, useMemo } from 'react'
-import { MapContainer, TileLayer, GeoJSON, useMap, useMapEvents } from 'react-leaflet'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
+import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import SelectorAnioMapa from './SelectorAnioMapa'
+import SelectorCapasMapa, { useModoCapas } from './SelectorCapasMapa'
+import { ZOOM_UMBRAL_MUNICIPIOS, capaVisible } from '../services/modoCapas.js'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -34,8 +36,8 @@ const COLOMBIA_BOUNDS = [
 // en este nivel o mas cerca se ve municipios. Con minZoom=5/maxZoom=12
 // ya establecidos, deja un rango parejo a cada lado (5-8 departamentos,
 // 9-12 municipios) -- verificado en vivo que la transicion se siente
-// natural, sin salto brusco perceptible.
-const ZOOM_UMBRAL_MUNICIPIOS = 9
+// natural, sin salto brusco perceptible. (Vive en services/modoCapas.js: solo
+// decide la capa en el modo Hibrido del selector de capas.)
 
 // Color de borde compartido por ambas capas.
 const COLOR_BORDE = '#1E3A8A'
@@ -95,7 +97,7 @@ function ListenerDeZoom({ onZoomChange }) {
   return null
 }
 
-// Un clic sobre un poligono hace stopPropagation (ver manejarEventos de
+// Un clic sobre un poligono hace stopPropagation (ver el clic de
 // cada capa), asi que el evento "click" del mapa solo llega aqui cuando
 // el clic fue sobre un area vacia -- exactamente el caso en el que hay
 // que soltar la seleccion actual.
@@ -149,13 +151,88 @@ function AjustarTamanoMapa() {
   return null
 }
 
+// Capas GeoJSON ya construidas, por objeto de datos (el que App descarga una
+// vez por sesion). Volver a /mapa-calor o pasar a /proyeccion reutiliza las
+// mismas capas: solo se agregan al mapa nuevo y se restilan, sin reconstruir
+// ~1.100 poligonos. WeakMap: al cerrar sesion los datos se sueltan y las capas
+// con ellos. (Una capa solo esta en un mapa a la vez: las rutas son exclusivas.)
+const capasPorDatos = new WeakMap()
+
+function capaDe(datos, estiloInicial) {
+  let capa = capasPorDatos.get(datos)
+  if (!capa) {
+    // smoothFactor se deja en el valor por defecto (1): 1.5 no mostro mejora medible.
+    capa = L.geoJSON(datos, { style: estiloInicial })
+    // Un solo tooltip para todo el grupo (no uno por poligono): el contenido
+    // se calcula con la capa bajo el puntero.
+    capa.bindTooltip((layer) => layer.feature?.properties?.nombre ?? '', { sticky: true, direction: 'top' })
+    capasPorDatos.set(datos, capa)
+  }
+  return capa
+}
+
+// Una capa que se construye UNA sola vez por objeto de datos y despues solo se
+// muestra/oculta (addLayer/removeLayer: oculta no se redibuja en cada zoom/pan)
+// y se restila con setStyle. Sin `key` cambiante: cruzar el umbral de zoom o
+// cambiar el año ya no destruye y reconstruye los poligonos. El clic se escucha
+// a nivel de grupo y se registra/quita con el montaje, asi siempre llama al
+// handler actual de este mapa.
+function CapaZonas({ datos, visible, estilo, onClicFeature, onCreada }) {
+  const map = useMap()
+  const [capa, setCapa] = useState(null)
+  const onClicRef = useRef(onClicFeature)
+  const onCreadaRef = useRef(onCreada)
+  onClicRef.current = onClicFeature
+  onCreadaRef.current = onCreada
+
+  useEffect(() => {
+    if (!datos) return undefined
+    const nueva = capaDe(datos, estilo)
+    const alClic = (evento) => {
+      L.DomEvent.stopPropagation(evento)
+      if (evento.layer?.feature) onClicRef.current?.(evento.layer.feature)
+    }
+    nueva.on('click', alClic)
+    setCapa(nueva)
+    return () => {
+      nueva.off('click', alClic)
+      map.removeLayer(nueva)
+      setCapa(null)
+    }
+    // estilo solo como estilo inicial al construir; los cambios van por setStyle abajo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datos, map])
+
+  useEffect(() => {
+    if (!capa) return
+    if (visible) map.addLayer(capa)
+    else map.removeLayer(capa)
+  }, [capa, visible, map])
+
+  // Restilado (seleccion, año de proyeccion) sin recrear la capa.
+  useEffect(() => {
+    capa?.setStyle(estilo)
+  }, [capa, estilo])
+
+  useEffect(() => {
+    if (capa) onCreadaRef.current?.()
+  }, [capa])
+
+  return null
+}
+
 function MapView({
   onMapLoaded,
   onZonaSeleccionada,
   departamentos,
   datosMunicipios,
   datosProyectados,
-  claveDatosMapa = "base",
+  // Se llama una vez cuando las dos capas ya estan construidas y pintadas (senal
+  // real de "mapa listo" para la pantalla de carga; ver MapaCalor en App.jsx).
+  onCapasListas,
+  // [estado, despachar] de useModoCapas() si la pagina tambien despacha eventos
+  // (los desplegables del buscador); si no se pasa, el mapa usa su propio estado.
+  modoCapas,
   codigoSeleccionado,
   scoreSeleccionado,
   nivelSeleccionado,
@@ -171,7 +248,31 @@ function MapView({
   onAnioSeleccionado,
 }) {
   const [zoom, setZoom] = useState(6)
-  const [isLegendOpen, setIsLegendOpen] = useState(false)
+  const modoCapasPropio = useModoCapas()
+  const [estadoCapas, despacharCapas] = modoCapas ?? modoCapasPropio
+  const [capasCreadas, setCapasCreadas] = useState({ departamentos: false, municipios: false })
+  const marcarDepartamentos = useCallback(() => setCapasCreadas((c) => ({ ...c, departamentos: true })), [])
+  const marcarMunicipios = useCallback(() => setCapasCreadas((c) => ({ ...c, municipios: true })), [])
+  const onCapasListasRef = useRef(onCapasListas)
+  onCapasListasRef.current = onCapasListas
+  const avisoListo = useRef(false)
+
+  // Ambas capas construidas -> se espera a que el renderer canvas pinte (pide su
+  // redibujo con requestAnimationFrame: dos frames bastan) y se avisa una vez.
+  useEffect(() => {
+    if (avisoListo.current || !capasCreadas.departamentos || !capasCreadas.municipios) return undefined
+    let segundo = 0
+    const primero = requestAnimationFrame(() => {
+      segundo = requestAnimationFrame(() => {
+        avisoListo.current = true
+        onCapasListasRef.current?.()
+      })
+    })
+    return () => {
+      cancelAnimationFrame(primero)
+      cancelAnimationFrame(segundo)
+    }
+  }, [capasCreadas])
 
   const proyeccionesPorCodigo = useMemo(
   () =>
@@ -283,46 +384,33 @@ function MapView({
     [codigoSeleccionado, nivelSeleccionado, datosProyectados, proyeccionesPorDepartamento]
   )
 
-  // Tooltip liviano con solo el nombre (nada de score ni otras
-  // variables): se dispara en cada movimiento del mouse, asi que usamos
-  // el tooltip nativo de Leaflet (bindTooltip) en vez de estado de React,
-  // para no forzar un re-render en cada hover.
-  const manejarEventosMunicipio = useCallback(
-    (feature, layer) => {
-      layer.bindTooltip(feature.properties?.nombre ?? '', {
-        sticky: true,
-        direction: 'top',
-      })
-      layer.on({
-        click: (evento) => {
-          L.DomEvent.stopPropagation(evento)
-          const featureConIndicadores = datosMunicipios?.features.find(
-            (f) => f.properties.codigo === feature.properties.codigo
-          )
-          onZonaSeleccionada?.(
-            featureConIndicadores
-              ? { ...featureConIndicadores.properties, nivel: 'municipio' }
-              : null
-          )
-        },
-      })
-    },
-    [datosMunicipios, onZonaSeleccionada]
-  )
+  // Tooltip liviano con solo el nombre (nada de score ni otras variables): el
+  // tooltip nativo de Leaflet, uno por capa (ver capaDe), en vez de estado de
+  // React, para no forzar un re-render en cada hover. Las capas se crean una
+  // sola vez (CapaZonas): el clic lee las props actuales desde una ref.
+  const datosMunicipiosRef = useRef(datosMunicipios)
+  datosMunicipiosRef.current = datosMunicipios
 
-  const manejarEventosDepartamento = useCallback(
-    (feature, layer) => {
-      layer.on({
-        click: (evento) => {
-          L.DomEvent.stopPropagation(evento)
-          onZonaSeleccionada?.({ ...feature.properties, nivel: 'departamento' })
-        },
-      })
+  const alClicMunicipio = useCallback(
+    (feature) => {
+      const featureConIndicadores = datosMunicipiosRef.current?.features.find(
+        (f) => f.properties.codigo === feature.properties.codigo
+      )
+      onZonaSeleccionada?.(
+        featureConIndicadores
+          ? { ...featureConIndicadores.properties, nivel: 'municipio' }
+          : null
+      )
     },
     [onZonaSeleccionada]
   )
 
-  const mostrarMunicipios = zoom >= ZOOM_UMBRAL_MUNICIPIOS
+  const alClicDepartamento = useCallback(
+    (feature) => onZonaSeleccionada?.({ ...feature.properties, nivel: 'departamento' }),
+    [onZonaSeleccionada]
+  )
+
+  const mostrarMunicipios = capaVisible(estadoCapas.modo, zoom) === 'municipios'
 
   // Estado de la leyenda respecto a la zona seleccionada (municipio o
   // departamento, da igual -- ambos exponen score_privacion con el
@@ -364,22 +452,30 @@ function MapView({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {/* Solo una capa montada a la vez, segun el zoom actual -- nunca
-            ambas juntas, para no duplicar hit-testing/renderizado. La
-            `key` distinta obliga a remontar el <GeoJSON> al cambiar de
-            capa: react-leaflet no actualiza la geometria si solo cambia
-            la prop `data` de una instancia ya montada. Cambiar solo
-            `style` (ej. al seleccionar un municipio) SI actualiza sin
-            remontar, via layer.setStyle -- por eso codigoSeleccionado no
-            esta en la `key`. */}
-        {mostrarMunicipios
-          ? datosMunicipios && (
-              <GeoJSON key={`municipios-${claveDatosMapa}`} data={datosMunicipios} style={estiloMunicipios} onEachFeature={manejarEventosMunicipio} />
-            )
-            : departamentos && (
-              <GeoJSON key={`departamentos-${claveDatosMapa}`} data={departamentos} style={estiloDepartamentos} onEachFeature={manejarEventosDepartamento} />
-            )}
+        {/* Ambas capas se construyen una vez y quedan vivas; segun el zoom solo
+            una esta en el mapa (la otra no se dibuja ni recibe clics). Antes se
+            remontaba un <GeoJSON key=...> en cada cruce del umbral, lo que
+            reconstruia ~1.100 poligonos a la vista del usuario. */}
+        <CapaZonas
+          datos={departamentos}
+          visible={!mostrarMunicipios}
+          estilo={estiloDepartamentos}
+          onClicFeature={alClicDepartamento}
+          onCreada={marcarDepartamentos}
+        />
+        <CapaZonas
+          datos={datosMunicipios}
+          visible={mostrarMunicipios}
+          estilo={estiloMunicipios}
+          onClicFeature={alClicMunicipio}
+          onCreada={marcarMunicipios}
+        />
       </MapContainer>
+
+      <SelectorCapasMapa
+        modo={estadoCapas.modo}
+        onElegir={(modo) => despacharCapas({ tipo: 'ELEGIR_MODO', modo })}
+      />
 
       {mostrarSelectorAnio && (
         <SelectorAnioMapa
@@ -393,53 +489,58 @@ function MapView({
       )}
 
       <div className="map-legend">
-        {!isLegendOpen ? (
-          <button
-            type="button"
-            className="map-legend-toggle"
-            onClick={() => setIsLegendOpen(true)}
-          >
-            Ver Leyenda
-          </button>
-        ) : (
-          <section className="map-legend-panel" aria-label="Leyenda del score de privación">
-            <div className="map-legend-header">
+        <section className="map-legend-panel" aria-label="Leyenda del score de privación">
+          <div className="map-legend-header">
+            <div className="map-legend-title">
               <h2>Escala de Privación</h2>
-              <button
-                type="button"
-                className="map-legend-close"
-                aria-label="Cerrar leyenda"
-                onClick={() => setIsLegendOpen(false)}
-              >
-                X
-              </button>
-            </div>
-            <div className="map-legend-gradient" aria-hidden="true">
-              {tieneScoreValido && (
+              <span className="map-legend-info">
+                <button
+                  type="button"
+                  className="map-legend-info-button"
+                  aria-label="Más información sobre la escala de privación"
+                  aria-describedby="map-legend-description"
+                >
+                  i
+                </button>
                 <span
-                  className="map-legend-marker"
-                  style={{ left: `${scoreSeleccionado * 100}%` }}
-                />
-              )}
+                  id="map-legend-description"
+                  className="map-legend-description"
+                  role="tooltip"
+                >
+                  Índice de 0.0 a 1.0 que promedia las carencias en acueducto,
+                  alcantarillado y déficit habitacional. Un valor de 1.0 indica
+                  la máxima prioridad o necesidad de intervención.
+                </span>
+              </span>
             </div>
-            <div className="map-legend-labels">
-              <span>0 (Menor)</span>
-              <span>1 (Mayor)</span>
-            </div>
-            {/* Siempre visible (antes solo aparecia al seleccionar una
-                zona gris) -- es una entrada fija de la leyenda, no un
-                mensaje contextual de la seleccion actual. */}
-            <div className="map-legend-no-data">
-              <span className="map-legend-gray" aria-hidden="true" />
-              <span>Sin dato</span>
-            </div>
-            {mostrarSelectorAnio && (
-              <p className="map-legend-nota">
-                El déficit habitacional se mantiene constante (Censo 2018).
-              </p>
+          </div>
+          <div className="map-legend-gradient" aria-hidden="true">
+            {tieneScoreValido && (
+              <span
+                className="map-legend-marker"
+                style={{ left: `${scoreSeleccionado * 100}%` }}
+              />
             )}
-          </section>
-        )}
+          </div>
+          <div className="map-legend-labels">
+            <span>0.0</span>
+            <span>0.25</span>
+            <span>0.5</span>
+            <span>0.75</span>
+            <span>1.0</span>
+          </div>
+          {/* Siempre visible: es una entrada fija de la leyenda, no un
+              mensaje contextual de la seleccion actual. */}
+          <div className="map-legend-no-data">
+            <span className="map-legend-gray" aria-hidden="true" />
+            <span>Sin dato / Área en litigio</span>
+          </div>
+          {mostrarSelectorAnio && (
+            <p className="map-legend-nota">
+              El déficit habitacional se mantiene constante (Censo 2018).
+            </p>
+          )}
+        </section>
       </div>
     </div>
   )
