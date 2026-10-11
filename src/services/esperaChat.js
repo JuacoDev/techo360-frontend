@@ -28,5 +28,6 @@ export function faseEspera(segundos) {
   if (segundos < 150) {
     return { fase: "cola", titulo: "Sigue trabajando en tu respuesta", pista: "Puede haber otras consultas en cola. Gracias por la paciencia." };
   }
-  return { fase: "larga", titulo: "Está tardando más de lo normal", pista: "Puedes seguir esperando o cancelar y reintentar más tarde." };
+  return {
+  fase: "larga", titulo: "La respuesta está tardando más de lo habitual", pista: "Algunas consultas pueden tardar hasta 200 segundos. Puedes seguir esperando o cancelar y reintentar."};
 }

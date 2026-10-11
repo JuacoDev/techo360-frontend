@@ -44,7 +44,7 @@ export function avisoConversacionNoDisponible(status) {
 export function mensajeAmigableErrorChat({ status, detalle } = {}) {
   const texto = typeof detalle === "string" ? detalle : "";
   if (status === 504 || /time ?out|timed out|tiempo de espera|tard[oó]|504/i.test(texto)) {
-    return "TechoBot tardó demasiado en responder (puede haber otras consultas en cola). Reintenta en un momento.";
+  return "TechoBot tardó demasiado en responder. La conversación se conservó y puedes utilizar el botón 'Reintentar' para volver a solicitar la respuesta.";
   }
   if (status === 503 || status === 502 || /no (est[aá] )?disponible|unavailable|503|502|bad gateway/i.test(texto)) {
     return "TechoBot no está disponible en este momento. Reintenta en unos minutos.";
