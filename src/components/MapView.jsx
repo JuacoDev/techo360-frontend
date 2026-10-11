@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import SelectorAnioMapa from './SelectorAnioMapa'
 import SelectorCapasMapa, { useModoCapas } from './SelectorCapasMapa'
 import { ZOOM_UMBRAL_MUNICIPIOS, capaVisible } from '../services/modoCapas.js'
+import { htmlTooltipMunicipio } from '../pages/Proyeccion/variablesProyeccion.js'
 
 // Coordenadas aproximadas del centro geografico de Colombia
 const COLOMBIA_CENTER = [4.5709, -74.2973]
@@ -158,6 +159,11 @@ function AjustarTamanoMapa() {
 // con ellos. (Una capa solo esta en un mapa a la vez: las rutas son exclusivas.)
 const capasPorDatos = new WeakMap()
 
+// Contenido del tooltip del mapa de proyeccion (valor del año, origen, fiabilidad): lo fija el MapView montado
+// con una variable proyectada y lo suelta al desmontarse. Con null (mapa de calor, o sin proyeccion generada) el
+// tooltip sigue siendo solo el nombre.
+const fuenteTooltip = { actual: null }
+
 function capaDe(datos, estiloInicial) {
   let capa = capasPorDatos.get(datos)
   if (!capa) {
@@ -165,7 +171,10 @@ function capaDe(datos, estiloInicial) {
     capa = L.geoJSON(datos, { style: estiloInicial })
     // Un solo tooltip para todo el grupo (no uno por poligono): el contenido
     // se calcula con la capa bajo el puntero.
-    capa.bindTooltip((layer) => layer.feature?.properties?.nombre ?? '', { sticky: true, direction: 'top' })
+    capa.bindTooltip(
+      (layer) => fuenteTooltip.actual?.(layer.feature) ?? layer.feature?.properties?.nombre ?? '',
+      { sticky: true, direction: 'top' }
+    )
     capasPorDatos.set(datos, capa)
   }
   return capa
@@ -246,6 +255,12 @@ function MapView({
   cargandoAnio = false,
   avisoSelectorAnio,
   onAnioSeleccionado,
+  // Solo el mapa de proyeccion con una variable cargada: variableMapa (configuracion de la variable activa),
+  // normalizadorProyeccion (valor -> [0, 1] para el semaforo; null = gris) y etiquetasLeyenda (5 etiquetas de la
+  // rampa). Sin ellos el mapa se comporta como siempre (score de privacion).
+  variableMapa = null,
+  normalizadorProyeccion = null,
+  etiquetasLeyenda = null,
 }) {
   const [zoom, setZoom] = useState(6)
   const modoCapasPropio = useModoCapas()
@@ -324,6 +339,10 @@ function MapView({
       datosProyectados
         ? valorProyectado
         : feature.properties?.score_privacion;
+    const valorNormalizado =
+      datosProyectados && normalizadorProyeccion
+        ? normalizadorProyeccion(valorColor)
+        : valorColor;
 
 
     const atenuado =
@@ -332,7 +351,7 @@ function MapView({
       codigo !== codigoSeleccionado;
 
     return {
-      fillColor: getColor(valorColor),
+      fillColor: getColor(valorNormalizado),
       weight: 1,
       opacity: 1,
       // Antes "#ffffff" -- con el semaforo nuevo el relleno puede ser
@@ -351,6 +370,7 @@ function MapView({
     nivelSeleccionado,
     datosProyectados,
     proyeccionesPorCodigo,
+    normalizadorProyeccion,
   ]
 );
 
@@ -377,12 +397,36 @@ function MapView({
         && codigo !== codigoSeleccionado
       return {
         ...ESTILO_DEPARTAMENTOS,
-        fillColor: getColor(valor),
+        fillColor: getColor(datosProyectados && normalizadorProyeccion ? normalizadorProyeccion(valor) : valor),
         fillOpacity: atenuado ? FILL_OPACITY_ATENUADA : FILL_OPACITY_NORMAL,
       }
     },
-    [codigoSeleccionado, nivelSeleccionado, datosProyectados, proyeccionesPorDepartamento]
+    [codigoSeleccionado, nivelSeleccionado, datosProyectados, proyeccionesPorDepartamento, normalizadorProyeccion]
   )
+
+  // Tooltip de los municipios en el mapa de proyeccion: valor del año de la variable activa, origen y, si es
+  // proyeccion, badge ambar + fiabilidad (los departamentos conservan solo el nombre).
+  const zonasProyectadasPorCodigo = useMemo(
+    () =>
+      datosProyectados && variableMapa
+        ? Object.fromEntries(datosProyectados.map((z) => [z.codigo_municipio, z]))
+        : null,
+    [datosProyectados, variableMapa]
+  )
+  useEffect(() => {
+    if (!zonasProyectadasPorCodigo || !variableMapa) {
+      fuenteTooltip.actual = null
+      return undefined
+    }
+    fuenteTooltip.actual = (feature) => {
+      const codigo = String(feature?.properties?.codigo ?? '')
+      if (codigo.length !== 5) return null
+      return htmlTooltipMunicipio(feature.properties.nombre, variableMapa, zonasProyectadasPorCodigo[codigo], anioSeleccionado)
+    }
+    return () => {
+      fuenteTooltip.actual = null
+    }
+  }, [zonasProyectadasPorCodigo, variableMapa, anioSeleccionado])
 
   // Tooltip liviano con solo el nombre (nada de score ni otras variables): el
   // tooltip nativo de Leaflet, uno por capa (ver capaDe), en vez de estado de
@@ -420,6 +464,17 @@ function MapView({
   // 27493, o cualquier departamento sin ningun municipio con score
   // valido). null/undefined tratados igual (el backend manda null;
   // undefined cubre el caso en que no llegue la propiedad).
+  // Leyenda: con una variable proyectada cargada muestra su nombre, unidad, descripcion y rampa; si no (mapa de
+  // calor, o antes de generar) queda la escala de privacion de siempre.
+  const leyendaProyectada = mostrarSelectorAnio && variableMapa != null
+  const tituloLeyenda =
+    leyendaProyectada && variableMapa.id !== 'score_privacion'
+      ? `${variableMapa.nombre}${variableMapa.unidad ? ` (${variableMapa.unidad})` : ''}`
+      : 'Escala de Privación'
+  const descripcionLeyenda = leyendaProyectada
+    ? variableMapa.descripcion
+    : 'Índice de 0.0 a 1.0 que promedia las carencias en acueducto, alcantarillado y déficit habitacional. Un valor de 1.0 indica la máxima prioridad o necesidad de intervención.'
+  const marcasLeyenda = leyendaProyectada && etiquetasLeyenda ? etiquetasLeyenda : ['0.0', '0.25', '0.5', '0.75', '1.0']
   const hayZonaSeleccionada = Boolean(codigoSeleccionado)
   const tieneScoreValido =
     hayZonaSeleccionada && scoreSeleccionado !== null && scoreSeleccionado !== undefined
@@ -489,15 +544,15 @@ function MapView({
       )}
 
       <div className="map-legend">
-        <section className="map-legend-panel" aria-label="Leyenda del score de privación">
+        <section className="map-legend-panel" aria-label={`Leyenda: ${tituloLeyenda}`}>
           <div className="map-legend-header">
             <div className="map-legend-title">
-              <h2>Escala de Privación</h2>
+              <h2>{tituloLeyenda}</h2>
               <span className="map-legend-info">
                 <button
                   type="button"
                   className="map-legend-info-button"
-                  aria-label="Más información sobre la escala de privación"
+                  aria-label={`Más información sobre ${tituloLeyenda}`}
                   aria-describedby="map-legend-description"
                 >
                   i
@@ -507,9 +562,7 @@ function MapView({
                   className="map-legend-description"
                   role="tooltip"
                 >
-                  Índice de 0.0 a 1.0 que promedia las carencias en acueducto,
-                  alcantarillado y déficit habitacional. Un valor de 1.0 indica
-                  la máxima prioridad o necesidad de intervención.
+                  {descripcionLeyenda}
                 </span>
               </span>
             </div>
@@ -523,11 +576,9 @@ function MapView({
             )}
           </div>
           <div className="map-legend-labels">
-            <span>0.0</span>
-            <span>0.25</span>
-            <span>0.5</span>
-            <span>0.75</span>
-            <span>1.0</span>
+            {marcasLeyenda.map((marca, i) => (
+              <span key={i}>{marca}</span>
+            ))}
           </div>
           {/* Siempre visible: es una entrada fija de la leyenda, no un
               mensaje contextual de la seleccion actual. */}
@@ -535,9 +586,14 @@ function MapView({
             <span className="map-legend-gray" aria-hidden="true" />
             <span>Sin dato / Área en litigio</span>
           </div>
-          {mostrarSelectorAnio && (
+          {mostrarSelectorAnio && !leyendaProyectada && (
             <p className="map-legend-nota">
               El déficit habitacional se mantiene constante (Censo 2018).
+            </p>
+          )}
+          {leyendaProyectada && (
+            <p className="map-legend-nota">
+              Valores proyectados por Techo 360; la fiabilidad de cada municipio se ve al pasar el cursor.
             </p>
           )}
         </section>

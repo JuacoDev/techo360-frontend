@@ -1678,3 +1678,141 @@ proyecciones
     color: #fff;
   }
 }
+
+/* ---- Selector de variable del Mapa de Proyeccion (Proyectadas.jsx) y su panel (PanelVariableProyeccion.jsx) ---- */
+.proyeccion-variable-bar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 10px 14px;
+  border: 1px solid #d8cfc5;
+  border-radius: 8px;
+  background-color: #fffaf5;
+}
+
+.proyeccion-variable-campo {
+  min-width: 260px;
+}
+
+.proyeccion-variable-estado {
+  padding-bottom: 10px;
+  color: #5c4033;
+  font-size: 13px;
+}
+
+.tooltip-proy-origen {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.tooltip-proy-badge {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background-color: #fffbeb;
+  border: 1px solid #d97706;
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tooltip-proy-real {
+  color: #1e3a8a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.panel-variable-proy {
+  margin-bottom: 14px;
+}
+
+.panel-variable-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #fffbeb;
+  border: 1px solid #d97706;
+}
+
+.panel-variable-real {
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.panel-variable-componentes {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.panel-variable-componentes li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  padding: 3px 0;
+  border-top: 1px solid #eee;
+}
+
+.panel-variable-componente-nombre {
+  text-transform: capitalize;
+}
+
+.panel-variable-serie-titulo {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.panel-variable-aviso {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.panel-variable-leyenda {
+  margin: 4px 0 0;
+  color: #444;
+  font-size: 11px;
+}
+
+.panel-variable-punto-real,
+.panel-variable-punto-proy {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin: 0 4px 0 10px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.panel-variable-punto-real:first-child {
+  margin-left: 0;
+}
+
+.panel-variable-punto-real {
+  background-color: #1e3a8a;
+}
+
+.panel-variable-punto-proy {
+  background-color: #fff;
+  border: 2px solid #d97706;
+}
+
+.panel-variable-tooltip {
+  padding: 6px 8px;
+  border: 1px solid #d8cfc5;
+  border-radius: 6px;
+  background-color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.panel-variable-tooltip-origen {
+  color: #6b7280;
+  font-size: 10px;
+}
