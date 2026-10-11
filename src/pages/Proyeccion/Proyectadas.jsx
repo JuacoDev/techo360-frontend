@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import BarraBuscadora from "../../components/BarraBuscadora";
+import { useModoCapas } from "../../components/SelectorCapasMapa";
 import MapView from "../../components/MapView";
 import PanelIndicadores from "../../components/PanelIndicadores";
 import { INDICADOR_PROYECCION_MAPA, getProyeccionZonas } from "../../services/api";
@@ -11,8 +12,8 @@ import {
   mensajeErrorProyeccion,
 } from "./combinarProyeccion.js";
 
+// Se arregló para implementar react-router: se quitó la prop setScreen (CabezaDeNavegacion navega con useNavigate).
 function Proyectadas({
-  setScreen,
   onLogout,
   departamentos,
   datosMunicipios,
@@ -20,10 +21,14 @@ function Proyectadas({
   errorRangoProyeccion,
 }) {
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null);
+  // Modo de capas de ESTE mapa (independiente del mapa de calor): lo cambian el
+  // selector del mapa y los desplegables del buscador.
+  const modoCapas = useModoCapas();
   const [anioInicio, setAnioInicio] = useState(2027);
   const [anioFin, setAnioFin] = useState(2030);
   const [cargandoProyeccion, setCargandoProyeccion] = useState(false);
   const [errorProyeccion, setErrorProyeccion] = useState(null);
+  const [mostrarControlesProyeccion, setMostrarControlesProyeccion] = useState(true);
 
   // Cache de la ultima proyeccion generada: un array de zonas por cada
   // año que SI se pudo generar (aniosGenerados puede tener huecos si
@@ -104,6 +109,7 @@ function Proyectadas({
     setAniosGenerados(combinado.aniosDisponibles);
     setAniosFallidos(combinado.aniosFallidos);
     setAnioSeleccionadoMapa(combinado.aniosDisponibles[0]);
+    setMostrarControlesProyeccion(false);
   }
 
   setCargandoProyeccion(false);
@@ -111,8 +117,8 @@ function Proyectadas({
 
   return (
     <main className="app-shell">
+      {/* Se arregló para implementar react-router: sin setScreen={setScreen} (la cabecera navega con useNavigate). */}
       <CabezaDeNavegacion
-        setScreen={setScreen}
         onLogout={onLogout}
       />
 
@@ -124,55 +130,101 @@ function Proyectadas({
             onSeleccionarZona={seleccionarZona}
             departamentos={departamentos}
             datosMunicipios={datosMunicipios}
+            onEventoCapas={modoCapas[1]}
+            accionDerecha={(
+              <button
+                className={`panel-proyeccion-toggle${mostrarControlesProyeccion ? "" : " is-collapsed"}`}
+                type="button"
+                aria-expanded={mostrarControlesProyeccion}
+                aria-controls="controles-proyeccion"
+                onClick={() => setMostrarControlesProyeccion((visible) => !visible)}
+              >
+                <span>
+                  <strong>{mostrarControlesProyeccion ? "Ocultar configuración" : "Configurar años de proyección"}</strong>
+                  {!mostrarControlesProyeccion && (
+                    <small>{anioInicio}-{anioFin} · {aniosGenerados.length} años</small>
+                  )}
+                </span>
+                <span className="panel-proyeccion-toggle-flecha" aria-hidden="true">
+                  {mostrarControlesProyeccion ? "↑" : "↓"}
+                </span>
+              </button>
+            )}
           />
 
-          <div className="panel-proyeccion">
-
-            <label>Año inicio</label>
-
-            <select
-              value={anioInicio}
-              disabled={!rangoProyeccion}
-              onChange={(e) =>
-                setAnioInicio(Number(e.target.value))
-              }
+          <div
+            className="panel-proyeccion"
+            aria-busy={cargandoProyeccion}
+          >
+            <div
+              id="controles-proyeccion"
+              className={`panel-proyeccion-contenido${mostrarControlesProyeccion ? "" : " is-hidden"}`}
+              aria-hidden={!mostrarControlesProyeccion}
             >
-              {aniosDisponibles.map((anio) => (
-                <option
-                  key={anio}
-                  value={anio}
-                >
-                  {anio}
-                </option>
-              ))}
-            </select>
+            <div className="panel-proyeccion-heading">
+              <div>
+                <p className="panel-proyeccion-kicker">Proyección de indicadores</p>
+                <h2>Elige el periodo que quieres consultar</h2>
+                <p>Selecciona un año de inicio y uno de fin. Después genera la proyección para actualizar el mapa.</p>
+              </div>
+              <span className="panel-proyeccion-rango">
+                {rangoProyeccion
+                  ? `${anioMinimo} - ${anioMaximo}`
+                  : "Cargando rango"}
+              </span>
+            </div>
 
-            <label>Año fin</label>
-
-            <select
-              value={anioFin}
-              disabled={!rangoProyeccion}
-              onChange={(e) =>
-                setAnioFin(Number(e.target.value))
-              }
-            >
-              {aniosDisponibles.map((anio) => (
-                <option
-                  key={anio}
-                  value={anio}
+            <div className="panel-proyeccion-campos">
+              <label className="panel-proyeccion-campo">
+                <span>Año de inicio</span>
+                <select
+                  value={anioInicio}
+                  disabled={!rangoProyeccion || cargandoProyeccion}
+                  onChange={(e) => {
+                    const nuevoInicio = Number(e.target.value);
+                    setAnioInicio(nuevoInicio);
+                    if (anioFin < nuevoInicio) setAnioFin(nuevoInicio);
+                  }}
                 >
-                  {anio}
-                </option>
-              ))}
-            </select>
+                  {aniosDisponibles.map((anio) => (
+                    <option key={anio} value={anio}>{anio}</option>
+                  ))}
+                </select>
+              </label>
+
+              <span className="panel-proyeccion-flecha" aria-hidden="true">→</span>
+
+              <label className="panel-proyeccion-campo">
+                <span>Año de fin</span>
+                <select
+                  value={anioFin}
+                  disabled={!rangoProyeccion || cargandoProyeccion}
+                  onChange={(e) => setAnioFin(Number(e.target.value))}
+                >
+                  {aniosDisponibles
+                    .filter((anio) => anio >= anioInicio)
+                    .map((anio) => (
+                      <option key={anio} value={anio}>{anio}</option>
+                    ))}
+                </select>
+              </label>
+            </div>
 
             <button
               className="btn-generar-proyeccion"
               onClick={generarProyeccion}
               disabled={!rangoProyeccion || cargandoProyeccion}
+              type="button"
             >
-              {cargandoProyeccion ? "Generando..." : "Generar proyección"}
+              {cargandoProyeccion && <span className="proyeccion-spinner" aria-hidden="true" />}
+              <span>{cargandoProyeccion ? "Generando proyección..." : "Generar proyección"}</span>
             </button>
+
+            <p className="panel-proyeccion-estado" role="status" aria-live="polite">
+              {cargandoProyeccion
+                ? `Calculando los años ${anioInicio} a ${anioFin}. Esto puede tardar unos segundos.`
+                : "Cuando termine, podrás cambiar el año visible desde el control del mapa."}
+            </p>
 
             {(errorProyeccion || errorRangoProyeccion) && (
               <span className="panel-proyeccion-error" role="alert">
@@ -185,7 +237,7 @@ function Proyectadas({
                 {avisoAniosFallidos(aniosFallidos)}
               </span>
             )}
-
+            </div>
           </div>
 
           <div className="dashboard-map-container">
@@ -201,6 +253,7 @@ function Proyectadas({
             cargandoAnio={cargandoProyeccion}
             avisoSelectorAnio="Genera la proyección"
             onAnioSeleccionado={setAnioSeleccionadoMapa}
+            modoCapas={modoCapas}
             />
           </div>
 

@@ -10,6 +10,11 @@ function BarraBuscadora({
   datosMunicipios,
   zonaActiva,
   onBuscadorReady,
+  accionDerecha,
+  // Eventos del selector de capas (services/modoCapas.js). Solo se emiten desde
+  // los onChange de usuario: los cambios programaticos de los selects (re-sincronizar
+  // con zonaActiva, reiniciar el municipio a "") no pasan por aqui.
+  onEventoCapas,
 }) {
   const [codigoDepartamento, setCodigoDepartamento] = useState("");
   const [codigoMunicipio, setCodigoMunicipio] = useState("");
@@ -74,6 +79,7 @@ function BarraBuscadora({
     );
     if (departamento) {
       onSeleccionarZona({ ...departamento, nivel: "departamento" });
+      onEventoCapas?.({ tipo: "ELEGIR_DEPARTAMENTO", origen: "desplegable", codigo });
     }
   }
 
@@ -84,11 +90,19 @@ function BarraBuscadora({
     setCodigoMunicipio(evento.target.value);
     if (municipio) {
       onSeleccionarZona({ ...municipio, nivel: "municipio" });
+      onEventoCapas?.({ tipo: "ELEGIR_MUNICIPIO", origen: "desplegable", codigo: evento.target.value });
     }
   }
 
+  function limpiarSeleccion() {
+    setCodigoDepartamento("");
+    setCodigoMunicipio("");
+    onSeleccionarZona(null);
+    onEventoCapas?.({ tipo: "LIMPIAR_SELECCION", origen: "desplegable" });
+  }
+
   return (
-    <div className="BarraBuscadora">
+    <div className={`BarraBuscadora${accionDerecha ? " BarraBuscadora--proyeccion" : ""}`}>
       <h3>Seleccionar zona</h3>
       <div className="BarraSelectores">
         <select
@@ -105,6 +119,10 @@ function BarraBuscadora({
           ))}
         </select>
 
+        {accionDerecha && (
+          <span className="BarraSelectores-separador" aria-hidden="true" />
+        )}
+
         <select
           className="BarraSelect"
           value={codigoMunicipio}
@@ -118,6 +136,18 @@ function BarraBuscadora({
             </option>
           ))}
         </select>
+
+        {(codigoDepartamento || codigoMunicipio) && (
+          <button type="button" className="barra-limpiar" onClick={limpiarSeleccion}>
+            Limpiar
+          </button>
+        )}
+
+        {accionDerecha && (
+          <div className="BarraBuscadora-accion">
+            {accionDerecha}
+          </div>
+        )}
       </div>
     </div>
   );

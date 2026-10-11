@@ -1,6 +1,8 @@
 import React, { useState , useEffect } from "react"
 import "../Css/StyleComponents.css";
 import { getProyeccion } from "../services/api";
+import { useIrA } from "../routing/useIrA.js";
+import { RUTAS } from "../routing/rutas.js";
 import {
   Line,
   LineChart,
@@ -135,9 +137,24 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
 }
 
 function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFin }) {
+  const irA = useIrA();
   const [cargando, setCargando] = useState(false);
   const [proyecciones, setProyecciones] = useState({});
   const [errorSerie, setErrorSerie] = useState(null);
+
+  // La serie proyectada solo existe para un MUNICIPIO (el backend exige un
+  // codigo DIVIPOLA de 5 digitos) y solo tiene sentido en el mapa de
+  // proyeccion, que es el unico que pasa anioInicio/anioFin. En el mapa de
+  // calor, o con un departamento seleccionado, no se llama al backend:
+  // antes se pedia con desde=undefined&hasta=undefined (o con el codigo de
+  // un departamento) y siempre devolvia 422.
+  const puedeProyectar =
+    modo === "proyeccion" &&
+    zonaSeleccionada?.nivel === "municipio" &&
+    anioInicio != null &&
+    anioFin != null;
+
+  const [vista, setVista] = useState("indicadores");
   const [incluirGraficas, setIncluirGraficas] = useState(true);
   const [departamentosInforme, setDepartamentosInforme] = useState([]);
   const [municipiosInforme, setMunicipiosInforme] = useState([]);
@@ -197,27 +214,33 @@ function toggleVariable(variable) {
   );
 }
 function generarInforme() {
-  const payload = {
-    incluirGraficas,
-    variables: variablesInforme,
-    departamentos: departamentosInforme,
-    municipios: municipiosInforme,
-    anioInicio,
-    anioFin,
-  };
-
+  irA(RUTAS.reportes, {
+    state: {
+      informe: {
+        incluirGraficas,
+        variables: variablesInforme,
+        departamentos: departamentosInforme,
+        municipios: municipiosInforme,
+        anioInicio,
+        anioFin,
+      },
+    },
+  });
 }
 
   useEffect(() => {
-  if (!zonaSeleccionada) return;
+  if (!puedeProyectar) {
+    setErrorSerie(null);
+    return;
+  }
 
   if (zonaSeleccionada.nivel !== "municipio") return;
 
   manejarClickIndicador("densidad_poblacional");
-}, [zonaSeleccionada, anioInicio, anioFin]);
+}, [zonaSeleccionada, anioInicio, anioFin, modo]);
 
    async function manejarClickIndicador(indicador) {
-  if (!zonaSeleccionada) return;
+  if (!puedeProyectar) return;
   
     if (zonaSeleccionada?.nivel !== "municipio") {
     return;
@@ -256,12 +279,39 @@ function generarInforme() {
    }
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
+      <div className="panel-indicadores-tabs" role="tablist" aria-label="Secciones del panel">
+        <button
+          type="button"
+          role="tab"
+          id="tab-indicadores"
+          aria-selected={vista === "indicadores"}
+          aria-controls="panel-vista"
+          className={`panel-indicadores-tab${vista === "indicadores" ? " is-active" : ""}`}
+          onClick={() => setVista("indicadores")}
+        >
+          Panel de indicadores
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-informe"
+          aria-selected={vista === "informe"}
+          aria-controls="panel-vista"
+          className={`panel-indicadores-tab${vista === "informe" ? " is-active" : ""}`}
+          onClick={() => setVista("informe")}
+        >
+          Generar informe
+        </button>
+      </div>
+
       <div className="panel-indicadores-header">
         <h2>
-          Estadísticas de: {zonaSeleccionada ? zonaSeleccionada.nombre : "Seleccione una zona"}
+          Zona seleccionada: {zonaSeleccionada ? zonaSeleccionada.nombre : "Ninguna"}
         </h2>
       </div>
 
+      {vista === "indicadores" && (
+      <>
       {zonaSeleccionada && "score_privacion" in zonaSeleccionada && (
         <div className="panel-indicadores-score">
           <strong className="indicador-nombre">Score de Privación</strong>
@@ -354,12 +404,22 @@ function generarInforme() {
           ))}
         </div>
       )}
-      <div className="panel-indicadores-grupo">
-  <h3 className="panel-indicadores-subtitulo">
-    📄 Informe
-  </h3>
+      </>
+      )}
 
-  <label className="informe-checkbox">
+      {vista === "informe" && (
+      <div className="panel-informe">
+  <div className="panel-informe-encabezado">
+    <div>
+      <p className="panel-informe-kicker">Generador de informes</p>
+      <h3 className="panel-informe-titulo">Configura tu informe</h3>
+      <p className="panel-informe-ayuda">
+        Selecciona las variables y agrega zonas desde el mapa.
+      </p>
+    </div>
+  </div>
+
+  <label className="informe-opcion-principal">
     <input
       type="checkbox"
       checked={incluirGraficas}
@@ -367,11 +427,17 @@ function generarInforme() {
         setIncluirGraficas(e.target.checked)
       }
     />
-    Incluir gráficas
+    <span>
+      <strong>Incluir gráficas</strong>
+      <small>Agrega una visualización al documento final.</small>
+    </span>
   </label>
 
   <div className="informe-seccion">
-    <strong>Variables incluidas</strong>
+    <div className="informe-seccion-titulo">
+      <strong>Variables incluidas</strong>
+      <span>{variablesInforme.length} seleccionadas</span>
+    </div>
 
     <label>
       <input
@@ -419,7 +485,10 @@ function generarInforme() {
   </div>
 
   <div className="informe-seccion">
-  <strong>Departamentos</strong>
+  <div className="informe-seccion-titulo">
+    <strong>Departamentos</strong>
+    <span>{departamentosInforme.length}</span>
+  </div>
 
   <div className="informe-tags">
     {departamentosInforme.map((zona) => (
@@ -435,7 +504,8 @@ function generarInforme() {
             eliminarDepartamentoInforme(zona.codigo)
           }
         >
-          ✕
+          <span aria-hidden="true">x</span>
+          <span className="sr-only">Quitar {zona.nombre}</span>
         </button>
       </span>
     ))}
@@ -443,7 +513,10 @@ function generarInforme() {
 </div>
 
 <div className="informe-seccion">
-  <strong>Municipios</strong>
+  <div className="informe-seccion-titulo">
+    <strong>Municipios</strong>
+    <span>{municipiosInforme.length}</span>
+  </div>
 
   <div className="informe-tags">
     {municipiosInforme.map((zona) => (
@@ -459,7 +532,8 @@ function generarInforme() {
             eliminarMunicipioInforme(zona.codigo)
           }
         >
-          ✕
+          <span aria-hidden="true">x</span>
+          <span className="sr-only">Quitar {zona.nombre}</span>
         </button>
       </span>
     ))}
@@ -467,29 +541,36 @@ function generarInforme() {
 </div>
 
   <button
-    className="btn-proyeccion"
+    className="btn-informe-secundario"
+    type="button"
     onClick={agregarZonaInforme}
+    disabled={!zonaSeleccionada}
   >
-    Añadir zona actual al informe
+    + Añadir zona actual
   </button>
 
-  <button
-  className="btn-proyeccion"
-  type="button"
-  onClick={generarInforme}
-  >
-    Generar informe
-  </button>
-  <div className="panel-indicadores-grupo">
-  <h3 className="panel-indicadores-subtitulo">
-    Vista previa
-  </h3>
+  <div className="informe-acciones">
+    <button
+      className="btn-informe-primario"
+      type="button"
+      onClick={generarInforme}
+    >
+      Abrir generador completo
+    </button>
+    <span className="informe-acciones-ayuda">Podrás editar el contenido antes de enviarlo.</span>
+  </div>
+
+  <div className="informe-preview">
+  <div className="informe-seccion-titulo">
+    <strong>Vista previa</strong>
+    <span>{departamentosInforme.length + municipiosInforme.length} zonas</span>
+  </div>
 
   <div className="informe-seccion">
     <strong>Departamentos seleccionados</strong>
 
     {departamentosInforme.length === 0 ? (
-      <p>No hay departamentos seleccionados</p>
+      <p className="informe-vacio">Añade un departamento desde el mapa.</p>
     ) : (
       departamentosInforme.map((departamento) => (
         <div
@@ -512,7 +593,7 @@ function generarInforme() {
     <strong>Municipios seleccionados</strong>
 
     {municipiosInforme.length === 0 ? (
-      <p>No hay municipios seleccionados</p>
+      <p className="informe-vacio">Añade un municipio desde el mapa.</p>
     ) : (
       municipiosInforme.map((municipio) => (
         <div
@@ -558,8 +639,9 @@ function generarInforme() {
   </div>
 </div>
 </div>
+      )}
       {cargando && <p>Cargando proyección...</p>}
-      {errorSerie && (
+      {modo === "proyeccion" && errorSerie && (
         <p className="panel-proyeccion-error">
           {errorSerie}
         </p>
