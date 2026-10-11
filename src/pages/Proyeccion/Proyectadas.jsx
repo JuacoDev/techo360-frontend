@@ -8,7 +8,6 @@ import PanelIndicadores from "../../components/PanelIndicadores";
 import { getProyeccionZonas } from "../../services/api";
 import { avisoAniosFallidos, mensajeErrorProyeccion } from "./combinarProyeccion.js";
 import {
-  VARIABLES_PROYECCION,
   VARIABLE_POR_DEFECTO,
   buscarVariable,
   claveCache,
@@ -44,32 +43,28 @@ function Proyectadas({
   const cacheRef = useRef({});
   const fallosRef = useRef({});
   const [versionCache, setVersionCache] = useState(0);
-  // Variable elegida en el selector y variable cuyos datos pinta el mapa (esta
-  // ultima cambia al terminar la carga, para que el mapa no parpadee).
-  const [variableId, setVariableId] = useState(VARIABLE_POR_DEFECTO);
-  const [variableMostradaId, setVariableMostradaId] = useState(VARIABLE_POR_DEFECTO);
   // Rango de años de la ultima generacion: cambiar de variable carga ESTE rango
   // (no el de los selects, que el usuario puede seguir moviendo sin efecto).
   const [rangoGenerado, setRangoGenerado] = useState(null);
   const [anioSeleccionadoMapa, setAnioSeleccionadoMapa] = useState(null);
 
-  const variableMostrada = buscarVariable(variableMostradaId);
+  const variableMostrada = buscarVariable(VARIABLE_POR_DEFECTO);
   const { aniosGenerados, aniosFallidos, datosPorAnio } = useMemo(() => {
     if (!rangoGenerado) return { aniosGenerados: [], aniosFallidos: [], datosPorAnio: {} };
     const { cargados, fallidos } = estadoDeAnios(
       cacheRef.current,
       fallosRef.current,
-      variableMostradaId,
+      VARIABLE_POR_DEFECTO,
       rangoGenerado.inicio,
       rangoGenerado.fin
     );
     return {
       aniosGenerados: cargados,
       aniosFallidos: fallidos,
-      datosPorAnio: Object.fromEntries(cargados.map((a) => [a, cacheRef.current[claveCache(variableMostradaId, a)]])),
+      datosPorAnio: Object.fromEntries(cargados.map((a) => [a, cacheRef.current[claveCache(VARIABLE_POR_DEFECTO, a)]])),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [versionCache, rangoGenerado, variableMostradaId]);
+  }, [versionCache, rangoGenerado]);
 
   const datosProyectados =
     anioSeleccionadoMapa != null
@@ -136,9 +131,7 @@ function Proyectadas({
       // Fallo total: error bloqueante. El selector vuelve a la variable que el
       // mapa sigue mostrando, para que ambos coincidan.
       setErrorProyeccion(fallidos[0]?.mensaje ?? "No se pudo generar la proyección. Intenta de nuevo.");
-      setVariableId(variableMostradaId);
     } else {
-      setVariableMostradaId(idVariable);
       setRangoGenerado({ inicio, fin });
       setAnioSeleccionadoMapa((actual) => (actual != null && cargados.includes(actual) ? actual : cargados[0]));
       if (colapsar) setMostrarControlesProyeccion(false);
@@ -148,14 +141,7 @@ function Proyectadas({
   };
 
   const generarProyeccion = () =>
-    cargarAnios(variableId, anioInicio, anioFin, { colapsar: true, reiniciarAnio: true });
-
-  // Cambiar de variable: si ya hay una proyeccion generada se cargan (solo los
-  // años que falten en el cache) los mismos años de esa generacion.
-  const cambiarVariable = (nuevoId) => {
-    setVariableId(nuevoId);
-    if (rangoGenerado) cargarAnios(nuevoId, rangoGenerado.inicio, rangoGenerado.fin);
-  };
+    cargarAnios(VARIABLE_POR_DEFECTO, anioInicio, anioFin, { colapsar: true, reiniciarAnio: true });
 
   return (
     <main className="app-shell">
@@ -282,29 +268,6 @@ function Proyectadas({
             </div>
           </div>
 
-          <div className="proyeccion-variable-bar">
-            <label className="panel-proyeccion-campo proyeccion-variable-campo">
-              <span>Variable del mapa</span>
-              <select
-                value={variableId}
-                disabled={!rangoProyeccion || cargandoProyeccion}
-                onChange={(e) => cambiarVariable(e.target.value)}
-                aria-label="Variable del mapa de proyección"
-              >
-                {VARIABLES_PROYECCION.map((v) => (
-                  <option key={v.id} value={v.id}>{v.nombre}</option>
-                ))}
-              </select>
-            </label>
-            <span className="proyeccion-variable-estado" role="status" aria-live="polite">
-              {cargandoProyeccion
-                ? `Cargando ${buscarVariable(variableId).nombre}...`
-                : datosProyectados
-                  ? `Mostrando ${variableMostrada.nombre} · ${anioSeleccionadoMapa}`
-                  : "Genera la proyección para ver la variable en el mapa."}
-            </span>
-          </div>
-
           <div className="dashboard-map-container">
             <MapView
             onZonaSeleccionada={seleccionarZona}
@@ -334,7 +297,13 @@ function Proyectadas({
           anioFin={anioFin}
           proyeccionMapa={
             datosProyectados
-              ? { variable: variableMostrada, anio: anioSeleccionadoMapa, datosPorAnio }
+              ? {
+                variable: variableMostrada,
+                anio: anioSeleccionadoMapa,
+                datosPorAnio,
+                desde: rangoGenerado.inicio,
+                hasta: rangoGenerado.fin,
+              }
               : null
           }
         />

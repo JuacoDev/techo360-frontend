@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { accionesDe, estadoDe, etiquetaEstado } from "../../services/estadosMensaje.js";
-import { faseEspera, formatearTranscurrido, segundosDesde } from "../../services/esperaChat.js";
+import { faseEspera, segundosDesde } from "../../services/esperaChat.js";
 import { mensajeAmigableErrorChat } from "../../services/mensajesError.js";
 
 // Piezas visuales de los estados del chat: espera larga, error, cancelado y sus
@@ -77,9 +77,7 @@ export function Presencia({ visible, children, className = "", duracion = 200 })
   );
 }
 
-// Espera de la respuesta: puntos animados, fase (lee/redacta/cola/larga) y el
-// tiempo transcurrido. El contador no esta en la region viva (no se anuncia cada
-// segundo); solo el cambio de fase.
+// Espera de la respuesta: puntos animados y fase (lee/redacta/cola/larga).
 export function IndicadorEspera({ desde, onCancelar, cancelando = false, etiquetaCancelar, compacto = false }) {
   const segundos = useSegundosDesde(desde);
   const { fase, titulo, pista } = faseEspera(segundos);
@@ -88,7 +86,6 @@ export function IndicadorEspera({ desde, onCancelar, cancelando = false, etiquet
       <div className="chat-espera-fila">
         <span className="chat-espera-puntos" aria-hidden="true"><i /><i /><i /></span>
         <span className="chat-espera-titulo" role="status" aria-live="polite">{titulo}</span>
-        <span className="chat-espera-tiempo" aria-hidden="true">{formatearTranscurrido(segundos)}</span>
       </div>
       {!compacto && <p className="chat-espera-pista">{pista}</p>}
       {onCancelar && (

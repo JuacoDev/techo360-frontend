@@ -544,7 +544,6 @@ Home (pantalla inicial publica)
 .chat-espera-puntos i:nth-child(2) { animation-delay: 160ms; }
 .chat-espera-puntos i:nth-child(3) { animation-delay: 320ms; }
 .chat-espera-titulo { flex: 1; font-size: 14px; font-weight: 600; color: #3d3935; }
-.chat-espera-tiempo { padding: 3px 8px; border-radius: 999px; background: #f4efe8; color: #5c4033; font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 600; }
 .chat-espera-pista { margin: 0; color: #66615a; font-size: 13px; line-height: 1.45; }
 .chat-espera--cola { border-left-color: #c66a00; }
 .chat-espera--larga { border-left-color: #9a4a0b; background: #fffaf4; }

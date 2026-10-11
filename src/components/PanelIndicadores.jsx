@@ -4,6 +4,7 @@ import { getProyeccion } from "../services/api";
 import PanelVariableProyeccion from "./PanelVariableProyeccion.jsx";
 import { useIrA } from "../routing/useIrA.js";
 import { RUTAS } from "../routing/rutas.js";
+import { VARIABLES_PROYECCION } from "../pages/Proyeccion/variablesProyeccion.js";
 import {
   Line,
   LineChart,
@@ -156,6 +157,9 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
     anioFin != null;
 
   const hayProyeccionMapa = proyeccionMapa != null;
+  const variablesGraficas = VARIABLES_PROYECCION.filter(
+    (variable) => variable.id === "score_privacion" || variable.serie === "servicio"
+  );
 
   const [vista, setVista] = useState("indicadores");
   const [incluirGraficas, setIncluirGraficas] = useState(true);
@@ -319,15 +323,22 @@ function generarInforme() {
 
       {vista === "indicadores" && (
       <>
-      {modo === "proyeccion" && proyeccionMapa && zonaSeleccionada?.nivel === "municipio" && (
-        <PanelVariableProyeccion
-          zona={zonaSeleccionada}
-          variable={proyeccionMapa.variable}
-          anio={proyeccionMapa.anio}
-          datosPorAnio={proyeccionMapa.datosPorAnio}
-        />
+      {modo === "proyeccion" && zonaSeleccionada?.nivel === "municipio" && (
+        <div className="panel-indicadores-proyecciones">
+          {variablesGraficas.map((variable) => (
+              <PanelVariableProyeccion
+                key={variable.id}
+                zona={zonaSeleccionada}
+                variable={variable}
+                anio={proyeccionMapa?.anio ?? anioInicio}
+                datosPorAnio={variable.id === "score_privacion" ? proyeccionMapa?.datosPorAnio ?? {} : {}}
+                desde={proyeccionMapa?.desde ?? anioInicio}
+                hasta={proyeccionMapa?.hasta ?? anioFin}
+              />
+          ))}
+        </div>
       )}
-      {zonaSeleccionada && "score_privacion" in zonaSeleccionada && (
+      {modo !== "proyeccion" && zonaSeleccionada && "score_privacion" in zonaSeleccionada && (
         <div className="panel-indicadores-score">
           <strong className="indicador-nombre">Score de Privación</strong>
           <p className="indicador-valor">
@@ -338,7 +349,7 @@ function generarInforme() {
         </div>
       )}
 
-      {zonaSeleccionada && zonaSeleccionada.indicadores ? (
+      {modo === "proyeccion" ? null : zonaSeleccionada && zonaSeleccionada.indicadores ? (
         (() => {
           const entradas = Object.entries(zonaSeleccionada.indicadores);
           const confirmadas = entradas.filter(([, datos]) => !esSinDato(datos.origen) && !esProyeccion(datos.origen));

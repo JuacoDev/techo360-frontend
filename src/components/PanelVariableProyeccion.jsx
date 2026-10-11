@@ -3,8 +3,6 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 
 import { getProyeccion } from "../services/api";
 import {
-  ANIO_SERIE_FIN,
-  ANIO_SERIE_INICIO,
   aniosSinCargar,
   esProyeccionZona,
   formatearValor,
@@ -50,7 +48,7 @@ function TooltipSerie({ active, payload, variable }) {
 // fiabilidad), insumos del score y la serie 2024-2042 de la variable.
 //  * densidad y score: la serie se arma con los años ya cargados en el mapa (no se llama a /serie);
 //  * las otras 6 variables: GET /api/proyecciones/serie?desde=2024&hasta=2042.
-function PanelVariableProyeccion({ zona, variable, anio, datosPorAnio }) {
+function PanelVariableProyeccion({ zona, variable, anio, datosPorAnio, desde, hasta }) {
   const codigo = zona?.nivel === "municipio" ? String(zona.codigo ?? "").padStart(5, "0") : null;
   const desdeServicio = variable.serie === "servicio";
   const cacheSeries = useRef({});
@@ -66,7 +64,7 @@ function PanelVariableProyeccion({ zona, variable, anio, datosPorAnio }) {
     }
     let cancelado = false;
     setEstadoSerie({ clave, estado: "cargando", serie: null });
-    getProyeccion(codigo, variable.id, ANIO_SERIE_INICIO, ANIO_SERIE_FIN)
+    getProyeccion(codigo, variable.id, desde, hasta)
       .then((respuesta) => {
         if (cancelado) return;
         cacheSeries.current[clave] = respuesta.serie ?? [];
@@ -80,7 +78,7 @@ function PanelVariableProyeccion({ zona, variable, anio, datosPorAnio }) {
     return () => {
       cancelado = true;
     };
-  }, [desdeServicio, clave, codigo, variable.id]);
+  }, [desdeServicio, clave, codigo, variable.id, desde, hasta]);
 
   const zonaAnio = useMemo(
     () => (codigo ? (datosPorAnio?.[anio] ?? []).find((z) => z.codigo_municipio === codigo) : undefined),
@@ -89,10 +87,10 @@ function PanelVariableProyeccion({ zona, variable, anio, datosPorAnio }) {
 
   const puntos = useMemo(() => {
     if (!codigo) return [];
-    if (!desdeServicio) return serieDesdeMapa(codigo, datosPorAnio);
-    if (estadoSerie.clave === clave && estadoSerie.estado === "ok") return serieDesdeServicio(estadoSerie.serie);
+    if (!desdeServicio) return serieDesdeMapa(codigo, datosPorAnio, desde, hasta);
+    if (estadoSerie.clave === clave && estadoSerie.estado === "ok") return serieDesdeServicio(estadoSerie.serie, desde, hasta);
     return [];
-  }, [codigo, desdeServicio, datosPorAnio, estadoSerie, clave]);
+  }, [codigo, desdeServicio, datosPorAnio, estadoSerie, clave, desde, hasta]);
 
   if (!codigo || anio == null) return null;
 
@@ -143,12 +141,12 @@ function PanelVariableProyeccion({ zona, variable, anio, datosPorAnio }) {
 
       <div className="indicador-serie panel-variable-serie">
         <strong className="panel-variable-serie-titulo">
-          Serie {ANIO_SERIE_INICIO}-{ANIO_SERIE_FIN}
+          Serie {desde}-{hasta}
         </strong>
         {serieEnCurso && <p className="panel-variable-aviso">Cargando la serie…</p>}
         {serieFallida && (
           <p className="panel-variable-aviso" role="status">
-            No se pudo cargar la serie {ANIO_SERIE_INICIO}-{ANIO_SERIE_FIN}; se muestra solo el valor del año.
+            No se pudo cargar la serie {desde}-{hasta}; se muestra solo el valor del año.
           </p>
         )}
         {hayGrafica && (
