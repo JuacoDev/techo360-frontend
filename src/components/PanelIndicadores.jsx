@@ -1,6 +1,14 @@
 import React, { useState , useEffect } from "react"
 import "../Css/StyleComponents.css";
 import { getProyeccion } from "../services/api";
+import {
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const INDICADORES = [
   "densidad_poblacional",
@@ -54,6 +62,12 @@ function esSinDato(origen) {
 function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProyectada }) {
   const nombreFormateado = nombre.replace(/_/g, " ");
   const unidad = UNIDADES[nombre] || "";
+  const datosGrafico = (serieProyectada || [])
+    .map((punto) => ({
+      año: String(punto.año ?? punto.anio ?? ""),
+      valor: Number(punto.valor),
+    }))
+    .filter((punto) => punto.año && Number.isFinite(punto.valor));
   const claseTipo =
     tipo === "proyeccion" || proyectado
       ? " indicador-card-proyeccion"
@@ -74,13 +88,31 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
         {datos.valor ?? "Sin dato"} {datos.valor ? unidad : ""}
       </p>
 
-      {serieProyectada?.length > 0 && (
+      {datosGrafico.length > 0 && (
         <div className="indicador-serie">
-          {serieProyectada.map((punto) => (
-            <div key={punto.anio}>
-              {punto.anio} → {punto.valor} {unidad}
-            </div>
-          ))}
+          <ResponsiveContainer width="100%" height={150}>
+            <LineChart data={datosGrafico}>
+              <XAxis dataKey="año" />
+              <YAxis />
+              <Tooltip formatter={(valor) => [`${valor} ${unidad}`, "Valor"]} />
+              <Line
+                type="monotone"
+                dataKey="valor"
+                stroke="#f57c00"
+                strokeWidth={2}
+                strokeDasharray="0"
+                dot={{
+                  r: 4,
+                  fill: "#f57c00",
+                  stroke: "#f57c00",
+                  strokeWidth: 1,
+                }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          <p className="text-xs text-gray-500 italic mt-2">
+            ⚠️ Proyección estimada (Modelo LightGBM). No es un dato observado.
+          </p>
         </div>
       )}
 
@@ -537,5 +569,3 @@ function generarInforme() {
 }
 
 export default PanelIndicadores;
-
-
