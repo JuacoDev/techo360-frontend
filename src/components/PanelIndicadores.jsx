@@ -1,6 +1,7 @@
 import React, { useState , useEffect } from "react"
 import "../Css/StyleComponents.css";
 import { getProyeccion } from "../services/api";
+import PanelVariableProyeccion from "./PanelVariableProyeccion.jsx";
 import { useIrA } from "../routing/useIrA.js";
 import { RUTAS } from "../routing/rutas.js";
 import {
@@ -136,7 +137,7 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
   );
 }
 
-function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFin }) {
+function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFin, proyeccionMapa = null }) {
   const irA = useIrA();
   const [cargando, setCargando] = useState(false);
   const [proyecciones, setProyecciones] = useState({});
@@ -153,6 +154,8 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
     zonaSeleccionada?.nivel === "municipio" &&
     anioInicio != null &&
     anioFin != null;
+
+  const hayProyeccionMapa = proyeccionMapa != null;
 
   const [vista, setVista] = useState("indicadores");
   const [incluirGraficas, setIncluirGraficas] = useState(true);
@@ -236,8 +239,12 @@ function generarInforme() {
 
   if (zonaSeleccionada.nivel !== "municipio") return;
 
+  // Con una variable proyectada cargada en el mapa, la serie de densidad (y la del score) se arma con los datos
+  // del mapa en PanelVariableProyeccion: no se llama a /serie.
+  if (hayProyeccionMapa) return;
+
   manejarClickIndicador("densidad_poblacional");
-}, [zonaSeleccionada, anioInicio, anioFin, modo]);
+}, [zonaSeleccionada, anioInicio, anioFin, modo, hayProyeccionMapa]);
 
    async function manejarClickIndicador(indicador) {
   if (!puedeProyectar) return;
@@ -312,6 +319,14 @@ function generarInforme() {
 
       {vista === "indicadores" && (
       <>
+      {modo === "proyeccion" && proyeccionMapa && zonaSeleccionada?.nivel === "municipio" && (
+        <PanelVariableProyeccion
+          zona={zonaSeleccionada}
+          variable={proyeccionMapa.variable}
+          anio={proyeccionMapa.anio}
+          datosPorAnio={proyeccionMapa.datosPorAnio}
+        />
+      )}
       {zonaSeleccionada && "score_privacion" in zonaSeleccionada && (
         <div className="panel-indicadores-score">
           <strong className="indicador-nombre">Score de Privación</strong>
