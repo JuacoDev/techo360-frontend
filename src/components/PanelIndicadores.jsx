@@ -119,6 +119,7 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
     anioInicio != null &&
     anioFin != null;
 
+  const [vista, setVista] = useState("indicadores");
   const [incluirGraficas, setIncluirGraficas] = useState(true);
   const [departamentosInforme, setDepartamentosInforme] = useState([]);
   const [municipiosInforme, setMunicipiosInforme] = useState([]);
@@ -240,12 +241,39 @@ function generarInforme() {
    }
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
+      <div className="panel-indicadores-tabs" role="tablist" aria-label="Secciones del panel">
+        <button
+          type="button"
+          role="tab"
+          id="tab-indicadores"
+          aria-selected={vista === "indicadores"}
+          aria-controls="panel-vista"
+          className={`panel-indicadores-tab${vista === "indicadores" ? " is-active" : ""}`}
+          onClick={() => setVista("indicadores")}
+        >
+          Panel de indicadores
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-informe"
+          aria-selected={vista === "informe"}
+          aria-controls="panel-vista"
+          className={`panel-indicadores-tab${vista === "informe" ? " is-active" : ""}`}
+          onClick={() => setVista("informe")}
+        >
+          Generar informe
+        </button>
+      </div>
+
       <div className="panel-indicadores-header">
         <h2>
           Estadísticas de: {zonaSeleccionada ? zonaSeleccionada.nombre : "Seleccione una zona"}
         </h2>
       </div>
 
+      {vista === "indicadores" && (
+      <>
       {zonaSeleccionada && "score_privacion" in zonaSeleccionada && (
         <div className="panel-indicadores-score">
           <strong className="indicador-nombre">Score de Privación</strong>
@@ -338,6 +366,10 @@ function generarInforme() {
           ))}
         </div>
       )}
+      </>
+      )}
+
+      {vista === "informe" && (
       <div className="panel-indicadores-grupo">
   <h3 className="panel-indicadores-subtitulo">
     📄 Informe
@@ -542,6 +574,7 @@ function generarInforme() {
   </div>
 </div>
 </div>
+      )}
       {cargando && <p>Cargando proyección...</p>}
       {modo === "proyeccion" && errorSerie && (
         <p className="panel-proyeccion-error">

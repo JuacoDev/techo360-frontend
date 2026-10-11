@@ -1139,3 +1139,45 @@ proyecciones
 .barra-limpiar { flex: none; padding: 0 14px; border: 1px solid #d8d2c8; border-radius: 8px; background: #fff; color: #5c4033; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .barra-limpiar:hover { border-color: #9a4a0b; background: #fff6ee; }
 .barra-limpiar:focus-visible { outline: 2px solid #9a4a0b; outline-offset: 2px; }
+
+/* Barra de pestañas del panel de indicadores: alterna entre el panel de
+   indicadores y la generacion de informe. */
+.panel-indicadores-tabs {
+  position: sticky;
+  top: -16px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  margin: -16px -16px 16px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid #e4ded4;
+  background: #fff;
+}
+
+.panel-indicadores-tab {
+  flex: 1;
+  padding: 10px 8px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #77736c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+.panel-indicadores-tab:hover {
+  color: #333230;
+}
+
+.panel-indicadores-tab.is-active {
+  border-bottom-color: #f57c00;
+  color: #f57c00;
+}
+
+.panel-indicadores-tab:focus-visible {
+  outline: 2px solid #f57c00;
+  outline-offset: -2px;
+}
