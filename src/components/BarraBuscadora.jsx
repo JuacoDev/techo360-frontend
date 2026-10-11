@@ -10,6 +10,7 @@ function BarraBuscadora({
   datosMunicipios,
   zonaActiva,
   onBuscadorReady,
+  accionDerecha,
   // Eventos del selector de capas (services/modoCapas.js). Solo se emiten desde
   // los onChange de usuario: los cambios programaticos de los selects (re-sincronizar
   // con zonaActiva, reiniciar el municipio a "") no pasan por aqui.
@@ -101,7 +102,7 @@ function BarraBuscadora({
   }
 
   return (
-    <div className="BarraBuscadora">
+    <div className={`BarraBuscadora${accionDerecha ? " BarraBuscadora--proyeccion" : ""}`}>
       <h3>Seleccionar zona</h3>
       <div className="BarraSelectores">
         <select
@@ -117,6 +118,10 @@ function BarraBuscadora({
             </option>
           ))}
         </select>
+
+        {accionDerecha && (
+          <span className="BarraSelectores-separador" aria-hidden="true" />
+        )}
 
         <select
           className="BarraSelect"
@@ -136,6 +141,12 @@ function BarraBuscadora({
           <button type="button" className="barra-limpiar" onClick={limpiarSeleccion}>
             Limpiar
           </button>
+        )}
+
+        {accionDerecha && (
+          <div className="BarraBuscadora-accion">
+            {accionDerecha}
+          </div>
         )}
       </div>
     </div>

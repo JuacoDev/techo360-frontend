@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router";
 
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
 import { API_URL, fetchConSesion } from "../../services/api";
@@ -47,25 +48,40 @@ function Reportes({
   departamentos,
   datosMunicipios,
 }) {
+  const { state } = useLocation();
+  const informeInicial = state?.informe;
+
   // =========================
   // Estados
   // =========================
 
-  const [incluirGraficas, setIncluirGraficas] = useState(true);
+  const [incluirGraficas, setIncluirGraficas] = useState(
+    () => informeInicial?.incluirGraficas ?? true
+  );
   const [formatoReporte, setFormatoReporte] = useState("pdf");
 
-  const [anioInicio, setAnioInicio] = useState(2020);
-  const [anioFin, setAnioFin] = useState(2025);
+  const [anioInicio, setAnioInicio] = useState(
+    () => informeInicial?.anioInicio ?? 2020
+  );
+  const [anioFin, setAnioFin] = useState(
+    () => informeInicial?.anioFin ?? 2025
+  );
 
   const [departamentosSeleccionados, setDepartamentosSeleccionados] =
-    useState([]);
+    useState(() => informeInicial?.departamentos ?? []);
 
-  const [municipiosSeleccionados, setMunicipiosSeleccionados] = useState([]);
+  const [municipiosSeleccionados, setMunicipiosSeleccionados] = useState(
+    () => informeInicial?.municipios ?? []
+  );
 
   const [busquedaDepartamento, setBusquedaDepartamento] = useState("");
   const [busquedaMunicipio, setBusquedaMunicipio] = useState("");
 
-  const [variablesSeleccionadas, setVariablesSeleccionadas] = useState([]);
+  const [variablesSeleccionadas, setVariablesSeleccionadas] = useState(() =>
+    (informeInicial?.variables ?? [])
+      .map((id) => VARIABLES.find((variable) => variable.id === id))
+      .filter(Boolean)
+  );
 
   const [comentarios, setComentarios] = useState({});
 

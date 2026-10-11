@@ -1,6 +1,8 @@
 import React, { useState , useEffect } from "react"
 import "../Css/StyleComponents.css";
 import { getProyeccion } from "../services/api";
+import { useIrA } from "../routing/useIrA.js";
+import { RUTAS } from "../routing/rutas.js";
 
 const INDICADORES = [
   "densidad_poblacional",
@@ -103,6 +105,7 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
 }
 
 function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFin }) {
+  const irA = useIrA();
   const [cargando, setCargando] = useState(false);
   const [proyecciones, setProyecciones] = useState({});
   const [errorSerie, setErrorSerie] = useState(null);
@@ -179,15 +182,18 @@ function toggleVariable(variable) {
   );
 }
 function generarInforme() {
-  const payload = {
-    incluirGraficas,
-    variables: variablesInforme,
-    departamentos: departamentosInforme,
-    municipios: municipiosInforme,
-    anioInicio,
-    anioFin,
-  };
-
+  irA(RUTAS.reportes, {
+    state: {
+      informe: {
+        incluirGraficas,
+        variables: variablesInforme,
+        departamentos: departamentosInforme,
+        municipios: municipiosInforme,
+        anioInicio,
+        anioFin,
+      },
+    },
+  });
 }
 
   useEffect(() => {
@@ -268,7 +274,7 @@ function generarInforme() {
 
       <div className="panel-indicadores-header">
         <h2>
-          Estadísticas de: {zonaSeleccionada ? zonaSeleccionada.nombre : "Seleccione una zona"}
+          Zona seleccionada: {zonaSeleccionada ? zonaSeleccionada.nombre : "Ninguna"}
         </h2>
       </div>
 
@@ -370,12 +376,18 @@ function generarInforme() {
       )}
 
       {vista === "informe" && (
-      <div className="panel-indicadores-grupo">
-  <h3 className="panel-indicadores-subtitulo">
-    📄 Informe
-  </h3>
+      <div className="panel-informe">
+  <div className="panel-informe-encabezado">
+    <div>
+      <p className="panel-informe-kicker">Generador de informes</p>
+      <h3 className="panel-informe-titulo">Configura tu informe</h3>
+      <p className="panel-informe-ayuda">
+        Selecciona las variables y agrega zonas desde el mapa.
+      </p>
+    </div>
+  </div>
 
-  <label className="informe-checkbox">
+  <label className="informe-opcion-principal">
     <input
       type="checkbox"
       checked={incluirGraficas}
@@ -383,11 +395,17 @@ function generarInforme() {
         setIncluirGraficas(e.target.checked)
       }
     />
-    Incluir gráficas
+    <span>
+      <strong>Incluir gráficas</strong>
+      <small>Agrega una visualización al documento final.</small>
+    </span>
   </label>
 
   <div className="informe-seccion">
-    <strong>Variables incluidas</strong>
+    <div className="informe-seccion-titulo">
+      <strong>Variables incluidas</strong>
+      <span>{variablesInforme.length} seleccionadas</span>
+    </div>
 
     <label>
       <input
@@ -435,7 +453,10 @@ function generarInforme() {
   </div>
 
   <div className="informe-seccion">
-  <strong>Departamentos</strong>
+  <div className="informe-seccion-titulo">
+    <strong>Departamentos</strong>
+    <span>{departamentosInforme.length}</span>
+  </div>
 
   <div className="informe-tags">
     {departamentosInforme.map((zona) => (
@@ -451,7 +472,8 @@ function generarInforme() {
             eliminarDepartamentoInforme(zona.codigo)
           }
         >
-          ✕
+          <span aria-hidden="true">x</span>
+          <span className="sr-only">Quitar {zona.nombre}</span>
         </button>
       </span>
     ))}
@@ -459,7 +481,10 @@ function generarInforme() {
 </div>
 
 <div className="informe-seccion">
-  <strong>Municipios</strong>
+  <div className="informe-seccion-titulo">
+    <strong>Municipios</strong>
+    <span>{municipiosInforme.length}</span>
+  </div>
 
   <div className="informe-tags">
     {municipiosInforme.map((zona) => (
@@ -475,7 +500,8 @@ function generarInforme() {
             eliminarMunicipioInforme(zona.codigo)
           }
         >
-          ✕
+          <span aria-hidden="true">x</span>
+          <span className="sr-only">Quitar {zona.nombre}</span>
         </button>
       </span>
     ))}
@@ -483,29 +509,36 @@ function generarInforme() {
 </div>
 
   <button
-    className="btn-proyeccion"
+    className="btn-informe-secundario"
+    type="button"
     onClick={agregarZonaInforme}
+    disabled={!zonaSeleccionada}
   >
-    Añadir zona actual al informe
+    + Añadir zona actual
   </button>
 
-  <button
-  className="btn-proyeccion"
-  type="button"
-  onClick={generarInforme}
-  >
-    Generar informe
-  </button>
-  <div className="panel-indicadores-grupo">
-  <h3 className="panel-indicadores-subtitulo">
-    Vista previa
-  </h3>
+  <div className="informe-acciones">
+    <button
+      className="btn-informe-primario"
+      type="button"
+      onClick={generarInforme}
+    >
+      Abrir generador completo
+    </button>
+    <span className="informe-acciones-ayuda">Podrás editar el contenido antes de enviarlo.</span>
+  </div>
+
+  <div className="informe-preview">
+  <div className="informe-seccion-titulo">
+    <strong>Vista previa</strong>
+    <span>{departamentosInforme.length + municipiosInforme.length} zonas</span>
+  </div>
 
   <div className="informe-seccion">
     <strong>Departamentos seleccionados</strong>
 
     {departamentosInforme.length === 0 ? (
-      <p>No hay departamentos seleccionados</p>
+      <p className="informe-vacio">Añade un departamento desde el mapa.</p>
     ) : (
       departamentosInforme.map((departamento) => (
         <div
@@ -528,7 +561,7 @@ function generarInforme() {
     <strong>Municipios seleccionados</strong>
 
     {municipiosInforme.length === 0 ? (
-      <p>No hay municipios seleccionados</p>
+      <p className="informe-vacio">Añade un municipio desde el mapa.</p>
     ) : (
       municipiosInforme.map((municipio) => (
         <div
