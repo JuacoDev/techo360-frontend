@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { getCurrentUser } from "../services/api";
-import { RUTAS } from "../routing/rutas.js";
+import { nombreDeModulo, RUTAS } from "../routing/rutas.js";
 
 // "MJ" a partir de "María José Rojas" -- primeras dos palabras del nombre
 // completo que devuelve /auth/me (namevar), no hay campo separado de
@@ -27,6 +27,8 @@ function obtenerIniciales(nombreCompleto) {
 function CabezaDeNavegacion({ onLogout, onLogin }) {
   // Se arregló para implementar react-router: se quitó la prop setScreen; la cabecera navega con useNavigate/Link y RUTAS.
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const modulo = nombreDeModulo(pathname);
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [revisado, setRevisado] = useState(false);
@@ -51,6 +53,7 @@ function CabezaDeNavegacion({ onLogout, onLogin }) {
 
   return (
     <nav className="CabezaDeNavegacion">
+      <div className="CabezaDeNavegacion-marca">
       <button
         type="button"
         className="CabezaDeNavegacion-logo"
@@ -64,6 +67,13 @@ function CabezaDeNavegacion({ onLogout, onLogin }) {
         </span>
         <h2>Techo 360</h2>
       </button>
+      {modulo && (
+        <span className="CabezaDeNavegacion-modulo" aria-current="page">
+          <span className="CabezaDeNavegacion-guion" aria-hidden="true">–</span>
+          {modulo}
+        </span>
+      )}
+      </div>
 
       <div className="CabezaDeNavegacion-links">
         {revisado && !user && (

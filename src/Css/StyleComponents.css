@@ -333,7 +333,35 @@ CabezaDeNavegacion Styles
 
 .CabezaDeNavegacion-logo h2 {
   margin: 0;
+  white-space: nowrap;
   font-size: 18px;
+  font-weight: 700;
+}
+
+.CabezaDeNavegacion-marca {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+/* "Techo 360 – Modulo": guion en naranja y nombre sin negrilla, para que
+   identifique el modulo sin competir con la marca. */
+.CabezaDeNavegacion-modulo {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  color: #d8d0c8;
+  font-size: 16px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.CabezaDeNavegacion-guion {
+  color: #f57c00;
   font-weight: 700;
 }
 
@@ -434,6 +462,14 @@ CabezaDeNavegacion Styles
 
   .CabezaDeNavegacion-nombre {
     display: none;
+  }
+
+  .CabezaDeNavegacion-modulo {
+    font-size: 14px;
+  }
+
+  .CabezaDeNavegacion-logout {
+    white-space: nowrap;
   }
 
   .CabezaDeNavegacion-logout {
@@ -1611,4 +1647,34 @@ proyecciones
 .panel-indicadores-tab:focus-visible {
   outline: 2px solid #9a4a0b;
   outline-offset: -2px;
+}
+
+/* Pantallas muy angostas: el nombre del modulo pasa a ocupar el lugar de "Techo 360" (queda el logo). */
+@media (max-width: 480px) {
+  .CabezaDeNavegacion-logo h2,
+  .CabezaDeNavegacion-guion {
+    display: none;
+  }
+
+  .CabezaDeNavegacion {
+    padding: 0 12px;
+  }
+
+  .CabezaDeNavegacion-marca {
+    gap: 8px;
+  }
+
+  .CabezaDeNavegacion-links {
+    gap: 8px;
+  }
+
+  .CabezaDeNavegacion-logout {
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+
+  .CabezaDeNavegacion-modulo {
+    font-size: 14px;
+    color: #fff;
+  }
 }

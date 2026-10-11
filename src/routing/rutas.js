@@ -77,6 +77,22 @@ export function esRutaProtegida(ruta) {
   return RUTAS_PROTEGIDAS.has(normalizarRuta(ruta));
 }
 
+// Nombre del modulo que muestra el header junto a "Techo 360" ("Techo 360 - Mapa de calor").
+// null donde no hay modulo (inicio y rutas desconocidas).
+const NOMBRES_DE_MODULO = new Map([
+  [RUTAS.mapaCalor, "Mapa de calor"],
+  [RUTAS.proyeccion, "Mapa de proyección"],
+  [RUTAS.reportes, "Visualizar y Generar Reportes"],
+  [RUTAS.perfil, "Perfil"],
+  [RUTAS.techobot, "ChatBot"],
+  [RUTAS.chat, "ChatBot"],
+  [RUTAS.chatNuevo, "ChatBot"],
+]);
+
+export function nombreDeModulo(ruta) {
+  return NOMBRES_DE_MODULO.get(normalizarRuta(ruta)) ?? null;
+}
+
 export function esRutaDeAcceso(ruta) {
   return RUTAS_DE_ACCESO.has(normalizarRuta(ruta));
 }

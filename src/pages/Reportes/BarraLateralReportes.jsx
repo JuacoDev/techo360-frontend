@@ -1,8 +1,10 @@
 import { useId, useState } from "react";
 
 import { Icono } from "./iconos.jsx";
+import PanelHistorial from "./PanelHistorial.jsx";
+import SeccionGraficas from "./SeccionGraficas.jsx";
 import SelectorZonas from "./SelectorZonas.jsx";
-import { FORMATOS, PERIODOS_RAPIDOS, plural, VARIABLES } from "./catalogo.js";
+import { FORMATOS, nombreDePlantilla, PERIODOS_RAPIDOS, PLANTILLAS, plural, VARIABLES } from "./catalogo.js";
 
 function Seccion({ id, icono, titulo, resumen, insignia, abierta, onAlternar, children }) {
   const idPanel = useId();
@@ -26,14 +28,33 @@ function Seccion({ id, icono, titulo, resumen, insignia, abierta, onAlternar, ch
   );
 }
 
+// El mismo icono de "Configuración" es el interruptor: relleno naranja con la barra visible, contorno con la barra oculta.
+export function BotonConfiguracion({ abierta, onAlternar, controla, flotante = false }) {
+  return (
+    <button
+      type="button"
+      className={`rp-config-boton${abierta ? " is-abierta" : ""}${flotante ? " rp-config-boton--flotante" : ""}`}
+      onClick={onAlternar}
+      aria-expanded={abierta}
+      aria-controls={controla}
+      aria-label={abierta ? "Ocultar configuración" : "Mostrar configuración"}
+      title={abierta ? "Ocultar configuración" : "Mostrar configuración"}
+    >
+      <Icono nombre="sliders" />
+    </button>
+  );
+}
+
 function Contador({ valor, maximo }) {
   return <span className={`rp-contador${valor > maximo * 0.9 ? " is-alto" : ""}`}>{valor}/{maximo}</span>;
 }
 
 // Menu lateral de configuracion: una seccion abierta a la vez (acordeon) y un
 // pie fijo con el boton de generar y el estado de la solicitud.
-function BarraLateralReportes({ id, abierta, onOcultar, config, onConfig, listas, pie }) {
+function BarraLateralReportes({ id, abierta, onAlternar, config, onConfig, listas, historial, pie }) {
   const [seccion, setSeccion] = useState("zonas");
+  const [historialAbierto, setHistorialAbierto] = useState(false);
+  const idHistorial = useId();
   const alternar = (nombre) => setSeccion((actual) => (actual === nombre ? "" : nombre));
   const idTitulo = useId();
   const idIntro = useId();
@@ -48,15 +69,34 @@ function BarraLateralReportes({ id, abierta, onOcultar, config, onConfig, listas
     <aside id={id} className={`rp-barra${abierta ? "" : " is-oculta"}`} aria-label="Configuración del reporte" inert={!abierta}>
       <div className="rp-barra-interior">
         <div className="rp-barra-cabecera">
-          <h2 className="rp-barra-titulo">
-            <span className="rp-seccion-icono"><Icono nombre="sliders" /></span>
-            Configuración
-          </h2>
-          <button type="button" className="rp-icono-boton" onClick={onOcultar} aria-label="Ocultar configuración" title="Ocultar configuración" aria-expanded={abierta} aria-controls={id}>
-            <Icono nombre="panel" />
+          <BotonConfiguracion abierta={abierta} onAlternar={onAlternar} controla={id} />
+          <h2 className="rp-barra-titulo">Configuración</h2>
+          <button
+            type="button"
+            className={`rp-historial-boton${historialAbierto ? " is-abierto" : ""}`}
+            onClick={() => setHistorialAbierto((abierto) => !abierto)}
+            aria-expanded={historialAbierto}
+            aria-controls={idHistorial}
+          >
+            <Icono nombre="historial" tamano={16} />
+            Historial
+            {historial.items.length > 0 && <span className="rp-insignia">{historial.items.length}</span>}
           </button>
         </div>
         <div className="rp-barra-lista">
+          {historialAbierto && (
+            <PanelHistorial
+              id={idHistorial}
+              estado={historial.estado}
+              items={historial.items}
+              mensaje={historial.mensaje}
+              idActual={historial.idActual}
+              onAbrir={(item) => { historial.onAbrir(item); setHistorialAbierto(false); }}
+              onEliminar={historial.onEliminar}
+              onNuevo={() => { historial.onNuevo(); setHistorialAbierto(false); }}
+              onReintentar={historial.onReintentar}
+            />
+          )}
           <Seccion
             id="general"
             icono="texto"
@@ -83,7 +123,7 @@ function BarraLateralReportes({ id, abierta, onOcultar, config, onConfig, listas
             id="periodo"
             icono="calendario"
             titulo="Periodo y formato"
-            resumen={`${config.anioInicio} – ${config.anioFin} · ${config.formato === "excel" ? "Excel" : "PDF"}`}
+            resumen={`${config.anioInicio} – ${config.anioFin} · ${config.formato === "excel" ? "Excel" : "PDF"} · ${nombreDePlantilla(config.formato, config.plantilla)}`}
             abierta={seccion === "periodo"}
             onAlternar={() => alternar("periodo")}
           >
@@ -123,14 +163,19 @@ function BarraLateralReportes({ id, abierta, onOcultar, config, onConfig, listas
               ))}
             </div>
 
-            <label className="rp-interruptor">
-              <input type="checkbox" role="switch" checked={config.incluirGraficas} onChange={(e) => onConfig.incluirGraficas(e.target.checked)} />
-              <span className="rp-interruptor-pista" aria-hidden="true" />
-              <span className="rp-interruptor-texto">
-                <strong>Incluir gráficas</strong>
-                <span>Una gráfica por variable con las zonas elegidas</span>
-              </span>
-            </label>
+            <p className="rp-campo-etiqueta rp-espaciado">
+              Plantilla {config.formato === "pdf" ? "del documento" : "del libro"}
+            </p>
+            <div className="rp-formatos" role="radiogroup" aria-label="Plantilla del reporte">
+              {PLANTILLAS[config.formato].map((opcion) => (
+                <label key={opcion.id} className={`rp-formato rp-formato--plantilla${config.plantilla === opcion.id ? " is-activo" : ""}`}>
+                  <input type="radio" name={`plantilla-${config.formato}`} checked={config.plantilla === opcion.id} onChange={() => onConfig.plantilla(opcion.id)} />
+                  <strong>{opcion.nombre}</strong>
+                  <em>{opcion.detalle}</em>
+                  <span>{opcion.descripcion}</span>
+                </label>
+              ))}
+            </div>
           </Seccion>
 
           <Seccion
@@ -185,6 +230,24 @@ function BarraLateralReportes({ id, abierta, onOcultar, config, onConfig, listas
               selMunicipios={config.municipios}
               onDepartamentos={onConfig.departamentos}
               onMunicipios={onConfig.municipios}
+              etiquetaMunicipio={listas.etiquetaMunicipio}
+            />
+          </Seccion>
+
+          <Seccion
+            id="graficas"
+            icono="grafica"
+            titulo="Gráficas"
+            resumen={config.graficas.length === 0 ? "Sin gráficas" : `${config.graficas.length} ${plural(config.graficas.length, "gráfica", "gráficas")} · en el orden elegido`}
+            insignia={config.graficas.length}
+            abierta={seccion === "graficas"}
+            onAlternar={() => alternar("graficas")}
+          >
+            <SeccionGraficas
+              graficas={config.graficas}
+              onGraficas={onConfig.graficas}
+              zonas={listas.zonasSeleccionadas}
+              etiquetaZona={listas.etiquetaZona}
             />
           </Seccion>
         </div>

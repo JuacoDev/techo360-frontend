@@ -1,8 +1,8 @@
 import { API_URL, fetchConSesion } from "./api.js";
 
-import { armarSolicitudReporte, enCurso, ESTADOS_EN_CURSO, mensajeDeError, validarPeriodo } from "./reportesDatos.js";
+import { armarSolicitudReporte, enCurso, ESTADOS_EN_CURSO, mensajeDeError, solicitudAEstado, tiempoRelativo, validarPeriodo } from "./reportesDatos.js";
 
-export { armarSolicitudReporte, enCurso, ESTADOS_EN_CURSO, mensajeDeError, validarPeriodo };
+export { armarSolicitudReporte, enCurso, ESTADOS_EN_CURSO, mensajeDeError, solicitudAEstado, tiempoRelativo, validarPeriodo };
 
 async function jsonOError(response, porDefecto) {
   const result = await response.json().catch(() => ({}));
@@ -23,14 +23,31 @@ export async function solicitarReporte(solicitud, logout) {
   return jsonOError(response, "No se pudo enviar la solicitud del reporte.");
 }
 
-// Series por año de las gráficas del reporte, para la vista previa (mismos datos y reglas que el archivo).
-export async function previsualizarGraficas(solicitud, logout, signal) {
+// Escenas vectoriales de las gráficas elegidas, en su orden (las mismas que dibuja el PDF); `ancho` es el
+// del lienzo (IEEE usa 360: una columna). Mismos datos y reglas que el archivo.
+export async function escenasDeGraficas(solicitud, ancho, logout, signal) {
   const response = await fetchConSesion(
-    `${API_URL}/api/reportes/previa-graficas`,
+    `${API_URL}/api/reportes/graficas?ancho=${ancho}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(solicitud), signal },
     logout
   );
   return jsonOError(response, "No se pudo cargar la vista previa de las gráficas.");
+}
+
+// Historial: solo configuraciones (nunca el archivo), el más reciente primero.
+export async function listarHistorial(logout, limite = 30) {
+  const response = await fetchConSesion(`${API_URL}/api/reportes/historial?limite=${limite}`, {}, logout);
+  return jsonOError(response, "No se pudo cargar el historial.");
+}
+
+export async function obtenerSolicitudGuardada(id, logout) {
+  const response = await fetchConSesion(`${API_URL}/api/reportes/${id}/solicitud`, {}, logout);
+  return jsonOError(response, "No se pudo abrir la configuración de ese reporte.");
+}
+
+export async function eliminarDelHistorial(id, logout) {
+  const response = await fetchConSesion(`${API_URL}/api/reportes/${id}`, { method: "DELETE" }, logout);
+  if (!response.ok) await jsonOError(response, "No se pudo quitar el reporte del historial.");
 }
 
 export async function consultarReporte(id, logout) {

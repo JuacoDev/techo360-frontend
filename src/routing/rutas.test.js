@@ -10,6 +10,7 @@ import {
   claveDeConversacion,
   estadoDeConversacion,
   esRutaDeAcceso,
+  nombreDeModulo,
   esRutaProtegida,
   idConversacionDeEstado,
   normalizarRuta,
@@ -142,4 +143,18 @@ test("claveDeConversacion: public_id si el backend lo da, si no el id entero", (
   for (const c of [{ id: 11, public_id: UUID }, { id: 11 }]) {
     assert.equal(idConversacionDeEstado(estadoDeConversacion(claveDeConversacion(c))), claveDeConversacion(c));
   }
+});
+
+test("nombreDeModulo: el header identifica el modulo por la ruta", () => {
+  assert.equal(nombreDeModulo(RUTAS.mapaCalor), "Mapa de calor");
+  assert.equal(nombreDeModulo(RUTAS.proyeccion), "Mapa de proyección");
+  assert.equal(nombreDeModulo(RUTAS.reportes), "Visualizar y Generar Reportes");
+  assert.equal(nombreDeModulo(RUTAS.perfil), "Perfil");
+  for (const ruta of [RUTAS.techobot, RUTAS.chat, RUTAS.chatNuevo]) assert.equal(nombreDeModulo(ruta), "ChatBot");
+  // tolera mayusculas, barra final y query
+  assert.equal(nombreDeModulo("/Mapa-Calor/?x=1"), "Mapa de calor");
+  // el inicio y las rutas desconocidas no llevan modulo
+  assert.equal(nombreDeModulo(RUTAS.inicio), null);
+  assert.equal(nombreDeModulo("/no-existe"), null);
+  assert.equal(nombreDeModulo(undefined), null);
 });

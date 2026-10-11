@@ -30,12 +30,7 @@ function CabeceraReportes({ datos, pasos, reporte }) {
 
   return (
     <header className="rp-cabecera">
-      <div className="rp-cabecera-fila">
-        <h1>Visualizar y generar reportes</h1>
-        <p className="rp-subtitulo">
-          Configura el análisis, revisa el documento antes de solicitarlo y descárgalo en PDF o Excel.
-        </p>
-      </div>
+      <h1 className="rp-solo-lectores">Visualizar y generar reportes</h1>
 
       <ul className="rp-datos" aria-label="Resumen de la configuración">
         <Dato
@@ -50,7 +45,7 @@ function CabeceraReportes({ datos, pasos, reporte }) {
           icono={datos.formato === "excel" ? "tabla" : "doc"}
           etiqueta="Formato"
           valor={datos.formato === "excel" ? "Excel" : "PDF"}
-          detalle={datos.graficas ? "con gráficas" : "sin gráficas"}
+          detalle={`${datos.plantilla} · ${datos.graficas} ${plural(datos.graficas, "gráfica", "gráficas")}`}
         />
       </ul>
 
