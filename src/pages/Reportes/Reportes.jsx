@@ -1,763 +1,374 @@
-import { useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 
 import CabezaDeNavegacion from "../../components/CabezaDeNavegacion";
-import { API_URL, fetchConSesion } from "../../services/api";
+import {
+  armarSolicitudReporte,
+  consultarReporte,
+  descargarReporte,
+  enCurso,
+  previsualizarGraficas,
+  solicitarReporte,
+  validarPeriodo,
+} from "../../services/reportes";
+import BarraLateralReportes from "./BarraLateralReportes.jsx";
+import CabeceraReportes from "./CabeceraReportes.jsx";
+import { VARIABLES } from "./catalogo.js";
+import { Icono } from "./iconos.jsx";
+import { ResumenDocumento, VistaPreviaDocumento } from "./VistasDocumento.jsx";
 import "../../Css/StyleReportes.css";
 
-const VARIABLES = [
-  {
-    id: "score_privacion",
-    nombre: "Score de Privación",
-  },
-  {
-    id: "cobertura_acueducto",
-    nombre: "Cobertura de Acueducto",
-  },
-  {
-    id: "cobertura_alcantarillado",
-    nombre: "Cobertura de Alcantarillado",
-  },
-  {
-    id: "deficit_habitacional_cuantitativo",
-    nombre: "Déficit Habitacional Cuantitativo",
-  },
-  {
-    id: "deficit_habitacional_cualitativo",
-    nombre: "Déficit Habitacional Cualitativo",
-  },
-  {
-    id: "densidad_poblacional",
-    nombre: "Densidad Poblacional",
-  },
-];
-
-const UNIDADES = {
-  score_privacion: "",
-  densidad_poblacional: "hab/km²",
-  cobertura_acueducto: "%",
-  cobertura_alcantarillado: "%",
-  deficit_habitacional_cuantitativo: "%",
-  deficit_habitacional_cualitativo: "%",
-};
-
-
 // Se arregló para implementar react-router: se quitó la prop setScreen (CabezaDeNavegacion navega con useNavigate).
-function Reportes({
-  onLogout,
-  departamentos,
-  datosMunicipios,
-}) {
+function Reportes({ onLogout, departamentos, datosMunicipios }) {
   const { state } = useLocation();
   const informeInicial = state?.informe;
+  const idConfig = useId();
+  const idVista = useId();
 
   // =========================
-  // Estados
+  // Estado de la configuracion
   // =========================
-
-  const [incluirGraficas, setIncluirGraficas] = useState(
-    () => informeInicial?.incluirGraficas ?? true
-  );
+  const [incluirGraficas, setIncluirGraficas] = useState(() => informeInicial?.incluirGraficas ?? true);
   const [formatoReporte, setFormatoReporte] = useState("pdf");
-
-  const [anioInicio, setAnioInicio] = useState(
-    () => informeInicial?.anioInicio ?? 2020
-  );
-  const [anioFin, setAnioFin] = useState(
-    () => informeInicial?.anioFin ?? 2025
-  );
-
-  const [departamentosSeleccionados, setDepartamentosSeleccionados] =
-    useState(() => informeInicial?.departamentos ?? []);
-
-  const [municipiosSeleccionados, setMunicipiosSeleccionados] = useState(
-    () => informeInicial?.municipios ?? []
-  );
-
-  const [busquedaDepartamento, setBusquedaDepartamento] = useState("");
-  const [busquedaMunicipio, setBusquedaMunicipio] = useState("");
-
+  const [anioInicio, setAnioInicio] = useState(() => informeInicial?.anioInicio ?? 2020);
+  const [anioFin, setAnioFin] = useState(() => informeInicial?.anioFin ?? 2025);
+  const [departamentosSeleccionados, setDepartamentosSeleccionados] = useState(() => informeInicial?.departamentos ?? []);
+  const [municipiosSeleccionados, setMunicipiosSeleccionados] = useState(() => informeInicial?.municipios ?? []);
   const [variablesSeleccionadas, setVariablesSeleccionadas] = useState(() =>
     (informeInicial?.variables ?? [])
       .map((id) => VARIABLES.find((variable) => variable.id === id))
       .filter(Boolean)
   );
-
   const [comentarios, setComentarios] = useState({});
+  const [tituloInforme, setTituloInforme] = useState("Informe de Indicadores");
+  const [introduccion, setIntroduccion] = useState("");
+  const [conclusiones, setConclusiones] = useState("");
 
-const [tituloInforme, setTituloInforme] = useState(
-  "Informe de Indicadores"
-);
+  // =========================
+  // Estado de la pantalla
+  // =========================
+  const [configAbierta, setConfigAbierta] = useState(true);
+  const [vista, setVista] = useState("previa"); // "previa" | "resumen"
 
-const [introduccion, setIntroduccion] = useState("");
+  // =========================
+  // Estado de la solicitud
+  // =========================
+  const [errorSolicitud, setErrorSolicitud] = useState("");
+  const [solicitandoReporte, setSolicitandoReporte] = useState(false);
+  // Series por año de las gráficas que devuelve el backend para la vista previa.
+  const [previaGraficas, setPreviaGraficas] = useState({ estado: "inactiva", datos: null, mensaje: "" });
+  // Reporte solicitado (respuesta del backend): se consulta hasta que quede
+  // "listo" (con descarga_url) o "error".
+  const [reporte, setReporte] = useState(null);
+  const [descargando, setDescargando] = useState(false);
 
-const [conclusiones, setConclusiones] = useState("");
+  useEffect(() => {
+    if (!enCurso(reporte)) return undefined;
+    let activo = true;
+    const id = reporte.id;
+    const temporizador = setInterval(async () => {
+      try {
+        const actualizado = await consultarReporte(id, onLogout);
+        if (activo) setReporte(actualizado);
+      } catch (error) {
+        if (!activo) return;
+        if (error.status === 401) return;
+        setReporte(null);
+        setErrorSolicitud(error.message || "No se pudo consultar el estado del reporte.");
+      }
+    }, 2000);
+    return () => {
+      activo = false;
+      clearInterval(temporizador);
+    };
+  }, [reporte?.id, reporte?.estado]);
 
-const [errorSolicitud, setErrorSolicitud] = useState("");
+  // Vista previa de las graficas: las series por año se piden al backend (son las mismas
+  // del archivo) cuando cambian zonas, variables o periodo, con una pausa para no consultar
+  // en cada clic.
+  const claveGraficas = JSON.stringify([
+    incluirGraficas,
+    anioInicio,
+    anioFin,
+    variablesSeleccionadas.map((variable) => variable.id),
+    departamentosSeleccionados.map((zona) => zona.codigo),
+    municipiosSeleccionados.map((zona) => zona.codigo),
+  ]);
+  useEffect(() => {
+    const listo =
+      incluirGraficas &&
+      variablesSeleccionadas.length > 0 &&
+      departamentosSeleccionados.length + municipiosSeleccionados.length > 0 &&
+      !validarPeriodo(anioInicio, anioFin);
+    if (!listo) {
+      setPreviaGraficas({ estado: "inactiva", datos: null, mensaje: "" });
+      return undefined;
+    }
+    const control = new AbortController();
+    const temporizador = setTimeout(async () => {
+      setPreviaGraficas((previa) => ({ ...previa, estado: "cargando" }));
+      try {
+        const datos = await previsualizarGraficas(
+          armarSolicitudReporte({
+            formato: formatoReporte,
+            anioInicio,
+            anioFin,
+            titulo: tituloInforme,
+            introduccion: "",
+            conclusiones: "",
+            incluirGraficas: true,
+            comentarios: {},
+            variables: variablesSeleccionadas,
+            departamentos: departamentosSeleccionados,
+            municipios: municipiosSeleccionados,
+          }),
+          onLogout,
+          control.signal
+        );
+        setPreviaGraficas({ estado: "lista", datos, mensaje: "" });
+      } catch (error) {
+        if (error.name === "AbortError" || error.status === 401) return;
+        setPreviaGraficas({
+          estado: "error",
+          datos: null,
+          mensaje: error.message || "No se pudo cargar la vista previa de las gráficas.",
+        });
+      }
+    }, 500);
+    return () => {
+      clearTimeout(temporizador);
+      control.abort();
+    };
+  }, [claveGraficas]);
 
+  async function generarReporte() {
+    setErrorSolicitud("");
+    setReporte(null);
 
+    const errorDelPeriodo = validarPeriodo(anioInicio, anioFin);
+    if (errorDelPeriodo) {
+      setErrorSolicitud(errorDelPeriodo);
+      return;
+    }
 
-
-async function generarReporte() {
-  setErrorSolicitud("");
-
-  try {
-    const response = await fetchConSesion(
-      `${API_URL}/api/reportes/generar`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+    setSolicitandoReporte(true);
+    try {
+      const creado = await solicitarReporte(
+        armarSolicitudReporte({
+          formato: formatoReporte,
+          anioInicio,
+          anioFin,
           titulo: tituloInforme,
           introduccion,
           conclusiones,
-          incluir_graficas: incluirGraficas,
-          anio_inicio: anioInicio,
-          anio_fin: anioFin,
-          formato: formatoReporte,
-          variables: variablesSeleccionadas.map((variable) => variable.id),
-          departamentos: departamentosSeleccionados.map((item) => item.codigo),
-          municipios: municipiosSeleccionados.map((item) => item.codigo),
+          incluirGraficas,
           comentarios,
+          variables: variablesSeleccionadas,
+          departamentos: departamentosSeleccionados,
+          municipios: municipiosSeleccionados,
         }),
-      },
-      onLogout
-    );
-
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      throw new Error(
-        result.detail || result.message || "No se pudo enviar la solicitud del reporte."
+        onLogout
       );
-    }
-  } catch (error) {
-    if (error.status !== 401) {
-      setErrorSolicitud(error.message || "Error al enviar la solicitud del reporte.");
+      setReporte(creado);
+    } catch (error) {
+      if (error.status !== 401) {
+        setErrorSolicitud(error.message || "Error al enviar la solicitud del reporte.");
+      }
+    } finally {
+      setSolicitandoReporte(false);
     }
   }
-}
 
-function actualizarComentario(clave, texto) {
-  setComentarios((prev) => ({
-    ...prev,
-    [clave]: texto
-  }));
-}
+  async function descargar() {
+    setErrorSolicitud("");
+    setDescargando(true);
+    try {
+      await descargarReporte(reporte, onLogout);
+    } catch (error) {
+      if (error.status !== 401) setErrorSolicitud(error.message || "No se pudo descargar el reporte.");
+    } finally {
+      setDescargando(false);
+    }
+  }
 
-  // =========================
-  // Datos
-  // =========================
-
-  const listaDepartamentos =
-    (departamentos?.features ?? []).map(
-      (feature) => feature.properties
-    );
-
-  const listaMunicipios =
-    (datosMunicipios?.features ?? []).map(
-      (feature) => feature.properties
-    );
+  function actualizarComentario(clave, texto) {
+    setComentarios((prev) => ({ ...prev, [clave]: texto }));
+  }
 
   // =========================
-  // Filtros
+  // Datos derivados
   // =========================
-
-  const departamentosFiltrados = listaDepartamentos.filter((item) =>
-    item.nombre
-      ?.toLowerCase()
-      .includes(busquedaDepartamento.toLowerCase())
+  const listaDepartamentos = useMemo(
+    () => (departamentos?.features ?? []).map((feature) => feature.properties),
+    [departamentos]
+  );
+  const listaMunicipios = useMemo(
+    () => (datosMunicipios?.features ?? []).map((feature) => feature.properties),
+    [datosMunicipios]
   );
 
-  const municipiosFiltrados = listaMunicipios.filter((item) =>
-    item.nombre
-      ?.toLowerCase()
-      .includes(busquedaMunicipio.toLowerCase())
-  );
+  const totalZonas = departamentosSeleccionados.length + municipiosSeleccionados.length;
+  const errorPeriodo = validarPeriodo(anioInicio, anioFin);
+  const pasos = [
+    { id: "zonas", etiqueta: "Zonas", ok: totalZonas > 0, ayuda: "elige al menos un departamento o municipio" },
+    { id: "variables", etiqueta: "Variables", ok: variablesSeleccionadas.length > 0, ayuda: "elige al menos una variable" },
+    { id: "periodo", etiqueta: "Periodo", ok: !errorPeriodo, ayuda: errorPeriodo },
+  ];
+  const generando = solicitandoReporte || enCurso(reporte);
+  const puedeGenerar = pasos.every((paso) => paso.ok) && !generando;
+  const anios = Math.max(0, anioFin - anioInicio + 1);
 
-  // =========================
-  // Render
-  // =========================
-  return (
+  const config = {
+    titulo: tituloInforme,
+    introduccion,
+    conclusiones,
+    anioInicio,
+    anioFin,
+    formato: formatoReporte,
+    incluirGraficas,
+    variables: variablesSeleccionadas,
+    departamentos: departamentosSeleccionados,
+    municipios: municipiosSeleccionados,
+    errorPeriodo,
+  };
+  const onConfig = {
+    titulo: setTituloInforme,
+    introduccion: setIntroduccion,
+    conclusiones: setConclusiones,
+    anioInicio: setAnioInicio,
+    anioFin: setAnioFin,
+    formato: setFormatoReporte,
+    incluirGraficas: setIncluirGraficas,
+    variables: setVariablesSeleccionadas,
+    departamentos: setDepartamentosSeleccionados,
+    municipios: setMunicipiosSeleccionados,
+  };
+
+  const pie = (
     <>
+      <button type="button" className="rp-boton rp-boton--primario rp-boton--ancho" onClick={generarReporte} disabled={!puedeGenerar}>
+        <Icono nombre="descarga" />
+        {solicitandoReporte ? "Enviando solicitud…" : enCurso(reporte) ? "Generando…" : "Generar reporte"}
+      </button>
+
+      {!puedeGenerar && !generando && (
+        <p className="rp-ayuda">
+          Falta: {pasos.filter((paso) => !paso.ok).map((paso) => paso.etiqueta.toLowerCase()).join(", ")}.
+        </p>
+      )}
+
+      {reporte && enCurso(reporte) && (
+        <p className="rp-aviso rp-aviso--proceso" role="status">
+          <span className="rp-giro" aria-hidden="true" />
+          {reporte.estado === "pendiente" ? "Solicitud recibida. El reporte está en cola…" : "Generando el reporte…"}
+        </p>
+      )}
+
+      {reporte?.estado === "listo" && (
+        <div className="rp-aviso rp-aviso--exito" role="status">
+          <p>El reporte está listo.</p>
+          <button type="button" className="rp-boton rp-boton--claro rp-boton--ancho" onClick={descargar} disabled={descargando || !reporte.descarga_url}>
+            <Icono nombre="descarga" />
+            {descargando ? "Descargando…" : `Descargar ${reporte.formato === "excel" ? "Excel" : "PDF"}`}
+          </button>
+        </div>
+      )}
+
+      {reporte?.estado === "error" && (
+        <p className="rp-aviso rp-aviso--error" role="alert">{reporte.error || "No se pudo generar el reporte."}</p>
+      )}
+
+      {errorSolicitud && <p className="rp-aviso rp-aviso--error" role="alert">{errorSolicitud}</p>}
+    </>
+  );
+
+  return (
+    <div className="rp-pagina">
       {/* Se arregló para implementar react-router: sin setScreen={setScreen} (la cabecera navega con useNavigate). */}
-      <CabezaDeNavegacion
-        onLogout={onLogout}
-      />
+      <CabezaDeNavegacion onLogout={onLogout} />
 
-      <div className="perfil-container">
-        <div className="perfil-card">
+      <main className="rp-contenedor">
+        <CabeceraReportes
+          datos={{
+            zonas: totalZonas,
+            departamentos: departamentosSeleccionados.length,
+            municipios: municipiosSeleccionados.length,
+            variables: variablesSeleccionadas.length,
+            periodo: `${anioInicio} – ${anioFin}`,
+            anios: `${anios} ${anios === 1 ? "año" : "años"}`,
+            formato: formatoReporte,
+            graficas: incluirGraficas,
+          }}
+          pasos={pasos}
+          reporte={reporte}
+        />
 
-          {/* =========================
-              PANEL IZQUIERDO
-          ========================= */}
+        <div className={`rp-editor${configAbierta ? "" : " is-sin-barra"}`}>
+          <BarraLateralReportes
+            id={idConfig}
+            abierta={configAbierta}
+            onOcultar={() => setConfigAbierta(false)}
+            config={config}
+            onConfig={onConfig}
+            listas={{ departamentos: listaDepartamentos, municipios: listaMunicipios }}
+            pie={pie}
+          />
 
-          <div className="perfil-left">
-            <h3>Configuración</h3>
-
-            <p>
-              Selecciona los datos que deseas incluir en el reporte.
-            </p>
-
-            <hr />
-
-            {/* Gráficas */}
-            <label>
-              <input
-                type="checkbox"
-                checked={incluirGraficas}
-                onChange={(e) =>
-                  setIncluirGraficas(e.target.checked)
-                }
-              />
-              Incluir gráficas
-            </label>
-
-            <hr />
-
-            {/* Periodo */}
-            <h4>Periodo</h4>
-
-            <label>Año inicio</label>
-
-            <input
-              type="number"
-              value={anioInicio}
-              onChange={(e) =>
-                setAnioInicio(Number(e.target.value))
-              }
-            />
-
-            <label>Año fin</label>
-
-            <input
-              type="number"
-              value={anioFin}
-              onChange={(e) =>
-                setAnioFin(Number(e.target.value))
-              }
-            />
-
-            <hr />
-
-              <h4>Título del informe</h4>
-
-              <input
-              className="input-titulo-informe"
-                type="text"
-                value={tituloInforme}
-                onChange={(e) =>
-                  setTituloInforme(e.target.value)
-                }
-              />
-
-              <h4>Introducción</h4>
-
-              <textarea
-                className="comentario-informe"
-                placeholder="Escribe la introducción..."
-                value={introduccion}
-                onChange={(e) =>
-                  setIntroduccion(e.target.value)
-                }
-              />
-
-              <h4>Conclusiones</h4>
-
-              <textarea
-                className="comentario-informe"
-                placeholder="Escribe las conclusiones..."
-                value={conclusiones}
-                onChange={(e) =>
-                  setConclusiones(e.target.value)
-                }
-              />
-
-            {/* Variables */}
-            <h4>Variables</h4>
-
-            <p>
-              Selecciona una o varias variables para incluir en el
-              informe.
-            </p>
-
-            {VARIABLES.map((variable) => (
-              <label
-                key={variable.id}
-                className="opcion-zona"
-              >
-                <input
-                  type="checkbox"
-                  checked={variablesSeleccionadas.includes(variable)}
-                  onChange={() => {
-                    setVariablesSeleccionadas((actuales) =>
-                      actuales.includes(variable)
-                        ? actuales.filter(
-                            (v) => v !== variable
-                          )
-                        : [...actuales, variable]
-                    );
-                  }}
-                />
-
-                <span className="texto-opcion-zona">
-                {variable.nombre}
-                </span>
-              </label>
-            ))}
-
-            <hr />
-
-            {/* Departamentos */}
-            <h4>Departamentos</h4>
-
-            <p>
-              Escoge los departamentos que aparecerán en el reporte.
-            </p>
-
-            <input
-              className="buscador-reportes"
-              type="text"
-              placeholder="Buscar departamento..."
-              value={busquedaDepartamento}
-              onChange={(e) =>
-                setBusquedaDepartamento(e.target.value)
-              }
-            />
-
-            <p>
-              Seleccionados: {departamentosSeleccionados.length}
-            </p>
-
-            <div className="lista-zonas">
-              {departamentosFiltrados.map((item) => (
-                <label
-                  key={item.codigo}
-                  className="opcion-zona"
+          <section className="rp-principal" aria-label="Documento">
+            <div className="rp-tabs-fila">
+              {!configAbierta && (
+                <button
+                  type="button"
+                  className="rp-icono-boton rp-icono-boton--desplegar"
+                  onClick={() => setConfigAbierta(true)}
+                  aria-label="Mostrar configuración"
+                  title="Mostrar configuración"
+                  aria-expanded={false}
+                  aria-controls={idConfig}
                 >
-                  <input
-                    type="checkbox"
-                    checked={departamentosSeleccionados.some(
-                      (x) => x.codigo === item.codigo
-                    )}
-                    onChange={() => {
-                      const existe =
-                        departamentosSeleccionados.some(
-                          (x) => x.codigo === item.codigo
-                        );
-
-                      if (existe) {
-                        setDepartamentosSeleccionados(
-                          departamentosSeleccionados.filter(
-                            (x) => x.codigo !== item.codigo
-                          )
-                        );
-                      } else {
-                        setDepartamentosSeleccionados([
-                          ...departamentosSeleccionados,
-                          item,
-                        ]);
-                      }
-                    }}
-                  />
-
-                  {item.nombre}
-                </label>
-              ))}
+                  <Icono nombre="panel" />
+                </button>
+              )}
+              <div className="rp-tabs" role="tablist" aria-label="Vista del documento">
+                <button
+                  type="button"
+                  role="tab"
+                  id={`${idVista}-resumen`}
+                  aria-selected={vista === "resumen"}
+                  aria-controls={`${idVista}-panel`}
+                  className={`rp-tab${vista === "resumen" ? " is-activa" : ""}`}
+                  onClick={() => setVista("resumen")}
+                >
+                  <Icono nombre="lista" />
+                  Resumen del documento
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id={`${idVista}-previa`}
+                  aria-selected={vista === "previa"}
+                  aria-controls={`${idVista}-panel`}
+                  className={`rp-tab${vista === "previa" ? " is-activa" : ""}`}
+                  onClick={() => setVista("previa")}
+                >
+                  <Icono nombre="ojo" />
+                  Vista previa del documento
+                </button>
+              </div>
             </div>
 
-            <hr />
-
-            {/* Municipios */}
-            <h4>Municipios</h4>
-
-            <p>
-              Escoge los municipios que aparecerán en el reporte.
-            </p>
-
-            <input
-              className="buscador-reportes"
-              type="text"
-              placeholder="Buscar municipio..."
-              value={busquedaMunicipio}
-              onChange={(e) =>
-                setBusquedaMunicipio(e.target.value)
-              }
-            />
-
-            <p>
-              Seleccionados: {municipiosSeleccionados.length}
-            </p>
-
-            <div className="lista-zonas">
-              {municipiosFiltrados.map((item) => (
-                <label
-                  key={item.codigo}
-                  className="opcion-zona"
-                >
-                  <input
-                    type="checkbox"
-                    checked={municipiosSeleccionados.some(
-                      (x) => x.codigo === item.codigo
-                    )}
-                    onChange={() => {
-                      const existe =
-                        municipiosSeleccionados.some(
-                          (x) => x.codigo === item.codigo
-                        );
-
-                      if (existe) {
-                        setMunicipiosSeleccionados(
-                          municipiosSeleccionados.filter(
-                            (x) => x.codigo !== item.codigo
-                          )
-                        );
-                      } else {
-                        setMunicipiosSeleccionados([
-                          ...municipiosSeleccionados,
-                          item,
-                        ]);
-                      }
-                    }}
-                  />
-
-                  {item.nombre}
-                </label>
-              ))}
-            </div>
-
-            <br />
-
-            {/* Formato del reporte */}
-            <h4>Formato del reporte</h4>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={formatoReporte === "pdf"}
-                onChange={() => setFormatoReporte("pdf")}
-              />
-              PDF
-            </label>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={formatoReporte === "excel"}
-                onChange={() => setFormatoReporte("excel")}
-              />
-              Excel
-            </label>
-
-            {/* Botón generar */}
-            <button
-              className="btn-generar-proyeccion"
-              onClick={generarReporte}
-              disabled={
-                departamentosSeleccionados.length +
-                  municipiosSeleccionados.length ===
-                  0 ||
-                variablesSeleccionadas.length === 0
-              }
-            >
-              Generar reporte
-            </button>
-
-            {errorSolicitud && (
-              <p role="alert">{errorSolicitud}</p>
-            )}
-
-            <p>
-              Debes seleccionar al menos una zona y una variable.
-            </p>
-          </div>
-
-          {/* =========================
-              PANEL DERECHO
-          ========================= */}
-
-          <div className="perfil-right">
-            <h4>Resumen del informe</h4>
-
-            <div className="bloque-vista-previa">
-
-              <p>
-                Periodo:{" "}
-                {anioInicio} - {anioFin}
-              </p>
-
-              <p>
-                Gráficas:{" "}
-                {incluirGraficas ? "Sí" : "No"}
-              </p>
-
-              <p>
-                Departamentos:{" "}
-                {departamentosSeleccionados.length}
-              </p>
-
-              <p>
-                Municipios:{" "}
-                {municipiosSeleccionados.length}
-              </p>
-
-              <p>
-                Variables:{" "}
-                {variablesSeleccionadas.length}
-              </p>
-
-              {/* Variables seleccionadas */}
-              {variablesSeleccionadas.length > 0 && (
-                <>
-                  <hr />
-
-                  <strong>
-                    Variables seleccionadas
-                  </strong>
-
-                  <ul>
-                    {variablesSeleccionadas.map((variable) => (
-                      <li key={variable.id}>
-                        {variable.nombre}
-                      </li>
-                    ))}
-                  </ul>
-                </>
+            <div id={`${idVista}-panel`} role="tabpanel" aria-labelledby={`${idVista}-${vista}`} className="rp-panel">
+              {vista === "previa" ? (
+                <VistaPreviaDocumento config={config} comentarios={comentarios} onComentario={actualizarComentario} previaGraficas={previaGraficas} />
+              ) : (
+                <ResumenDocumento config={config} comentarios={comentarios} pasos={pasos} />
               )}
             </div>
-
-            <hr />
-
-            {/* Departamentos incluidos */}
-            <h4>Departamentos incluidos</h4>
-
-            {departamentosSeleccionados.length === 0 ? (
-              <p>
-                No hay departamentos seleccionados.
-              </p>
-            ) : (
-              <div className="bloque-vista-previa">
-                {departamentosSeleccionados.map((item) => (
-                  <div
-                    key={item.codigo}
-                    className="item-vista-previa"
-                  >
-                    <strong>{item.nombre}</strong>
-
-                    <p>
-                      Código: {item.codigo}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <hr />
-
-            {/* Municipios incluidos */}
-            <h4>Municipios incluidos</h4>
-
-            {municipiosSeleccionados.length === 0 ? (
-              <p>
-                No hay municipios seleccionados.
-              </p>
-            ) : (
-              <div className="bloque-vista-previa">
-                {municipiosSeleccionados.map((item) => (
-                  <div
-                    key={item.codigo}
-                    className="item-vista-previa"
-                  >
-                    <strong>{item.nombre}</strong>
-
-                    <p>
-                      Código: {item.codigo}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          </section>
         </div>
-
-        {/* =========================
-            VISTA DEL DOCUMENTO
-        ========================= */}
-
-        <div className="vista-documento">
-          <div className="pagina-reporte">
-            <h1 className="titulo-documento">
-              {tituloInforme}
-            </h1>
-
-              <p>
-                Fecha:
-                {" "}
-                {new Date().toLocaleDateString()}
-              </p>
-
-              <hr />
-
-              <h2>Introducción</h2>
-              
-                <div className="texto-informe">
-                {introduccion || "Sin introducción."}
-                </div>
-
-                <hr />
-
-              <h2>Resumen Ejecutivo</h2>
-
-              <p>
-                Periodo analizado:
-                {" "}
-                {anioInicio}
-                {" - "}
-                {anioFin}
-              </p>
-
-
-              <p>
-                Incluye gráficas:
-                {" "}
-                {incluirGraficas ? "Sí" : "No"}
-              </p>
-
-              <h2>Resultados</h2>
-
-                <h3>Departamentos</h3>
-
-                {departamentosSeleccionados.length === 0 ? (
-                  <p>No hay departamentos seleccionados.</p>
-                ) : (
-                  departamentosSeleccionados.map((departamento) => (
-                    <div
-                      key={departamento.codigo}
-                      className="bloque-resultado"
-                    >
-                      <h4>{departamento.nombre}</h4>
-
-                      
-
-                      {variablesSeleccionadas.map((variable) => {
-                        let valor = "Sin dato";
-
-                        if (variable.id === "score_privacion") {
-                          valor =
-                            departamento.score_privacion?.toFixed(4) ??
-                            "Sin dato";
-                        } else {
-                          valor =
-                            departamento.indicadores?.[variable.id]?.valor ??
-                            "Sin dato";
-                        }
-                        
-
-                        return (
-                          <div
-                            key={variable.id}
-                            className="fila-indicador"
-                          >
-                            <span>{variable.nombre}</span>
-                            <span>
-                            {valor}
-                            {UNIDADES[variable.id] ?? ""}
-                          </span>
-                          </div>
-                        );
-                      })}
-
-                      <label className="titulo-comentario">
-                      Comentario
-                      </label>
-
-                      <textarea
-                        className="comentario-informe"
-                        placeholder="Escribe una observación sobre este departamento..."
-                        value={comentarios[departamento.codigo] || ""}
-                        onChange={(e) =>
-                          actualizarComentario(
-                            departamento.codigo,
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-
-                <hr />
-
-                <h3>Municipios</h3>
-
-                {municipiosSeleccionados.length === 0 ? (
-                  <p>No hay municipios seleccionados.</p>
-                ) : (
-                  municipiosSeleccionados.map((municipio) => (
-                    <div
-                      key={municipio.codigo}
-                      className="bloque-resultado"
-                    >
-                      <h4>{municipio.nombre}</h4>
-
-                      {variablesSeleccionadas.map((variable) => {
-                        let valor = "Sin dato";
-
-                        if (variable.id === "score_privacion") {
-                          valor =
-                            municipio.score_privacion?.toFixed(4) ??
-                            "Sin dato";
-                        } else {
-                          valor =
-                            municipio.indicadores?.[variable.id]?.valor ??
-                            "Sin dato";
-                        }
-
-                        return (
-                          <div
-                            key={variable.id}
-                            className="fila-indicador"
-                          >
-                            <span>{variable.nombre}</span>
-                            <span>
-                            {valor}
-                            {UNIDADES[variable.id] ?? ""}
-                          </span>
-                          </div>
-                        );
-                      })}
-
-                      <label className="titulo-comentario">
-                      Comentario
-                      </label>
-
-                      <textarea
-                        className="comentario-informe"
-                        placeholder="Escribe una observación sobre este municipio..."
-                        value={comentarios[municipio.codigo] || ""}
-                        onChange={(e) =>
-                          actualizarComentario(
-                            municipio.codigo,
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                  ))
-)}
-                  <hr />
-
-                  <h2>Conclusiones</h2>
-
-                  <div className="texto-informe">
-                  {conclusiones || "Sin conclusiones."}
-                  </div>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    );
-                  }
+      </main>
+    </div>
+  );
+}
 
 export default Reportes;
