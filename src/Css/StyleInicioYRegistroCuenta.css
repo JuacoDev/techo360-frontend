@@ -1,6 +1,7 @@
 /* Contenedor principal del formulario */
 .form-container {
-  width: 400px;
+  width: min(400px, calc(100% - 32px));
+  box-sizing: border-box;
   margin: 40px auto;
   background: #fff;
   padding: 25px;
@@ -242,7 +243,8 @@
 }
 
 .recuperacion-container {
-  width: 400px;
+  width: min(400px, calc(100% - 32px));
+  box-sizing: border-box;
   margin: 40px auto;
   background: #fff;
   padding: 25px;

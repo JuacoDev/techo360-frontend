@@ -238,6 +238,23 @@ body {
   font-style: italic;
 }
 
+@media (max-width: 900px) {
+  .panel-indicadores {
+    flex-basis: 320px;
+    width: 320px;
+    padding: 12px;
+  }
+
+  .map-legend {
+    bottom: 12px;
+    left: 12px;
+  }
+
+  .map-legend-panel {
+    width: min(220px, calc(100vw - 24px));
+  }
+}
+
 /* Barra de año del mapa de proyección (SelectorAnioMapa.jsx). Anclada
    en la misma esquina que el control de zoom de Leaflet (arriba a la
    izquierda, margin-top/margin-left de 10px en .leaflet-top.leaflet-left)
@@ -476,6 +493,45 @@ CabezaDeNavegacion Styles
     padding: 8px 10px;
   }
 }
+
+@media (max-width: 480px) {
+  .CabezaDeNavegacion {
+    height: 62px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .CabezaDeNavegacion-marca {
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .CabezaDeNavegacion-logo h2 {
+    font-size: 16px;
+  }
+
+  .CabezaDeNavegacion-modulo {
+    max-width: 34vw;
+    font-size: 12px;
+  }
+
+  .CabezaDeNavegacion-links {
+    flex-shrink: 0;
+    gap: 6px;
+  }
+
+  .CabezaDeNavegacion-logout {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .panel-indicadores-tabs {
+    margin-right: -12px;
+    margin-left: -12px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}
 /* 
 ==================================
 BarraBuscadora Styles
@@ -659,6 +715,24 @@ gap: 16px;
     min-height: 52px;
   }
 
+  .panel-indicadores {
+    max-height: none;
+    padding: 12px;
+  }
+
+  .map-legend-panel {
+    width: min(210px, calc(100vw - 20px));
+    padding: 10px;
+  }
+
+}
+
+@media (min-width: 701px) and (max-width: 900px) {
+  .panel-indicadores {
+    flex-basis: 320px;
+    width: 320px;
+    padding: 12px;
+  }
 }
 
 /* 
@@ -1198,6 +1272,28 @@ proyecciones
   }
 }
 
+@media (max-width: 480px) {
+  .panel-proyeccion-heading {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .panel-proyeccion-rango {
+    align-self: flex-start;
+  }
+
+  .panel-proyeccion-campos {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .panel-proyeccion-flecha {
+    padding: 0;
+    text-align: center;
+    transform: rotate(90deg);
+  }
+}
+
 .panel-proyeccion-heading {
   display: flex;
   align-items: flex-start;
@@ -1469,6 +1565,13 @@ proyecciones
   .CabezaDeNavegacion-modulo {
     font-size: 14px;
     color: #fff;
+  }
+
+  .panel-indicadores-tabs {
+    margin-right: -12px;
+    margin-left: -12px;
+    padding-right: 12px;
+    padding-left: 12px;
   }
 }
 
