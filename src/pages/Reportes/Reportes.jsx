@@ -36,9 +36,12 @@ function Reportes({ onLogout, departamentos, datosMunicipios }) {
   // =========================
   // Estado de la configuracion
   // =========================
-  const [formatoReporte, setFormatoReporte] = useState("pdf");
+  const [formatoReporte, setFormatoReporte] = useState(() => informeInicial?.formato ?? "pdf");
   // Una plantilla por formato: al cambiar de PDF a Excel y volver se conserva la elegida en cada uno.
-  const [plantillas, setPlantillas] = useState(PLANTILLA_POR_DEFECTO);
+  const [plantillas, setPlantillas] = useState(() => ({
+    ...PLANTILLA_POR_DEFECTO,
+    ...(informeInicial?.formato && informeInicial?.plantilla ? { [informeInicial.formato]: informeInicial.plantilla } : {}),
+  }));
   const plantilla = plantillas[formatoReporte];
   const [anioInicio, setAnioInicio] = useState(() => informeInicial?.anioInicio ?? 2020);
   const [anioFin, setAnioFin] = useState(() => informeInicial?.anioFin ?? 2025);
@@ -49,12 +52,12 @@ function Reportes({ onLogout, departamentos, datosMunicipios }) {
       .map((id) => VARIABLES.find((variable) => variable.id === id))
       .filter(Boolean)
   );
-  const [comentarios, setComentarios] = useState({});
-  const [tituloInforme, setTituloInforme] = useState(TITULO_POR_DEFECTO);
-  const [introduccion, setIntroduccion] = useState("");
-  const [conclusiones, setConclusiones] = useState("");
+  const [comentarios, setComentarios] = useState(() => ({ ...(informeInicial?.comentarios ?? {}) }));
+  const [tituloInforme, setTituloInforme] = useState(() => informeInicial?.titulo ?? TITULO_POR_DEFECTO);
+  const [introduccion, setIntroduccion] = useState(() => informeInicial?.introduccion ?? "");
+  const [conclusiones, setConclusiones] = useState(() => informeInicial?.conclusiones ?? "");
   // Gráficas elegidas, en el orden en que saldrán en el documento.
-  const [graficas, setGraficas] = useState([]);
+  const [graficas, setGraficas] = useState(() => informeInicial?.graficas ?? []);
 
   // =========================
   // Estado de la pantalla

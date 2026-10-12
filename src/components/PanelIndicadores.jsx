@@ -1,10 +1,16 @@
-import React, { useState , useEffect } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import "../Css/StyleComponents.css";
+import "../Css/StyleReportes.css";
 import { getProyeccion } from "../services/api";
+import { armarSolicitudReporte, consultarReporte, descargarReporte, enCurso, solicitarReporte, validarPeriodo } from "../services/reportes.js";
 import PanelVariableProyeccion from "./PanelVariableProyeccion.jsx";
 import { useIrA } from "../routing/useIrA.js";
 import { RUTAS } from "../routing/rutas.js";
 import { VARIABLES_PROYECCION } from "../pages/Proyeccion/variablesProyeccion.js";
+import BarraLateralReportes from "../pages/Reportes/BarraLateralReportes.jsx";
+import { ResumenDocumento } from "../pages/Reportes/VistasDocumento.jsx";
+import { crearEtiquetaMunicipio, PLANTILLA_POR_DEFECTO, VARIABLES } from "../pages/Reportes/catalogo.js";
+import { Icono } from "../pages/Reportes/iconos.jsx";
 import {
   Line,
   LineChart,
@@ -138,7 +144,7 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
   );
 }
 
-function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFin, proyeccionMapa = null }) {
+function PanelIndicadores({ onLogout, departamentos, datosMunicipios, zonaSeleccionada, modo = "calor", anioInicio, anioFin, proyeccionMapa = null }) {
   const irA = useIrA();
   const [cargando, setCargando] = useState(false);
   const [proyecciones, setProyecciones] = useState({});
@@ -162,78 +168,166 @@ function PanelIndicadores({ zonaSeleccionada, modo = "calor", anioInicio, anioFi
   );
 
   const [vista, setVista] = useState("indicadores");
-  const [incluirGraficas, setIncluirGraficas] = useState(true);
+  const [formatoReporte, setFormatoReporte] = useState("pdf");
+  const [plantillaReporte, setPlantillaReporte] = useState(PLANTILLA_POR_DEFECTO.pdf);
+  const [tituloInforme, setTituloInforme] = useState("Informe de Indicadores");
+  const [introduccion, setIntroduccion] = useState("");
+  const [conclusiones, setConclusiones] = useState("");
+  const [comentarios, setComentarios] = useState({});
+  const [variablesInforme, setVariablesInforme] = useState(() => VARIABLES.slice(0, 2));
   const [departamentosInforme, setDepartamentosInforme] = useState([]);
   const [municipiosInforme, setMunicipiosInforme] = useState([]);
-  const [variablesInforme, setVariablesInforme] = useState([
-  "score_privacion",
-  "densidad_poblacional",
-]);
+  const [graficasInforme, setGraficasInforme] = useState([]);
+  const [reporte, setReporte] = useState(null);
+  const [solicitandoReporte, setSolicitandoReporte] = useState(false);
+  const [descargandoReporte, setDescargandoReporte] = useState(false);
+  const [errorReporte, setErrorReporte] = useState("");
+  const [anioInicioInforme, setAnioInicioInforme] = useState(() => anioInicio ?? 2020);
+  const [anioFinInforme, setAnioFinInforme] = useState(() => anioFin ?? 2025);
+  const listaDepartamentos = useMemo(() => (departamentos?.features ?? []).map((feature) => feature.properties), [departamentos]);
+  const listaMunicipios = useMemo(() => (datosMunicipios?.features ?? []).map((feature) => feature.properties), [datosMunicipios]);
+  const etiquetaMunicipio = useMemo(() => crearEtiquetaMunicipio(listaDepartamentos), [listaDepartamentos]);
+  const zonasSeleccionadas = useMemo(
+    () => [
+      ...departamentosInforme.map((zona) => ({ ...zona, nivel: "departamento" })),
+      ...municipiosInforme.map((zona) => ({ ...zona, nivel: "municipio" })),
+    ],
+    [departamentosInforme, municipiosInforme]
+  );
+  const errorPeriodoInforme = validarPeriodo(anioInicioInforme, anioFinInforme);
+  const pasosInforme = [
+    { id: "zonas", etiqueta: "Zonas", ok: zonasSeleccionadas.length > 0, ayuda: "elige al menos un departamento o municipio" },
+    { id: "variables", etiqueta: "Variables", ok: variablesInforme.length > 0, ayuda: "elige al menos una variable" },
+    { id: "periodo", etiqueta: "Periodo", ok: !errorPeriodoInforme, ayuda: errorPeriodoInforme },
+  ];
+  const configuracionInforme = {
+    titulo: tituloInforme,
+    introduccion,
+    conclusiones,
+    anioInicio: anioInicioInforme,
+    anioFin: anioFinInforme,
+    formato: formatoReporte,
+    plantilla: plantillaReporte,
+    graficas: graficasInforme,
+    variables: variablesInforme,
+    departamentos: departamentosInforme,
+    municipios: municipiosInforme,
+    etiquetaMunicipio,
+    errorPeriodo: errorPeriodoInforme,
+  };
 
-  function agregarZonaInforme() {
-  if (!zonaSeleccionada) return;
+  useEffect(() => {
+    if (!zonaSeleccionada || zonasSeleccionadas.some((zona) => zona.codigo === zonaSeleccionada.codigo)) return;
+    if (zonaSeleccionada.nivel === "departamento") setDepartamentosInforme((actuales) => [...actuales, zonaSeleccionada]);
+    if (zonaSeleccionada.nivel === "municipio") setMunicipiosInforme((actuales) => [...actuales, zonaSeleccionada]);
+  }, [zonaSeleccionada, zonasSeleccionadas]);
 
-  if (zonaSeleccionada.nivel === "departamento") {
-    setDepartamentosInforme((prev) => {
-      const existe = prev.some(
-        (zona) => zona.codigo === zonaSeleccionada.codigo
-      );
+  useEffect(() => {
+    if (!enCurso(reporte)) return undefined;
+    let activo = true;
+    const temporizador = setInterval(async () => {
+      try {
+        const actualizado = await consultarReporte(reporte.id, onLogout);
+        if (activo) setReporte(actualizado);
+      } catch (error) {
+        if (activo && error.status !== 401) {
+          setReporte(null);
+          setErrorReporte(error.message || "No se pudo consultar el estado del reporte.");
+        }
+      }
+    }, 2000);
+    return () => {
+      activo = false;
+      clearInterval(temporizador);
+    };
+  }, [reporte?.id, reporte?.estado, onLogout]);
 
-      if (existe) return prev;
-
-      return [...prev, zonaSeleccionada];
+  function solicitudActual() {
+    return armarSolicitudReporte({
+      formato: formatoReporte,
+      plantilla: plantillaReporte,
+      anioInicio: anioInicioInforme,
+      anioFin: anioFinInforme,
+      titulo: tituloInforme,
+      introduccion,
+      conclusiones,
+      graficas: graficasInforme,
+      comentarios,
+      variables: variablesInforme,
+      departamentos: departamentosInforme,
+      municipios: municipiosInforme,
     });
-
-    return;
   }
 
-  if (zonaSeleccionada.nivel === "municipio") {
-    setMunicipiosInforme((prev) => {
-      const existe = prev.some(
-        (zona) => zona.codigo === zonaSeleccionada.codigo
-      );
-
-      if (existe) return prev;
-
-      return [...prev, zonaSeleccionada];
-    });
+  async function generarInforme() {
+    setErrorReporte("");
+    setReporte(null);
+    if (errorPeriodoInforme || pasosInforme.some((paso) => !paso.ok)) {
+      setErrorReporte(errorPeriodoInforme || "Selecciona al menos una zona y una variable.");
+      return;
+    }
+    setSolicitandoReporte(true);
+    try {
+      setReporte(await solicitarReporte(solicitudActual(), onLogout));
+    } catch (error) {
+      if (error.status !== 401) setErrorReporte(error.message || "No se pudo generar el reporte.");
+    } finally {
+      setSolicitandoReporte(false);
+    }
   }
-}
 
+  async function descargarInforme() {
+    setDescargandoReporte(true);
+    try {
+      await descargarReporte(reporte, onLogout);
+    } catch (error) {
+      if (error.status !== 401) setErrorReporte(error.message || "No se pudo descargar el reporte.");
+    } finally {
+      setDescargandoReporte(false);
+    }
+  }
 
-function eliminarDepartamentoInforme(codigo) {
-  setDepartamentosInforme((prev) =>
-    prev.filter((zona) => zona.codigo !== codigo)
-  );
-}
-
-function eliminarMunicipioInforme(codigo) {
-  setMunicipiosInforme((prev) =>
-    prev.filter((zona) => zona.codigo !== codigo)
-  );
-}
-
-function toggleVariable(variable) {
-  setVariablesInforme((prev) =>
-    prev.includes(variable)
-      ? prev.filter((v) => v !== variable)
-      : [...prev, variable]
-  );
-}
-function generarInforme() {
-  irA(RUTAS.reportes, {
-    state: {
-      informe: {
-        incluirGraficas,
-        variables: variablesInforme,
-        departamentos: departamentosInforme,
-        municipios: municipiosInforme,
-        anioInicio,
-        anioFin,
+  function continuarEnReportes() {
+    irA(RUTAS.reportes, {
+      state: {
+        informe: {
+          formato: formatoReporte,
+          plantilla: plantillaReporte,
+          titulo: tituloInforme,
+          introduccion,
+          conclusiones,
+          comentarios,
+          variables: variablesInforme.map((variable) => variable.id),
+          departamentos: departamentosInforme,
+          municipios: municipiosInforme,
+          graficas: graficasInforme,
+          anioInicio: anioInicioInforme,
+          anioFin: anioFinInforme,
+        },
       },
+    });
+  }
+
+  function actualizarComentario(codigo, texto) {
+    setComentarios((actuales) => ({ ...actuales, [codigo]: texto }));
+  }
+
+  const onConfigInforme = {
+    titulo: setTituloInforme,
+    introduccion: setIntroduccion,
+    conclusiones: setConclusiones,
+    anioInicio: setAnioInicioInforme,
+    anioFin: setAnioFinInforme,
+    formato: (formato) => {
+      setFormatoReporte(formato);
+      setPlantillaReporte(PLANTILLA_POR_DEFECTO[formato]);
     },
-  });
-}
+    plantilla: setPlantillaReporte,
+    variables: setVariablesInforme,
+    departamentos: setDepartamentosInforme,
+    municipios: setMunicipiosInforme,
+    graficas: setGraficasInforme,
+  };
 
   useEffect(() => {
   if (!puedeProyectar) {
@@ -288,6 +382,33 @@ function generarInforme() {
 }
 
    }
+
+  const pieInforme = (
+    <>
+      <button className="rp-boton rp-boton--primario rp-boton--ancho" type="button" onClick={generarInforme} disabled={solicitandoReporte || enCurso(reporte) || pasosInforme.some((paso) => !paso.ok)}>
+        <Icono nombre="descarga" />
+        {solicitandoReporte ? "Enviando solicitud…" : enCurso(reporte) ? "Generando…" : "Generar reporte"}
+      </button>
+      <button className="rp-boton rp-boton--ancho" type="button" onClick={continuarEnReportes}>
+        <Icono nombre="editar" />
+        Seguir modificando en Reportes
+      </button>
+      {reporte?.estado === "pendiente" || reporte?.estado === "procesando" ? (
+        <p className="rp-aviso rp-aviso--proceso" role="status"><span className="rp-giro" aria-hidden="true" /> Generando el reporte…</p>
+      ) : null}
+      {reporte?.estado === "listo" ? (
+        <div className="rp-aviso rp-aviso--exito" role="status">
+          <p>El reporte está listo.</p>
+          <button className="rp-boton rp-boton--claro rp-boton--ancho" type="button" onClick={descargarInforme} disabled={descargandoReporte}>
+            <Icono nombre="descarga" />
+            {descargandoReporte ? "Descargando…" : "Descargar reporte"}
+          </button>
+        </div>
+      ) : null}
+      {errorReporte && <p className="rp-aviso rp-aviso--error" role="alert">{errorReporte}</p>}
+    </>
+  );
+
   return (
     <aside className="panel-indicadores" aria-label="Indicadores de la zona seleccionada">
       <div className="panel-indicadores-tabs" role="tablist" aria-label="Secciones del panel">
@@ -434,237 +555,44 @@ function generarInforme() {
       )}
 
       {vista === "informe" && (
-      <div className="panel-informe">
-  <div className="panel-informe-encabezado">
-    <div>
-      <p className="panel-informe-kicker">Generador de informes</p>
-      <h3 className="panel-informe-titulo">Configura tu informe</h3>
-      <p className="panel-informe-ayuda">
-        Selecciona las variables y agrega zonas desde el mapa.
-      </p>
-    </div>
-  </div>
-
-  <label className="informe-opcion-principal">
-    <input
-      type="checkbox"
-      checked={incluirGraficas}
-      onChange={(e) =>
-        setIncluirGraficas(e.target.checked)
-      }
-    />
-    <span>
-      <strong>Incluir gráficas</strong>
-      <small>Agrega una visualización al documento final.</small>
-    </span>
-  </label>
-
-  <div className="informe-seccion">
-    <div className="informe-seccion-titulo">
-      <strong>Variables incluidas</strong>
-      <span>{variablesInforme.length} seleccionadas</span>
-    </div>
-
-    <label>
-      <input
-        type="checkbox"
-        checked={variablesInforme.includes("score_privacion")}
-        onChange={() =>
-          toggleVariable("score_privacion")
-        }
-      />
-      Score de Privación
-    </label>
-
-    <label>
-      <input
-        type="checkbox"
-        checked={variablesInforme.includes("densidad_poblacional")}
-        onChange={() =>
-          toggleVariable("densidad_poblacional")
-        }
-      />
-      Densidad poblacional
-    </label>
-
-    <label>
-      <input
-        type="checkbox"
-        checked={variablesInforme.includes("cobertura_acueducto")}
-        onChange={() =>
-          toggleVariable("cobertura_acueducto")
-        }
-      />
-      Cobertura acueducto
-    </label>
-
-    <label>
-      <input
-        type="checkbox"
-        checked={variablesInforme.includes("cobertura_alcantarillado")}
-        onChange={() =>
-          toggleVariable("cobertura_alcantarillado")
-        }
-      />
-      Cobertura alcantarillado
-    </label>
-  </div>
-
-  <div className="informe-seccion">
-  <div className="informe-seccion-titulo">
-    <strong>Departamentos</strong>
-    <span>{departamentosInforme.length}</span>
-  </div>
-
-  <div className="informe-tags">
-    {departamentosInforme.map((zona) => (
-      <span
-        key={zona.codigo}
-        className="informe-tag"
-      >
-        {zona.nombre}
-
-        <button
-          type="button"
-          onClick={() =>
-            eliminarDepartamentoInforme(zona.codigo)
-          }
-        >
-          <span aria-hidden="true">x</span>
-          <span className="sr-only">Quitar {zona.nombre}</span>
-        </button>
-      </span>
-    ))}
-  </div>
-</div>
-
-<div className="informe-seccion">
-  <div className="informe-seccion-titulo">
-    <strong>Municipios</strong>
-    <span>{municipiosInforme.length}</span>
-  </div>
-
-  <div className="informe-tags">
-    {municipiosInforme.map((zona) => (
-      <span
-        key={zona.codigo}
-        className="informe-tag"
-      >
-        {zona.nombre}
-
-        <button
-          type="button"
-          onClick={() =>
-            eliminarMunicipioInforme(zona.codigo)
-          }
-        >
-          <span aria-hidden="true">x</span>
-          <span className="sr-only">Quitar {zona.nombre}</span>
-        </button>
-      </span>
-    ))}
-  </div>
-</div>
-
-  <button
-    className="btn-informe-secundario"
-    type="button"
-    onClick={agregarZonaInforme}
-    disabled={!zonaSeleccionada}
-  >
-    + Añadir zona actual
-  </button>
-
-  <div className="informe-acciones">
-    <button
-      className="btn-informe-primario"
-      type="button"
-      onClick={generarInforme}
-    >
-      Abrir generador completo
-    </button>
-    <span className="informe-acciones-ayuda">Podrás editar el contenido antes de enviarlo.</span>
-  </div>
-
-  <div className="informe-preview">
-  <div className="informe-seccion-titulo">
-    <strong>Vista previa</strong>
-    <span>{departamentosInforme.length + municipiosInforme.length} zonas</span>
-  </div>
-
-  <div className="informe-seccion">
-    <strong>Departamentos seleccionados</strong>
-
-    {departamentosInforme.length === 0 ? (
-      <p className="informe-vacio">Añade un departamento desde el mapa.</p>
-    ) : (
-      departamentosInforme.map((departamento) => (
-        <div
-          key={departamento.codigo}
-          className="informe-preview-item"
-        >
-          <strong>{departamento.nombre}</strong>
-
-          <div>
-            Score de Privación:
-            {" "}
-            {departamento.score_privacion?.toFixed(4)}
+        <div className="rp-pagina panel-informe panel-informe--editor">
+          <div className="rp-cabecera">
+            <p className="rp-acceso-kicker">Visualizar y generar reportes</p>
+            <h3 className="rp-acceso-titulo">Organiza tu informe</h3>
+            <p className="rp-acceso-ayuda">Aquí puedes configurar y generar el reporte viendo solo su resumen.</p>
+          </div>
+          <div className="rp-editor">
+            <BarraLateralReportes
+              id="panel-configuracion-reporte"
+              abierta
+              onAlternar={() => {}}
+              config={configuracionInforme}
+              onConfig={onConfigInforme}
+              listas={{
+                departamentos: listaDepartamentos,
+                municipios: listaMunicipios,
+                etiquetaMunicipio,
+                etiquetaZona: (zona) => zona.nivel === "municipio" ? etiquetaMunicipio(zona) : zona.nombre,
+                zonasSeleccionadas,
+              }}
+              historial={{ estado: "listo", items: [], mensaje: "", idActual: null, onAbrir: () => {}, onEliminar: () => {}, onNuevo: () => {}, onReintentar: () => {} }}
+              pie={pieInforme}
+            />
+            <section className="rp-principal panel-informe-resumen" aria-label="Resumen del informe">
+              <div className="rp-tabs-fila">
+                <h3 className="rp-panel-titulo">Resumen del documento</h3>
+                <span className="rp-panel-ayuda">La vista previa está disponible al continuar en Reportes.</span>
+              </div>
+              <ResumenDocumento config={configuracionInforme} comentarios={comentarios} pasos={pasosInforme} />
+              <div className="rp-resumen-acciones">
+                <button className="rp-boton rp-boton--ancho" type="button" onClick={continuarEnReportes}>
+                  <Icono nombre="editar" />
+                  Seguir modificando en Reportes
+                </button>
+              </div>
+            </section>
           </div>
         </div>
-      ))
-    )}
-  </div>
-
-  <div className="informe-seccion">
-    <strong>Municipios seleccionados</strong>
-
-    {municipiosInforme.length === 0 ? (
-      <p className="informe-vacio">Añade un municipio desde el mapa.</p>
-    ) : (
-      municipiosInforme.map((municipio) => (
-        <div
-          key={municipio.codigo}
-          className="informe-preview-item"
-        >
-          <strong>{municipio.nombre}</strong>
-
-          <div>
-            Score de Privación:
-            {" "}
-            {municipio.score_privacion?.toFixed(4)}
-          </div>
-        </div>
-      ))
-    )}
-  </div>
-
-  <div className="informe-seccion">
-    <strong>Variables seleccionadas</strong>
-
-    {variablesInforme.map((variable) => (
-      <div key={variable}>
-        {variable}
-      </div>
-    ))}
-  </div>
-
-  <div className="informe-seccion">
-    <strong>Periodo</strong>
-
-    <div>
-      {anioInicio} - {anioFin}
-    </div>
-  </div>
-
-  <div className="informe-seccion">
-    <strong>Gráficas</strong>
-
-    <div>
-      {incluirGraficas ? "Sí" : "No"}
-    </div>
-  </div>
-</div>
-</div>
       )}
       {cargando && <p>Cargando proyección...</p>}
       {modo === "proyeccion" && errorSerie && (

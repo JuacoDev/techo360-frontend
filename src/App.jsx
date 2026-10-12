@@ -245,7 +245,7 @@ function MapaCalor({ onLogout, departamentos, datosMunicipios, zonaSeleccionada,
             <MapView {...propsMapa} />
           </div>
         </section>
-        <PanelIndicadores zonaSeleccionada={zonaSeleccionada} />
+        <PanelIndicadores onLogout={logout} departamentos={departamentos} datosMunicipios={datosMunicipios} zonaSeleccionada={zonaSeleccionada} />
       </div>
       {/* Oculto para la entrega -- el backend del chatbot no tiene
           ninguna ruta de chat real todavia (solo /health), se veria

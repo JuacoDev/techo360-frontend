@@ -291,6 +291,9 @@ function Proyectadas({
         </section>
 
         <PanelIndicadores
+          onLogout={onLogout}
+          departamentos={departamentos}
+          datosMunicipios={datosMunicipios}
           zonaSeleccionada={zonaSeleccionada}
           modo="proyeccion"
           anioInicio={anioInicio}

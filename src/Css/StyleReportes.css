@@ -73,6 +73,25 @@
   box-shadow: 0 8px 26px rgba(75, 49, 35, 0.1);
 }
 
+.rp-acceso-kicker { margin: 0 0 4px; color: var(--rp-naranja-oscuro); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.rp-acceso-titulo { margin: 0; color: var(--rp-tinta); font-size: 18px; }
+.rp-acceso-ayuda { margin: 6px 0 0; color: var(--rp-tenue); font-size: 13px; line-height: 1.45; }
+.panel-informe--editor { min-height: 0; background: transparent; }
+.panel-informe--editor .rp-editor { display: block; }
+.panel-informe--editor .rp-barra { position: static; max-height: none; border-radius: 12px; }
+.panel-informe--editor .rp-barra-interior { width: 100%; max-height: none; }
+.panel-informe--editor .rp-barra-lista { overflow: visible; }
+.panel-informe-resumen { margin-top: 16px; }
+.rp-panel-titulo { margin: 0; color: var(--rp-tinta); font-size: 16px; }
+.rp-panel-ayuda { margin: 4px 0 0; color: var(--rp-tenue); font-size: 12px; }
+.rp-resumen-acciones { display: flex; justify-content: center; margin-top: 16px; }
+.panel-informe--editor .rp-resumen-tarjetas,
+.panel-informe--editor .rp-resumen-dos { grid-template-columns: minmax(0, 1fr); }
+.panel-informe--editor .rp-resumen-tarjeta { align-items: flex-start; padding: 12px; }
+.panel-informe--editor .rp-resumen-bloque { padding: 14px; }
+.panel-informe--editor .rp-estructura li { align-items: flex-start; flex-wrap: wrap; }
+.panel-informe--editor .rp-estructura em { flex-basis: 100%; margin-left: 26px; }
+
 .rp-datos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
 .rp-dato { display: flex; align-items: center; gap: 9px; padding: 6px 10px; border: 1px solid var(--rp-borde); border-radius: 9px; background: #fbfaf7; }
 .rp-dato-icono { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; background: var(--rp-naranja-suave); color: var(--rp-naranja); }
