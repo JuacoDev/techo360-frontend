@@ -1,5 +1,17 @@
 import { useMemo, useState, useEffect } from "react";
 
+// Misma regla de etiqueta que crearEtiquetaMunicipio en pages/Reportes/catalogo.js
+// ("Nombre, Departamento"; Bogotá va sin departamento). Duplicada a propósito para
+// no importar desde un módulo de página: si cambia una, cambiar también la otra.
+function crearEtiquetaMunicipio(departamentos) {
+  const nombres = new Map(departamentos.map((departamento) => [departamento.codigo, departamento.nombre]));
+  return (municipio) => {
+    const departamento = nombres.get(municipio.codigo_departamento);
+    if (!departamento || municipio.codigo === "11001" || municipio.codigo_departamento === "11") return municipio.nombre;
+    return `${municipio.nombre}, ${departamento}`;
+  };
+}
+
 // departamentos y datosMunicipios ya fueron descargados una vez por App
 // (misma respuesta que ya usa MapView) -- este componente NO vuelve a
 // pedirlos ni hace ningun fetch al seleccionar una zona: solo filtra
@@ -48,6 +60,7 @@ function BarraBuscadora({
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
     [departamentos]
   );
+  const etiquetaMunicipio = useMemo(() => crearEtiquetaMunicipio(listaDepartamentos), [listaDepartamentos]);
   const municipiosDelDepartamento = useMemo(() => {
   const municipios = (datosMunicipios?.features ?? [])
     .map((feature) => feature.properties);
@@ -132,7 +145,7 @@ function BarraBuscadora({
           <option value="" disabled>Seleccione un municipio...</option>
           {municipiosDelDepartamento.map((municipio) => (
             <option key={municipio.codigo} value={municipio.codigo}>
-              {municipio.nombre}
+              {etiquetaMunicipio(municipio)}
             </option>
           ))}
         </select>
