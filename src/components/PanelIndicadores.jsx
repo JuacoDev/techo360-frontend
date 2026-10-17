@@ -7,6 +7,7 @@ import PanelVariableProyeccion from "./PanelVariableProyeccion.jsx";
 import { useIrA } from "../routing/useIrA.js";
 import { RUTAS } from "../routing/rutas.js";
 import { VARIABLES_PROYECCION, esProyeccionZona } from "../pages/Proyeccion/variablesProyeccion.js";
+import { fiabilidadTarjeta } from "./fiabilidadTarjeta.js";
 import BarraLateralReportes from "../pages/Reportes/BarraLateralReportes.jsx";
 import { ResumenDocumento } from "../pages/Reportes/VistasDocumento.jsx";
 import { crearEtiquetaMunicipio, PLANTILLA_POR_DEFECTO, VARIABLES } from "../pages/Reportes/catalogo.js";
@@ -67,6 +68,8 @@ function esSinDato(origen) {
 function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProyectada }) {
   const nombreFormateado = nombre.replace(/_/g, " ");
   const unidad = UNIDADES[nombre] || "";
+  // La fiabilidad sale de los datos de la tarjeta (esProyeccion + intervalo_confianza), no de un prop que nadie pasa.
+  const fiabilidad = fiabilidadTarjeta(datos, proyectado);
   const datosGrafico = (serieProyectada || [])
     .map((punto) => ({
       año: String(punto.año ?? punto.anio ?? ""),
@@ -121,19 +124,17 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
         </div>
       )}
 
-      {proyectado ? (
-        datos.intervalo_confianza != null && (
-          <p className="indicador-proyeccion-badge">
-            Fiabilidad: {datos.intervalo_confianza}%
-          </p>
-        )
-      ) : (
-        datos.origen && (
-          <p className="indicador-fuente">
-            Fuente: {datos.origen}
-            {datos.anio_real && `, Año: ${datos.anio_real}`}
-          </p>
-        )
+      {fiabilidad != null && (
+        <p className="indicador-proyeccion-badge">
+          Fiabilidad: {fiabilidad}%
+        </p>
+      )}
+
+      {datos.origen && (
+        <p className="indicador-fuente">
+          Fuente: {datos.origen}
+          {datos.anio_real && `, Año: ${datos.anio_real}`}
+        </p>
       )}
     </div>
   );
