@@ -92,7 +92,8 @@ test("es proyeccion: el booleano del backend manda; sin el, el prefijo proyeccio
   assert.equal(esProyeccionZona({ es_real: false, origen: "TerriData" }), true);
   assert.equal(esProyeccionZona({ es_real: true, origen: "proyeccion-x" }), false);
   assert.equal(esProyeccionZona({ origen: "proyeccion-techo360-ultimo-valor" }), true);
-  assert.equal(esProyeccionZona({ origen: "DANE-proyeccion-poblacion-2030" }), false);
+  // INC-001: la densidad proyectada (poblacion DANE / area) se guarda como proyeccion-poblacion-sobre-area
+  assert.equal(esProyeccionZona({ origen: "proyeccion-poblacion-sobre-area" }), true);
   assert.equal(esProyeccionZona({ origen: "TerriData" }), false);
   assert.equal(esProyeccionZona(null), false);
 });
