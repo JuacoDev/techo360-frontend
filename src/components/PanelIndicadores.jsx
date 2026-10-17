@@ -116,7 +116,7 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
             </LineChart>
           </ResponsiveContainer>
           <p className="text-xs text-gray-500 italic mt-2">
-            ⚠️ Proyección estimada (Modelo LightGBM). No es un dato observado.
+            ⚠️ Proyección estimada por Techo 360; el método depende del indicador. No es un dato observado.
           </p>
         </div>
       )}
