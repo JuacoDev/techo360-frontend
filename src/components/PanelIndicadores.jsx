@@ -6,7 +6,7 @@ import { armarSolicitudReporte, consultarReporte, descargarReporte, enCurso, sol
 import PanelVariableProyeccion from "./PanelVariableProyeccion.jsx";
 import { useIrA } from "../routing/useIrA.js";
 import { RUTAS } from "../routing/rutas.js";
-import { VARIABLES_PROYECCION } from "../pages/Proyeccion/variablesProyeccion.js";
+import { VARIABLES_PROYECCION, esProyeccionZona } from "../pages/Proyeccion/variablesProyeccion.js";
 import BarraLateralReportes from "../pages/Reportes/BarraLateralReportes.jsx";
 import { ResumenDocumento } from "../pages/Reportes/VistasDocumento.jsx";
 import { crearEtiquetaMunicipio, PLANTILLA_POR_DEFECTO, VARIABLES } from "../pages/Reportes/catalogo.js";
@@ -41,16 +41,11 @@ const UNIDADES = {
   deficit_habitacional_total: "%",
 };
 
-// Prefijo comun a los origenvar de proyeccion generados por
-// ingestion/proyeccion_2024.py (backend) -- distingue en la tarjeta un
-// dato real de una proyeccion, sin depender de una lista exacta de
-// nombres (nuevos metodos de proyeccion futuros solo necesitan seguir
-// el mismo prefijo "proyeccion-" para que la tarjeta los reconozca).
-const PREFIJO_PROYECCION = "proyeccion-";
-
-function esProyeccion(origen) {
-  return typeof origen === "string" && origen.startsWith(PREFIJO_PROYECCION);
-}
+// Real vs proyeccion: regla unica en pages/Proyeccion/variablesProyeccion.js (esProyeccionZona; INC-001). Replica el
+// criterio del backend (prefijo "proyeccion-", sufijo "-proyeccion" o prefijo legado "DANE-proyeccion-poblacion-"),
+// sin depender de una lista exacta de nombres. Se le pasa el indicador completo ({ origen, es_real? }): si trae
+// es_real manda; si no (payload de indicadores), decide el originvar.
+const esProyeccion = (datos) => esProyeccionZona(datos);
 
 // Tercer estado explicito (ver caso real verificado con Ebejico/05240,
 // municipios sin cobertura_acueducto/alcantarillado en 2024, y con los
@@ -121,7 +116,7 @@ function TarjetaIndicador({ nombre, datos, tipo, proyectado, onClick, serieProye
             </LineChart>
           </ResponsiveContainer>
           <p className="text-xs text-gray-500 italic mt-2">
-            ⚠️ Proyección estimada (Modelo LightGBM). No es un dato observado.
+            ⚠️ Proyección estimada por Techo 360; el método depende del indicador. No es un dato observado.
           </p>
         </div>
       )}
@@ -473,8 +468,8 @@ function PanelIndicadores({ onLogout, departamentos, datosMunicipios, zonaSelecc
       {modo === "proyeccion" ? null : zonaSeleccionada && zonaSeleccionada.indicadores ? (
         (() => {
           const entradas = Object.entries(zonaSeleccionada.indicadores);
-          const confirmadas = entradas.filter(([, datos]) => !esSinDato(datos.origen) && !esProyeccion(datos.origen));
-          const tarjetasProyeccion = entradas.filter(([, datos]) => !esSinDato(datos.origen) && esProyeccion(datos.origen));
+          const confirmadas = entradas.filter(([, datos]) => !esSinDato(datos.origen) && !esProyeccion(datos));
+          const tarjetasProyeccion = entradas.filter(([, datos]) => !esSinDato(datos.origen) && esProyeccion(datos));
           const sinDato = entradas.filter(([, datos]) => esSinDato(datos.origen));
 
           return (

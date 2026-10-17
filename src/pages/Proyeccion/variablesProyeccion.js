@@ -102,15 +102,28 @@ export function buscarVariable(id) {
   return VARIABLES_PROYECCION.find((v) => v.id === id) ?? VARIABLES_PROYECCION[0];
 }
 
-// Mismo criterio que el Panel de Indicadores (PanelIndicadores.jsx::esProyeccion): el origen EMPIEZA por "proyeccion-".
+// REGLA UNICA real / proyeccion del frontend (INC-001). Replica el criterio del backend
+// (techo360-backend/services/origen.py::es_proyeccion y techo360-proyeccion/app/origen.py): un originvar es
+// PROYECCION si EMPIEZA por "proyeccion-", TERMINA en "-proyeccion" o EMPIEZA por el prefijo LEGADO
+// "DANE-proyeccion-poblacion-" (nombre antiguo de la densidad proyectada, hoy "proyeccion-poblacion-sobre-area").
+// No basta con que el texto CONTENGA "proyeccion". Cualquier otro origen (IGAC Catastro, TerriData, DANE-CNPV2018...)
+// es dato real. Todo componente que decida real/proyeccion debe usar esProyeccionZona / esProyeccionOrigen.
 export const PREFIJO_PROYECCION = "proyeccion-";
+export const SUFIJO_PROYECCION = "-proyeccion";
+export const PREFIJO_LEGADO_DANE_PROYECCION = "DANE-proyeccion-poblacion-";
 
 export function esProyeccionOrigen(origen) {
-  return typeof origen === "string" && origen.startsWith(PREFIJO_PROYECCION);
+  return (
+    typeof origen === "string" &&
+    (origen.startsWith(PREFIJO_PROYECCION) ||
+      origen.endsWith(SUFIJO_PROYECCION) ||
+      origen.startsWith(PREFIJO_LEGADO_DANE_PROYECCION))
+  );
 }
 
-// Una zona/punto es proyeccion si el backend dice es_real=false; si no trae el booleano (respuesta vieja), se
-// decide por el prefijo del origen.
+// Una zona/punto/indicador es proyeccion si el backend dice es_real=false (donde la API entrega es_real, ese valor
+// manda, incluso sobre el nombre); si no trae el booleano (respuesta vieja o payload de indicadores), se decide por el
+// originvar con esProyeccionOrigen.
 export function esProyeccionZona(zona) {
   if (zona == null) return false;
   if (typeof zona.es_real === "boolean") return !zona.es_real;

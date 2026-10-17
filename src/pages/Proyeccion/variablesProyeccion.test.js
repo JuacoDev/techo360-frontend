@@ -13,6 +13,7 @@ import {
   claveCache,
   crearNormalizador,
   escaparHtml,
+  esProyeccionOrigen,
   esProyeccionZona,
   estadoDeAnios,
   etiquetasLeyenda,
@@ -92,9 +93,46 @@ test("es proyeccion: el booleano del backend manda; sin el, el prefijo proyeccio
   assert.equal(esProyeccionZona({ es_real: false, origen: "TerriData" }), true);
   assert.equal(esProyeccionZona({ es_real: true, origen: "proyeccion-x" }), false);
   assert.equal(esProyeccionZona({ origen: "proyeccion-techo360-ultimo-valor" }), true);
-  assert.equal(esProyeccionZona({ origen: "DANE-proyeccion-poblacion-2030" }), false);
+  // INC-001: la densidad proyectada (poblacion DANE / area) se guarda como proyeccion-poblacion-sobre-area
+  assert.equal(esProyeccionZona({ origen: "proyeccion-poblacion-sobre-area" }), true);
   assert.equal(esProyeccionZona({ origen: "TerriData" }), false);
   assert.equal(esProyeccionZona(null), false);
+});
+
+test("regla unica de proyeccion por originvar: prefijo, sufijo y nombre legado (INC-001)", () => {
+  // prefijo "proyeccion-" (incluye el nombre actual de la densidad proyectada)
+  for (const o of ["proyeccion-poblacion-sobre-area", "proyeccion-techo360-ultimo-valor", "proyeccion-x"]) {
+    assert.equal(esProyeccionOrigen(o), true, o);
+  }
+  // sufijo "-proyeccion"
+  assert.equal(esProyeccionOrigen("TerriData-proyeccion"), true);
+  // prefijo LEGADO "DANE-proyeccion-poblacion-" (ya no esta en la base, pero sigue siendo proyeccion)
+  for (const o of ["DANE-proyeccion-poblacion-2024", "DANE-proyeccion-poblacion-2042"]) {
+    assert.equal(esProyeccionOrigen(o), true, o);
+  }
+});
+
+test("regla unica: el dato real no es proyeccion, aunque el texto contenga la palabra", () => {
+  for (const o of ["IGAC Catastro", "TerriData", "DANE-CNPV2018", "DANE-poblacion", "mi-proyeccion-final", "Proyeccion-x", "x-Proyeccion"]) {
+    assert.equal(esProyeccionOrigen(o), false, o);
+  }
+  for (const o of [null, undefined, "", 123, {}]) {
+    assert.equal(esProyeccionOrigen(o), false, String(o));
+  }
+});
+
+test("regla unica: donde la API entrega es_real, ese valor gana al nombre del origen", () => {
+  assert.equal(esProyeccionZona({ es_real: true, origen: "proyeccion-poblacion-sobre-area" }), false);
+  assert.equal(esProyeccionZona({ es_real: true, origen: "DANE-proyeccion-poblacion-2030" }), false);
+  assert.equal(esProyeccionZona({ es_real: true, origen: "TerriData-proyeccion" }), false);
+  assert.equal(esProyeccionZona({ es_real: false, origen: "IGAC Catastro" }), true);
+  assert.equal(esProyeccionZona({ es_real: false, origen: null }), true);
+  // sin es_real (payload de indicadores): decide el nombre
+  assert.equal(esProyeccionZona({ origen: "proyeccion-poblacion-sobre-area" }), true);
+  assert.equal(esProyeccionZona({ origen: "TerriData-proyeccion" }), true);
+  assert.equal(esProyeccionZona({ origen: "DANE-proyeccion-poblacion-2030" }), true);
+  assert.equal(esProyeccionZona({ origen: "IGAC Catastro" }), false);
+  assert.equal(esProyeccionZona({ origen: "TerriData" }), false);
 });
 
 test("fiabilidad: lo que entrega la API, sin asumir un valor fijo", () => {
@@ -115,7 +153,7 @@ test("formato del valor con unidad", () => {
 test("serie desde el mapa: los años no cargados salen «sin cargar», nunca cero", () => {
   const datos = {
     2026: [{ codigo_municipio: "05001", valor: 10, es_real: false, origen: "proyeccion-x", fiabilidad: 55 }],
-    2027: [{ codigo_municipio: "05001", valor: 11, es_real: true, origen: "DANE-proyeccion-poblacion-2027", fiabilidad: 100 }],
+    2027: [{ codigo_municipio: "05001", valor: 11, es_real: false, origen: "proyeccion-poblacion-sobre-area", fiabilidad: 30 }],
     2028: [{ codigo_municipio: "99999", valor: 5 }], // el municipio no esta en ese año
   };
   const serie = serieDesdeMapa("05001", datos);
@@ -123,7 +161,7 @@ test("serie desde el mapa: los años no cargados salen «sin cargar», nunca cer
   assert.equal(serie[0].anio, 2024);
   assert.equal(serie.at(-1).anio, 2042);
   assert.deepEqual(serie.find((p) => p.anio === 2026), { anio: 2026, valor: 10, cargado: true, es_real: false, origen: "proyeccion-x", fiabilidad: 55 });
-  assert.equal(serie.find((p) => p.anio === 2027).es_real, true);
+  assert.equal(serie.find((p) => p.anio === 2027).es_real, false);
   for (const anio of [2024, 2025, 2028, 2030]) {
     const p = serie.find((x) => x.anio === anio);
     assert.equal(p.valor, null, anio);
