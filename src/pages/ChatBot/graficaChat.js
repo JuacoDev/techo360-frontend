@@ -3,11 +3,11 @@
 //
 // Contrato (PROPUESTO, claude/fase2-3-contrato-grafica.md §5; el definitivo lo fija claude/fase7-6-payload.md):
 //   grafica = {
-//     especificacion: { v: 1, tipo, modo, variables[], zonas[], anios[], titulo? },   // ya validada por el backend
+//     especificacion: { v: 1, tipo, modo, variables[], zonas[], anios[] },   // ya validada; el modelo no emite titulo (fase7-1 §3)
 //     datos: {
 //       zonas: { "68001": "Bucaramanga", ... },                                        // nombres para mostrar
 //       puntos: [{ variable, zona, anio, valor, es_real, origen, fiabilidad }, ...],  // filas ya resueltas
-//       referencia: { <variable>: { nacional } },                                     // solo gauge
+//       universo: { <variable>: { promedio, minimo, maximo } },                       // solo gauge y ranking (fase7-1 §2.5)
 //     },
 //   }
 // El frontend NO consulta nada ni calcula cifras: dibuja `puntos`. Real/proyeccion sale de esProyeccionZona (misma
@@ -56,6 +56,11 @@ export function notaProyeccion(proy) {
   }
   return texto;
 }
+
+const universoDe = (grafica, variable) => {
+  const u = grafica?.datos?.universo?.[variable];
+  return u && typeof u === "object" ? u : null;
+};
 
 const nombreZona = (grafica, codigo) => grafica?.datos?.zonas?.[codigo] ?? codigo;
 
@@ -113,7 +118,8 @@ function ranking(grafica, puntos, variable) {
   const filas = ultimos
     .map((p) => ({ clave: p.zona, nombre: nombreZona(grafica, p.zona), valor: p.valor, anio: p.anio, proyeccion: p.proyeccion }))
     .sort((a, b) => b.valor - a.valor);
-  return { ok: true, filas, puntos: ultimos };
+  const ref = universoDe(grafica, variable)?.promedio;
+  return { ok: true, filas, promedio: esNumero(ref) ? Number(ref) : null, puntos: ultimos };
 }
 
 function agrupadas(grafica, puntos, variables) {
@@ -138,7 +144,7 @@ function medidor(grafica, puntos, variable) {
   const cfg = buscarVariable(variable);
   // Escala: el score va de 0 a 1; el resto de variables permitidas (coberturas, deficits) son porcentajes.
   const maximo = cfg.unidad === "%" ? 100 : 1;
-  const ref = grafica?.datos?.referencia?.[variable]?.nacional;
+  const ref = universoDe(grafica, variable)?.promedio;
   return {
     ok: true,
     medidor: {
@@ -172,12 +178,8 @@ export function prepararGrafica(grafica) {
   if (!r.ok) return r;
 
   const cfg = buscarVariable(variables[0]);
-  const titulo =
-    typeof spec.titulo === "string" && spec.titulo.trim()
-      ? spec.titulo.trim()
-      : variables.length === 1
-        ? cfg.nombre
-        : variables.map((v) => buscarVariable(v).nombre).join(" y ");
+  // El titulo siempre se deriva de las variables: el modelo no emite `titulo`.
+  const titulo = variables.length === 1 ? cfg.nombre : variables.map((v) => buscarVariable(v).nombre).join(" y ");
   return {
     ok: true,
     tipo: spec.tipo,
@@ -188,6 +190,7 @@ export function prepararGrafica(grafica) {
     filas: r.filas ?? [],
     series: r.series ?? [],
     medidor: r.medidor ?? null,
+    promedio: r.promedio ?? null,
     proyeccion: resumenProyeccion(r.puntos),
   };
 }
