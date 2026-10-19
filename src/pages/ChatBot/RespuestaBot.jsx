@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from "react";
+import { Component, lazy, Suspense, useMemo } from "react";
 import Markdown from "react-markdown";
 import { formatearRespuestaBot } from "../../services/formatoRespuesta.js";
 
@@ -15,6 +15,18 @@ const SIN_IMAGENES = ["img"];
 // La grafica (7.6) se carga aparte: Recharts solo se descarga si algun mensaje trae grafica.
 const GraficaChat = lazy(() => import("./GraficaChat.jsx"));
 
+// Una grafica rota (payload inesperado, fallo de Recharts) nunca debe tumbar el chat: se descarta y queda el texto.
+class SinFalloDeGrafica extends Component {
+  state = { fallo: false };
+  static getDerivedStateFromError() {
+    return { fallo: true };
+  }
+  componentDidCatch() {}
+  render() {
+    return this.state.fallo ? null : this.props.children;
+  }
+}
+
 function RespuestaBot({ texto, grafica = null }) {
   const markdown = useMemo(() => formatearRespuestaBot(texto), [texto]);
   return (
@@ -22,10 +34,12 @@ function RespuestaBot({ texto, grafica = null }) {
       <Markdown skipHtml disallowedElements={SIN_IMAGENES} components={COMPONENTES}>
         {markdown}
       </Markdown>
-      {grafica?.especificacion && (
-        <Suspense fallback={null}>
-          <GraficaChat grafica={grafica} />
-        </Suspense>
+      {grafica && typeof grafica === "object" && (
+        <SinFalloDeGrafica key={texto}>
+          <Suspense fallback={null}>
+            <GraficaChat grafica={grafica} />
+          </Suspense>
+        </SinFalloDeGrafica>
       )}
     </div>
   );
