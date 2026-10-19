@@ -1,5 +1,62 @@
 # techo360-frontend
 
+## Resumen
+
+Aplicacion web React de Techo 360.
+Muestra el mapa de calor y sus indicadores territoriales.
+Integra proyecciones, reportes y TechoBot.
+Usa Nginx como servidor de la SPA y reverse proxy.
+Consume la API del backend mediante `fetch`.
+
+## Uso local
+
+```bash
+npm install
+npm run dev
+```
+
+Para una compilacion de produccion:
+
+```bash
+npm run build
+npm run preview
+```
+
+## Variables de entorno
+
+| Nombre | Para que sirve | Valor por defecto |
+|---|---|---|
+| `VITE_API_URL` | URL base de la API usada en build | TODO: no comprobado |
+
+No se incluyen valores de `.env`, tokens ni credenciales.
+
+## Pruebas
+
+```bash
+node --test
+npm run build
+```
+
+La verificacion en navegador usada historicamente no esta versionada:
+`TODO`: incorporar una prueba reproducible al repositorio.
+
+## Estructura
+
+`src/` contiene la aplicacion, paginas, servicios HTTP y pruebas; `public/`
+contiene recursos estaticos; `nginx.conf` define el proxy; `Dockerfile`
+construye la imagen.
+
+## Banderas del chatbot
+
+El frontend no define banderas propias del chatbot. Las banderas del servicio
+(`CHATBOT_HABILITAR_SEND_LOCAL`, `CHATBOT_HABILITAR_DOCS` y
+`CHATBOT_BLOQUEO_PENDIENTES`) deben permanecer apagadas por defecto; se
+configuran en backend/chatbot/infra, no aqui.
+
+## Documentacion de fases
+
+La documentacion de fases se mantiene fuera de este repositorio.
+
 App React de Techo 360.
 
 <!-- Prueba de despliegue automatico: 2026-07-27 11:03:59 -->
