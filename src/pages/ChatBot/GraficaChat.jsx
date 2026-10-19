@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatearNumero, formatearValor } from "../Proyeccion/variablesProyeccion.js";
 import { notaProyeccion, prepararGrafica } from "./graficaChat.js";
 
@@ -21,7 +21,7 @@ function Lineas({ m }) {
       <LineChart data={m.filas} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="anio" tick={{ fontSize: 11 }} />
-        <YAxis tick={{ fontSize: 11 }} width={48} tickFormatter={formatoEje(cfg)} />
+        <YAxis tick={{ fontSize: 11 }} width={48} domain={["auto", "auto"]} tickFormatter={formatoEje(cfg)} />
         <Tooltip formatter={(v) => formatearValor(m.variable, v)} />
         {m.series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
         {m.series.map((s, i) => {
@@ -57,6 +57,7 @@ function Ranking({ m }) {
         <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={formatoEje(m)} />
         <YAxis type="category" dataKey="etiqueta" tick={{ fontSize: 11 }} width={130} />
         <Tooltip formatter={(v) => formatearValor(m.variable, v)} />
+        {m.promedio !== null && <ReferenceLine x={m.promedio} stroke="#888" strokeDasharray="3 3" />}
         <Bar dataKey="valor" name={m.titulo} isAnimationActive={false}>
           {datos.map((f) => (
             <Cell key={f.clave} fill={COLORES[0]} fillOpacity={f.proyeccion ? 0.45 : 1} stroke={f.proyeccion ? COLORES[0] : undefined} strokeDasharray={f.proyeccion ? "4 3" : undefined} />
@@ -96,9 +97,9 @@ function Medidor({ m }) {
   ];
   return (
     <div className="chat-grafica-gauge">
-      <ResponsiveContainer width="100%" height={150} initialDimension={{ width: INICIAL.width, height: 150 }}>
+      <ResponsiveContainer width="100%" height={170} initialDimension={{ width: INICIAL.width, height: 170 }}>
         <PieChart>
-          <Pie data={datos} dataKey="v" startAngle={180} endAngle={0} cx="50%" cy="100%" innerRadius="70%" outerRadius="100%" stroke="none" isAnimationActive={false}>
+          <Pie data={datos} dataKey="v" startAngle={180} endAngle={0} cx="50%" cy="92%" innerRadius="125%" outerRadius="175%" stroke="none" isAnimationActive={false}>
             <Cell fill={COLORES[0]} fillOpacity={g.proyeccion ? 0.5 : 1} />
             <Cell fill="rgba(128,128,128,0.25)" />
           </Pie>
@@ -126,6 +127,9 @@ function GraficaChat({ grafica }) {
         {modelo.proyeccion.hay && <span className="chat-grafica-badge">Proyección</span>}
       </figcaption>
       <Dibujo m={modelo} />
+      {modelo.tipo === "barras_ranking" && modelo.promedio !== null && (
+        <p className="chat-grafica-nota">Línea punteada: promedio nacional ({formatearValor(modelo.variable, modelo.promedio)})</p>
+      )}
       {nota && <p className="chat-grafica-nota">{nota}</p>}
     </figure>
   );

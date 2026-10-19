@@ -37,7 +37,7 @@ const agrupadas = () => ({
 });
 const gauge = () => ({
   especificacion: spec("gauge", ["cobertura_acueducto"]),
-  datos: { zonas: ZONAS, puntos: [pt("cobertura_acueducto", "68001", 2024, 97.2)], referencia: { cobertura_acueducto: { nacional: 86.4 } } },
+  datos: { zonas: ZONAS, puntos: [pt("cobertura_acueducto", "68001", 2024, 97.2)], universo: { cobertura_acueducto: { promedio: 86.4, minimo: 20, maximo: 100 } } },
 });
 
 // ---- modelo puro ----
@@ -121,11 +121,18 @@ test("tipo fuera del subconjunto, sin especificacion o sin variables: sin grafic
   assert.equal(prepararGrafica({ especificacion: { tipo: "lineas", variables: [] }, datos: {} }).ok, false);
 });
 
-test("titulo: el de la especificacion, o el nombre de la variable", () => {
+test("titulo: siempre derivado de las variables (el modelo no emite titulo)", () => {
   assert.equal(prepararGrafica(lineasReal()).titulo, "Cobertura de acueducto");
   const g = lineasReal();
-  g.especificacion.titulo = "  Evolución en Bucaramanga ";
-  assert.equal(prepararGrafica(g).titulo, "Evolución en Bucaramanga");
+  g.especificacion.titulo = "Evolución inventada";
+  assert.equal(prepararGrafica(g).titulo, "Cobertura de acueducto");
+});
+
+test("barras_ranking: universo aporta el promedio nacional; sin universo no hay linea", () => {
+  const g = ranking();
+  assert.equal(prepararGrafica(g).promedio, null);
+  g.datos.universo = { deficit_habitacional_cuantitativo: { promedio: 7.3 } };
+  assert.equal(prepararGrafica(g).promedio, 7.3);
 });
 
 // ---- componente ----
@@ -181,10 +188,18 @@ test("componente: datos vacios, tipo no soportado o sin grafica => nada (el text
   assert.equal(html(null), "");
 });
 
-test("componente: el titulo con HTML se escapa", () => {
+test("componente: texto con HTML (nombre de zona o titulo) se escapa", () => {
   const g = lineasReal();
   g.especificacion.titulo = "<img src=x onerror=alert(1)>";
+  g.datos.zonas["68001"] = "<b>Bucaramanga</b>";
   const out = html(g);
   assert.ok(!out.includes("<img"));
-  assert.ok(out.includes("&lt;img"));
+  assert.ok(!out.includes("<b>"));
+});
+
+test("componente: ranking con universo dibuja la linea de promedio nacional", () => {
+  const g = ranking();
+  g.datos.universo = { deficit_habitacional_cuantitativo: { promedio: 7.3 } };
+  assert.ok(html(g).includes("promedio nacional (7,3 %)"));
+  assert.ok(!html(ranking()).includes("promedio nacional"));
 });
