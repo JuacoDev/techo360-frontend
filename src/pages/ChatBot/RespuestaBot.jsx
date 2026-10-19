@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import Markdown from "react-markdown";
 import { formatearRespuestaBot } from "../../services/formatoRespuesta.js";
 
@@ -12,13 +12,21 @@ const COMPONENTES = {
 
 const SIN_IMAGENES = ["img"];
 
-function RespuestaBot({ texto }) {
+// La grafica (7.6) se carga aparte: Recharts solo se descarga si algun mensaje trae grafica.
+const GraficaChat = lazy(() => import("./GraficaChat.jsx"));
+
+function RespuestaBot({ texto, grafica = null }) {
   const markdown = useMemo(() => formatearRespuestaBot(texto), [texto]);
   return (
     <div className="chat-md">
       <Markdown skipHtml disallowedElements={SIN_IMAGENES} components={COMPONENTES}>
         {markdown}
       </Markdown>
+      {grafica?.especificacion && (
+        <Suspense fallback={null}>
+          <GraficaChat grafica={grafica} />
+        </Suspense>
+      )}
     </div>
   );
 }

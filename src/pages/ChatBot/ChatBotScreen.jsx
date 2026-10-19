@@ -521,7 +521,7 @@ function ChatConversationView({
                 mensaje.contenido
               ) : (
                 <Suspense fallback={<div className="chat-md">{mensaje.contenido}</div>}>
-                  <RespuestaBot texto={mensaje.contenido} />
+                  <RespuestaBot texto={mensaje.contenido} grafica={mensaje.grafica} />
                 </Suspense>
               )}
             </div>
