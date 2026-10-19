@@ -24,6 +24,7 @@ import {
   hayEnProceso,
   quitarMensaje,
 } from "../../services/estadosMensaje.js";
+import { avisoChatNuevo } from "../../services/esperaChat.js";
 import { avisoConversacionNoDisponible } from "../../services/mensajesError.js";
 import { AvisoError, IndicadorEspera, MensajeEstado, Presencia } from "./EstadosChat.jsx";
 import { useScrollDelChat } from "./useScrollDelChat.js";
@@ -328,6 +329,7 @@ function ChatConversationView({
   // pocos segundos hasta que cambie de estado (el servidor lo pasa a error a los
   // 4 min si nadie responde).
   const hayAlgoEnProceso = hayEnProceso(messages);
+  const avisoNuevoChat = avisoChatNuevo({ respondiendo: sending || hayAlgoEnProceso, mensajes: messages });
   useEffect(() => {
     if (conversacionId == null || sending || accionEnCurso || !hayAlgoEnProceso) return undefined;
     let activo = true;
@@ -577,6 +579,11 @@ function ChatConversationView({
             etiquetaCancelar="Cancelar el mensaje que se está enviando"
           />
         </Presencia>
+        {avisoNuevoChat && (
+          <p className="chat-aviso-nuevo" role="note">
+            {avisoNuevoChat}
+          </p>
+        )}
       </div>
       <Presencia visible={lejosDelFondo} className="chat-ir-final-presencia">
         <button type="button" className="chat-ir-final" onClick={irAlFinal} aria-label={hayNuevo ? "Ir al final: hay un mensaje nuevo" : "Ir al final de la conversación"}>

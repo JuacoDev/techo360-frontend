@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { faseEspera, formatearTranscurrido, segundosDesde } from "./esperaChat.js";
+import { AVISO_CHAT_NUEVO, avisoChatNuevo, faseEspera, formatearTranscurrido, segundosDesde } from "./esperaChat.js";
 
 test("segundosDesde: enteros, nunca negativos y robusto a entradas invalidas", () => {
   assert.equal(segundosDesde(1000, 4999), 3);
@@ -31,4 +31,18 @@ test("faseEspera: leyendo -> redactando -> cola -> larga", () => {
     const f = faseEspera(s);
     assert.ok(f.titulo.length > 0 && f.pista.length > 0);
   }
+});
+
+test("avisoChatNuevo: solo mientras responde y con al menos un intercambio previo", () => {
+  const u = { rol: "usuario", contenido: "hola" };
+  const b = { rol: "bot", contenido: "hola, ¿en qué te ayudo?" };
+  assert.equal(AVISO_CHAT_NUEVO, "Para respuestas más rápidas, abre un chat nuevo con frecuencia.");
+  assert.equal(avisoChatNuevo({ respondiendo: true, mensajes: [u, b] }), AVISO_CHAT_NUEVO);
+  assert.equal(avisoChatNuevo({ respondiendo: true, mensajes: [u, b, u, b] }), AVISO_CHAT_NUEVO);
+  // primer mensaje de la conversacion: sin intercambio previo
+  assert.equal(avisoChatNuevo({ respondiendo: true, mensajes: [] }), null);
+  assert.equal(avisoChatNuevo({ respondiendo: true, mensajes: [u] }), null);
+  assert.equal(avisoChatNuevo({ respondiendo: true, mensajes: null }), null);
+  // sin espera en curso no se muestra
+  assert.equal(avisoChatNuevo({ respondiendo: false, mensajes: [u, b] }), null);
 });
