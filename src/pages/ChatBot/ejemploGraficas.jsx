@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/poppins/400.css";
 import "../../Css/StyleHome.css";
 import RespuestaBot from "./RespuestaBot.jsx";
+import payloadsBackend from "./fixtures/payloads_backend.json";
 
 const NOMBRES = {
   "68001": "Bucaramanga (Santander)",
@@ -23,6 +24,11 @@ const anios = [2019, 2020, 2021, 2022, 2023, 2024];
 const serie = (zona, base, paso) => anios.map((a, i) => dato(A, zona, a, +(base + paso * i).toFixed(1)));
 
 const EJEMPLOS = [
+  ...Object.entries(payloadsBackend).map(([tipo, grafica]) => ({
+    titulo: `Payload generado por el backend real: ${tipo}`,
+    texto: "Respuesta de ejemplo con el payload que produce construir_payload del backend.",
+    grafica,
+  })),
   {
     titulo: "Líneas, datos reales",
     texto: "En Bucaramanga, la cobertura de acueducto pasó de 90,1 % en 2019 a 95,1 % en 2024. La gráfica se muestra debajo.",

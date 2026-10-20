@@ -214,7 +214,7 @@ test("todas las combinaciones tipo x modo del catalogo: las 4 dibujables se dibu
   for (const c of todas) {
     const out = html(payloadDe(c));
     if (TIPOS_DIBUJABLES.includes(c.tipo)) {
-      assert.match(out, /<svg/, `${c.tipo}/${c.modo}`);
+      assert.match(out, /recharts-wrapper/, `${c.tipo}/${c.modo}`); // recharts 3 no emite <svg> en SSR: el SVG se verifica en navegador
       assert.ok(out.includes(`data-tipo="${c.tipo}"`), `${c.tipo}/${c.modo}`);
       dibujadas++;
     } else {
@@ -239,18 +239,19 @@ test("los bloques que emite el modelo (fase7-1 §3) se dibujan con el payload de
   ];
   for (const g of casos) {
     const out = html(g);
-    assert.match(out, /<svg/, `${g.tipo}/${g.modo}`);
+    assert.match(out, /recharts-wrapper/, `${g.tipo}/${g.modo}`);
     assert.ok(!out.includes("Proyección"), "todo real: sin marca de proyeccion");
   }
   // la leyenda usa el nombre completo "Municipio (Departamento)"
-  assert.ok(html(casos[1]).includes("Medellín (Antioquia)"));
+  assert.ok(prepararGrafica(casos[1]).series.some((s) => s.nombre === "Medellín (Antioquia)")); // la leyenda se pinta solo en navegador
 });
 
 test("componente: proyeccion muestra badge, nota con fiabilidad y linea punteada", () => {
   const out = html(lineasProy());
   assert.ok(out.includes("chat-grafica-badge"));
   assert.ok(out.includes("Proyección desde 2025 · fiabilidad 62–80 %"));
-  assert.match(out, /stroke-dasharray="5 4"/);
+  // la linea punteada (dasharray 5 4) la dibuja Recharts solo en navegador; el modelo marca la serie como proyeccion
+  assert.equal(prepararGrafica(lineasProy()).series.filter((x) => x.proyeccion).length, 1);
 });
 
 test("componente: gauge y ranking muestran el promedio nacional con su periodo", () => {

@@ -1,0 +1,268 @@
+{
+ "lineas": {
+  "v": 1,
+  "tipo": "lineas",
+  "modo": "individual",
+  "variables": [
+   "cobertura_acueducto"
+  ],
+  "zonas": [
+   "68001"
+  ],
+  "anios": [
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025,
+   2026,
+   2027,
+   2028
+  ],
+  "datos": [
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2018,
+    "valor": 80.3,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2019,
+    "valor": 80.65,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2020,
+    "valor": 81.0,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2021,
+    "valor": 81.35,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2022,
+    "valor": 81.7,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2023,
+    "valor": 82.05,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2024,
+    "valor": 82.4,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2025,
+    "valor": 82.75,
+    "origen": "proyeccion",
+    "fiabilidad": 90
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2026,
+    "valor": 83.1,
+    "origen": "proyeccion",
+    "fiabilidad": 80
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2027,
+    "valor": 83.45,
+    "origen": "proyeccion",
+    "fiabilidad": 70
+   },
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2028,
+    "valor": 83.8,
+    "origen": "proyeccion",
+    "fiabilidad": 60
+   }
+  ],
+  "universo": null
+ },
+ "barras_ranking": {
+  "v": 1,
+  "tipo": "barras_ranking",
+  "modo": "comparar",
+  "variables": [
+   "deficit_habitacional_cuantitativo"
+  ],
+  "zonas": [
+   "68001",
+   "05001",
+   "76001"
+  ],
+  "anios": [
+   2024
+  ],
+  "datos": [
+   {
+    "variable": "deficit_habitacional_cuantitativo",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2024,
+    "valor": 8.6,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "deficit_habitacional_cuantitativo",
+    "zona": "05001",
+    "nombre": "Medellín (Antioquia)",
+    "anio": 2024,
+    "valor": 11.2,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "deficit_habitacional_cuantitativo",
+    "zona": "76001",
+    "nombre": "Santiago De Cali (Valle Del Cauca)",
+    "anio": 2024,
+    "valor": 10.1,
+    "origen": "real",
+    "fiabilidad": null
+   }
+  ],
+  "universo": {
+   "periodo": [
+    2024,
+    2024
+   ],
+   "estadisticos": {
+    "deficit_habitacional_cuantitativo": {
+     "media": 70.2,
+     "min": 4.0,
+     "q1": 58.1,
+     "mediana": 72.4,
+     "q3": 85.0,
+     "max": 99.9,
+     "n": 1100
+    }
+   }
+  }
+ },
+ "barras_agrupadas": {
+  "v": 1,
+  "tipo": "barras_agrupadas",
+  "modo": "individual",
+  "variables": [
+   "cobertura_acueducto",
+   "cobertura_alcantarillado"
+  ],
+  "zonas": [
+   "68001"
+  ],
+  "anios": [
+   2024
+  ],
+  "datos": [
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2024,
+    "valor": 82.4,
+    "origen": "real",
+    "fiabilidad": null
+   },
+   {
+    "variable": "cobertura_alcantarillado",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2024,
+    "valor": 80.2,
+    "origen": "real",
+    "fiabilidad": null
+   }
+  ],
+  "universo": null
+ },
+ "gauge": {
+  "v": 1,
+  "tipo": "gauge",
+  "modo": "individual",
+  "variables": [
+   "cobertura_acueducto"
+  ],
+  "zonas": [
+   "68001"
+  ],
+  "anios": [
+   2024
+  ],
+  "datos": [
+   {
+    "variable": "cobertura_acueducto",
+    "zona": "68001",
+    "nombre": "Bucaramanga (Santander)",
+    "anio": 2024,
+    "valor": 82.4,
+    "origen": "real",
+    "fiabilidad": null
+   }
+  ],
+  "universo": {
+   "periodo": [
+    2024,
+    2024
+   ],
+   "estadisticos": {
+    "cobertura_acueducto": {
+     "media": 70.2,
+     "min": 4.0,
+     "q1": 58.1,
+     "mediana": 72.4,
+     "q3": 85.0,
+     "max": 99.9,
+     "n": 1100
+    }
+   }
+  }
+ }
+}
