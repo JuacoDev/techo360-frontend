@@ -660,3 +660,12 @@ Home (pantalla inicial publica)
   .chat-aviso-error { margin-right: 12px; margin-left: 12px; }
   .chat-estado { margin-right: 12px; margin-left: 12px; }
 }
+
+/* Grafica dentro de la respuesta del bot (7.6) */
+.chat-grafica { margin: 0.8em 0 0; padding: 0.6em 0.4em 0.4em; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 8px; }
+.chat-grafica-titulo { font-size: 0.85em; font-weight: 600; margin: 0 0.4em 0.4em; display: flex; gap: 0.5em; align-items: center; flex-wrap: wrap; }
+.chat-grafica-badge { font-size: 0.75em; font-weight: 600; padding: 0.1em 0.5em; border-radius: 999px; border: 1px dashed currentColor; }
+.chat-grafica-nota { font-size: 0.75em; margin: 0.4em 0.4em 0; opacity: 0.8; }
+.chat-grafica-gauge-valor { text-align: center; margin: 0.3em 0 0; font-size: 0.85em; }
+
+.chat-aviso-nuevo { align-self: flex-start; margin: 8px 0 0; color: #66615a; font-size: 13px; line-height: 1.45; text-align: left; }
