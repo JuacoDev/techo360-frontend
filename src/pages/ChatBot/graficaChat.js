@@ -1,34 +1,34 @@
 // Modelo de datos de la grafica del chat (paso 7.6). Funcion pura, sin React ni imports de Vite, para probarla con
 // `node --test` (ver graficaChat.test.js). GraficaChat.jsx solo dibuja lo que aqui se prepara.
 //
-// Contrato (PROPUESTO, claude/fase2-3-contrato-grafica.md §5; el definitivo lo fija claude/fase7-6-payload.md):
-//   grafica = {
-//     especificacion: { v: 1, tipo, modo, variables[], zonas[], anios[] },   // ya validada; el modelo no emite titulo (fase7-1 §3)
-//     datos: {
-//       zonas: { "68001": "Bucaramanga", ... },                                        // nombres para mostrar
-//       puntos: [{ variable, zona, anio, valor, es_real, origen, fiabilidad }, ...],  // filas ya resueltas
-//       universo: { <variable>: { promedio, minimo, maximo } },                       // solo gauge y ranking (fase7-1 §2.5)
-//     },
-//   }
-// El frontend NO consulta nada ni calcula cifras: dibuja `puntos`. Real/proyeccion sale de esProyeccionZona (misma
-// regla unica del resto del frontend); la fiabilidad solo se muestra en lo proyectado.
-import { buscarVariable, esProyeccionZona, formatearNumero } from "../Proyeccion/variablesProyeccion.js";
+// Payload REAL del backend (claude/fase7-6-payload.md, `MensajeResponse.grafica`, solo en el mensaje del asistente):
+//   { v: 1, tipo, modo, variables[], zonas[], anios[], titulo?,
+//     datos: [{ variable, zona, nombre: "Municipio (Departamento)", anio, valor, origen: "real"|"proyeccion", fiabilidad: null|0-100 }],
+//     universo: null | { periodo: [desde, hasta], estadisticos: { <variable>: { media, min, q1, mediana, q3, max, n } } } }
+// La especificacion ya viene validada; el frontend NO consulta nada ni calcula cifras: dibuja `datos`. Todo lo que no
+// sea origen "real" es proyeccion (misma regla que Reportes); la fiabilidad solo se muestra en lo proyectado.
+// Cualquier payload que no se pueda dibujar (v desconocida, tipo fuera de los 4 dibujables, forma rota, sin datos)
+// devuelve { ok: false }: el chat muestra solo el texto y nunca falla por la grafica.
+import { buscarVariable, formatearNumero } from "../Proyeccion/variablesProyeccion.js";
 
+export const VERSION_PAYLOAD = 1;
 export const TIPOS_DIBUJABLES = ["lineas", "barras_ranking", "barras_agrupadas", "gauge"];
 
-const esNumero = (v) => v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v));
+const esNumero = (v) => v !== null && v !== undefined && v !== "" && typeof v !== "boolean" && Number.isFinite(Number(v));
+const esObjeto = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const texto = (v) => (typeof v === "string" ? v : v == null ? "" : String(v));
 
 function puntosValidos(grafica) {
-  const bruto = grafica?.datos?.puntos;
-  if (!Array.isArray(bruto)) return [];
-  return bruto
-    .filter((p) => p && esNumero(p.valor) && esNumero(p.anio) && p.zona != null && p.variable)
+  if (!Array.isArray(grafica.datos)) return [];
+  return grafica.datos
+    .filter((p) => esObjeto(p) && esNumero(p.valor) && esNumero(p.anio) && p.zona != null && p.variable)
     .map((p) => ({
-      variable: String(p.variable),
-      zona: String(p.zona),
+      variable: texto(p.variable),
+      zona: texto(p.zona),
+      nombre: texto(p.nombre),
       anio: Number(p.anio),
       valor: Number(p.valor),
-      proyeccion: esProyeccionZona(p),
+      proyeccion: p.origen !== "real",
       fiabilidad: esNumero(p.fiabilidad) ? Number(p.fiabilidad) : null,
     }));
 }
@@ -48,21 +48,28 @@ function resumenProyeccion(puntos) {
 // Texto de la nota de proyeccion; null si todo es dato real.
 export function notaProyeccion(proy) {
   if (!proy?.hay) return null;
-  let texto = `Proyección desde ${proy.desde}`;
+  let nota = `Proyección desde ${proy.desde}`;
   if (proy.fiabilidadMin !== null) {
     const a = formatearNumero(proy.fiabilidadMin, 0);
     const b = formatearNumero(proy.fiabilidadMax, 0);
-    texto += a === b ? ` · fiabilidad ${a} %` : ` · fiabilidad ${a}–${b} %`;
+    nota += a === b ? ` · fiabilidad ${a} %` : ` · fiabilidad ${a}–${b} %`;
   }
-  return texto;
+  return nota;
 }
 
-const universoDe = (grafica, variable) => {
-  const u = grafica?.datos?.universo?.[variable];
-  return u && typeof u === "object" ? u : null;
-};
+// Estadisticos nacionales de una variable ({ media, ... }) y su periodo; null si no vienen o estan rotos.
+function universoDe(grafica, variable) {
+  const u = grafica.universo;
+  const est = esObjeto(u) && esObjeto(u.estadisticos) ? u.estadisticos[variable] : null;
+  if (!esObjeto(est) || !esNumero(est.media)) return null;
+  const periodo = Array.isArray(u.periodo) && u.periodo.length === 2 && u.periodo.every(esNumero) ? u.periodo.map(Number) : null;
+  return { media: Number(est.media), periodo };
+}
 
-const nombreZona = (grafica, codigo) => grafica?.datos?.zonas?.[codigo] ?? codigo;
+export function etiquetaPeriodo(periodo) {
+  if (!periodo) return "";
+  return periodo[0] === periodo[1] ? ` (${periodo[0]})` : ` (${periodo[0]}–${periodo[1]})`;
+}
 
 // Punto mas reciente de cada (variable, zona).
 function ultimoPorSerie(puntos) {
@@ -75,7 +82,14 @@ function ultimoPorSerie(puntos) {
   return [...mapa.values()];
 }
 
-function lineas(grafica, puntos, variable) {
+// Nombre para mostrar de una zona: el `nombre` que manda el backend ("Municipio (Departamento)"), o el codigo.
+function nombresDeZona(puntos) {
+  const nombres = new Map();
+  for (const p of puntos) if (p.nombre && !nombres.has(p.zona)) nombres.set(p.zona, p.nombre);
+  return (zona) => nombres.get(zona) ?? zona;
+}
+
+function lineas(puntos, variable, nombreZona) {
   const porZona = new Map();
   for (const p of puntos.filter((x) => x.variable === variable)) {
     if (!porZona.has(p.zona)) porZona.set(p.zona, new Map());
@@ -91,7 +105,7 @@ function lineas(grafica, puntos, variable) {
   const filas = anios.map((anio) => ({ anio }));
   for (const z of zonas) {
     const m = porZona.get(z);
-    const nombre = nombreZona(grafica, z);
+    const nombre = nombreZona(z);
     const ordenados = [...m.values()].sort((a, b) => a.anio - b.anio);
     const hayReal = ordenados.some((p) => !p.proyeccion);
     const hayProy = ordenados.some((p) => p.proyeccion);
@@ -112,22 +126,21 @@ function lineas(grafica, puntos, variable) {
   return { ok: true, filas, series, puntos: zonas.flatMap((z) => [...porZona.get(z).values()]) };
 }
 
-function ranking(grafica, puntos, variable) {
+function ranking(grafica, puntos, variable, nombreZona) {
   const ultimos = ultimoPorSerie(puntos.filter((p) => p.variable === variable));
   if (ultimos.length === 0) return { ok: false, motivo: "Sin datos para ordenar." };
   const filas = ultimos
-    .map((p) => ({ clave: p.zona, nombre: nombreZona(grafica, p.zona), valor: p.valor, anio: p.anio, proyeccion: p.proyeccion }))
+    .map((p) => ({ clave: p.zona, nombre: nombreZona(p.zona), valor: p.valor, anio: p.anio, proyeccion: p.proyeccion }))
     .sort((a, b) => b.valor - a.valor);
-  const ref = universoDe(grafica, variable)?.promedio;
-  return { ok: true, filas, promedio: esNumero(ref) ? Number(ref) : null, puntos: ultimos };
+  return { ok: true, filas, universo: universoDe(grafica, variable), puntos: ultimos };
 }
 
-function agrupadas(grafica, puntos, variables) {
+function agrupadas(puntos, variables, nombreZona) {
   const ultimos = ultimoPorSerie(puntos.filter((p) => variables.includes(p.variable)));
   if (ultimos.length === 0) return { ok: false, motivo: "Sin datos para agrupar." };
   const zonas = [...new Set(ultimos.map((p) => p.zona))];
   const filas = zonas.map((z) => {
-    const fila = { clave: z, nombre: nombreZona(grafica, z), proyeccion: {} };
+    const fila = { clave: z, nombre: nombreZona(z), proyeccion: {} };
     for (const p of ultimos.filter((x) => x.zona === z)) {
       fila[p.variable] = p.valor;
       fila.proyeccion[p.variable] = p.proyeccion;
@@ -138,23 +151,23 @@ function agrupadas(grafica, puntos, variables) {
   return { ok: true, filas, series, puntos: ultimos };
 }
 
-function medidor(grafica, puntos, variable) {
+function medidor(grafica, puntos, variable, nombreZona) {
   const [punto] = ultimoPorSerie(puntos.filter((p) => p.variable === variable)).sort((a, b) => b.anio - a.anio);
   if (!punto) return { ok: false, motivo: "Sin dato para el medidor." };
   const cfg = buscarVariable(variable);
-  // Escala: el score va de 0 a 1; el resto de variables permitidas (coberturas, deficits) son porcentajes.
+  // Escala: el score va de 0 a 1; el resto de variables permitidas (coberturas, deficits) son porcentajes. Se muestra
+  // el valor del municipio contra la escala; no se recalcula (fase7-6-payload §3, nota del score).
   const maximo = cfg.unidad === "%" ? 100 : 1;
-  const ref = universoDe(grafica, variable)?.promedio;
   return {
     ok: true,
     medidor: {
       valor: punto.valor,
       maximo,
       anio: punto.anio,
-      zona: nombreZona(grafica, punto.zona),
+      zona: nombreZona(punto.zona),
       proyeccion: punto.proyeccion,
       fraccion: Math.min(1, Math.max(0, punto.valor / maximo)),
-      nacional: esNumero(ref) ? Number(ref) : null,
+      universo: universoDe(grafica, variable),
     },
     puntos: [punto],
   };
@@ -162,27 +175,33 @@ function medidor(grafica, puntos, variable) {
 
 // Devuelve { ok:false, motivo } cuando no hay nada que dibujar (el texto se muestra igual) o el modelo listo.
 export function prepararGrafica(grafica) {
-  const spec = grafica?.especificacion;
-  if (!spec || typeof spec !== "object") return { ok: false, motivo: "Sin especificación." };
-  if (!TIPOS_DIBUJABLES.includes(spec.tipo)) return { ok: false, motivo: `Tipo no admitido en el chat: ${spec.tipo}.` };
-  const variables = Array.isArray(spec.variables) ? spec.variables : [];
+  if (!esObjeto(grafica)) return { ok: false, motivo: "Sin gráfica." };
+  if (grafica.v !== VERSION_PAYLOAD) return { ok: false, motivo: "Versión de payload desconocida." };
+  if (!TIPOS_DIBUJABLES.includes(grafica.tipo)) return { ok: false, motivo: `Tipo no dibujable en el chat: ${texto(grafica.tipo)}.` };
+  const variables = Array.isArray(grafica.variables) ? grafica.variables.filter((v) => typeof v === "string") : [];
   if (variables.length === 0) return { ok: false, motivo: "Sin variables." };
   const puntos = puntosValidos(grafica);
   if (puntos.length === 0) return { ok: false, motivo: "Sin datos." };
+  const nombreZona = nombresDeZona(puntos);
 
   let r;
-  if (spec.tipo === "lineas") r = lineas(grafica, puntos, variables[0]);
-  else if (spec.tipo === "barras_ranking") r = ranking(grafica, puntos, variables[0]);
-  else if (spec.tipo === "barras_agrupadas") r = agrupadas(grafica, puntos, variables);
-  else r = medidor(grafica, puntos, variables[0]);
+  if (grafica.tipo === "lineas") r = lineas(puntos, variables[0], nombreZona);
+  else if (grafica.tipo === "barras_ranking") r = ranking(grafica, puntos, variables[0], nombreZona);
+  else if (grafica.tipo === "barras_agrupadas") r = agrupadas(puntos, variables, nombreZona);
+  else r = medidor(grafica, puntos, variables[0], nombreZona);
   if (!r.ok) return r;
 
   const cfg = buscarVariable(variables[0]);
-  // El titulo siempre se deriva de las variables: el modelo no emite `titulo`.
-  const titulo = variables.length === 1 ? cfg.nombre : variables.map((v) => buscarVariable(v).nombre).join(" y ");
+  // `titulo` solo si el modelo lo emitio (texto plano <= 80); si no, se deriva de las variables.
+  const titulo =
+    typeof grafica.titulo === "string" && grafica.titulo.trim()
+      ? grafica.titulo.trim().slice(0, 80)
+      : variables.length === 1
+        ? cfg.nombre
+        : variables.map((v) => buscarVariable(v).nombre).join(" y ");
   return {
     ok: true,
-    tipo: spec.tipo,
+    tipo: grafica.tipo,
     titulo,
     variable: variables[0],
     unidad: cfg.unidad,
@@ -190,7 +209,7 @@ export function prepararGrafica(grafica) {
     filas: r.filas ?? [],
     series: r.series ?? [],
     medidor: r.medidor ?? null,
-    promedio: r.promedio ?? null,
+    universo: r.universo ?? null,
     proyeccion: resumenProyeccion(r.puntos),
   };
 }
