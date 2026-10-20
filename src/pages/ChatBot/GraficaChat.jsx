@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatearNumero, formatearValor } from "../Proyeccion/variablesProyeccion.js";
-import { notaProyeccion, prepararGrafica } from "./graficaChat.js";
+import { etiquetaPeriodo, notaProyeccion, prepararGrafica } from "./graficaChat.js";
 
 // Grafica dentro de la respuesta del bot (paso 7.6). Recibe la especificacion ya validada por el backend mas los
 // datos ya resueltos (ver graficaChat.js) y la dibuja con Recharts. No consulta ni calcula cifras. Si no hay nada que
@@ -55,9 +55,9 @@ function Ranking({ m }) {
       <BarChart data={datos} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" horizontal={false} />
         <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={formatoEje(m)} />
-        <YAxis type="category" dataKey="etiqueta" tick={{ fontSize: 11 }} width={130} />
+        <YAxis type="category" dataKey="etiqueta" tick={{ fontSize: 11 }} width={170} />
         <Tooltip formatter={(v) => formatearValor(m.variable, v)} />
-        {m.promedio !== null && <ReferenceLine x={m.promedio} stroke="#888" strokeDasharray="3 3" />}
+        {m.universo && <ReferenceLine x={m.universo.media} stroke="#888" strokeDasharray="3 3" />}
         <Bar dataKey="valor" name={m.titulo} isAnimationActive={false}>
           {datos.map((f) => (
             <Cell key={f.clave} fill={COLORES[0]} fillOpacity={f.proyeccion ? 0.45 : 1} stroke={f.proyeccion ? COLORES[0] : undefined} strokeDasharray={f.proyeccion ? "4 3" : undefined} />
@@ -107,7 +107,7 @@ function Medidor({ m }) {
       </ResponsiveContainer>
       <p className="chat-grafica-gauge-valor">
         <strong>{formatearValor(m.variable, g.valor)}</strong> · {g.zona}, {g.anio}
-        {g.nacional !== null && <> · promedio nacional {formatearValor(m.variable, g.nacional)}</>}
+        {g.universo && <> · promedio nacional{etiquetaPeriodo(g.universo.periodo)} {formatearValor(m.variable, g.universo.media)}</>}
       </p>
     </div>
   );
@@ -127,8 +127,10 @@ function GraficaChat({ grafica }) {
         {modelo.proyeccion.hay && <span className="chat-grafica-badge">Proyección</span>}
       </figcaption>
       <Dibujo m={modelo} />
-      {modelo.tipo === "barras_ranking" && modelo.promedio !== null && (
-        <p className="chat-grafica-nota">Línea punteada: promedio nacional ({formatearValor(modelo.variable, modelo.promedio)})</p>
+      {modelo.tipo === "barras_ranking" && modelo.universo && (
+        <p className="chat-grafica-nota">
+          Línea punteada: promedio nacional{etiquetaPeriodo(modelo.universo.periodo)} {formatearValor(modelo.variable, modelo.universo.media)}
+        </p>
       )}
       {nota && <p className="chat-grafica-nota">{nota}</p>}
     </figure>

@@ -31,3 +31,14 @@ export function faseEspera(segundos) {
   return {
   fase: "larga", titulo: "La respuesta está tardando más de lo habitual", pista: "Algunas consultas pueden tardar hasta 200 segundos. Puedes seguir esperando o cancelar y reintentar."};
 }
+
+// Aviso fijo mientras el bot responde (adenda 7.1b §3): una conversacion larga alarga el prompt y la respuesta en CPU.
+// Solo aparece si se esta esperando una respuesta (envio en curso o mensaje 'procesando') y la conversacion ya tiene
+// al menos un intercambio previo, es decir, algun mensaje del bot. Devuelve el texto o null.
+export const AVISO_CHAT_NUEVO = "Para respuestas más rápidas, abre un chat nuevo con frecuencia.";
+
+export function avisoChatNuevo({ respondiendo, mensajes }) {
+  if (!respondiendo) return null;
+  const hayRespuestaPrevia = (mensajes ?? []).some((m) => m && m.rol && m.rol !== "usuario");
+  return hayRespuestaPrevia ? AVISO_CHAT_NUEVO : null;
+}
